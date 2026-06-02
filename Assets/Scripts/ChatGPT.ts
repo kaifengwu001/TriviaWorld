@@ -63,7 +63,7 @@ export class ChatGPT extends BaseScriptComponent {
           ]
         }
       ],
-      max_tokens: 80
+      max_tokens: 110
     })
       .then((response) => {
         if (response.choices && response.choices.length > 0) {
@@ -93,22 +93,31 @@ export class ChatGPT extends BaseScriptComponent {
         : `The user enjoys surprising, little-known facts.`
     const pickLine =
       interests.length > 0
-        ? `Pick the ONE interest from that list that yields the most surprising connection.`
-        : `Choose any angle that yields the most surprising connection.`
+        ? [
+            `Choose ONE interest from that list, but DO NOT default to the interest most`,
+            `obviously or directly associated with the subject (e.g. avoid Botany for a plant,`,
+            `Aviation for a plane). Favor a less obvious interest that produces a lateral,`,
+            `unexpected connection. The more surprising the pairing, the better.`
+          ].join(" ")
+        : `Choose a lateral, non-obvious angle that produces the most surprising connection.`
 
     return [
       `First, silently identify the main subject in the image.`,
       interestLine,
       pickLine,
-      `Then write a single piece of unexpected, true, little-known trivia that connects the subject to that interest.`,
+      `Then write a single piece of unexpected, true, little-known trivia that connects the subject to the chosen interest.`,
       ``,
       `Rules:`,
-      `- Output ONLY the trivia text. No title, no preamble, no quotation marks, no emoji, no markdown.`,
-      `- Around 30 words; never exceed 40 words. One or two sentences.`,
       `- Be specific and factually accurate. Do not invent facts; if unsure, choose a fact you are confident about.`,
+      `- The trivia is around 30 words; never exceed 40 words. One or two sentences.`,
+      `- After the trivia, add a final line with 3-4 hashtags, space-separated, no other text:`,
+      `  the chosen interest, the recognized subject, and 1-2 other relevant tags (e.g. #Renaissance).`,
+      `  Use CamelCase with no spaces inside a hashtag (e.g. #ArtHistory).`,
+      `- Output ONLY the trivia text then the hashtag line. No title, no preamble, no quotation marks, no emoji, no markdown.`,
       ``,
       `Example of the desired tone and format (do not reuse this content):`,
-      `The Vatican used plaster fig leaves to cover the genitals of male statues during a 19th-century modesty campaign.`
+      `The Vatican used plaster fig leaves to cover the genitals of male statues during a 19th-century modesty campaign.`,
+      `#ArtHistory #FigPlant #Renaissance #Censorship`
     ].join("\n")
   }
 

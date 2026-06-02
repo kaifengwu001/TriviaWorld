@@ -14,6 +14,5 @@ Workspaces/**
 /tsconfig.json
 .DS_Store
 *.lock
-*.supabaseProject*
 
 # Shipped by Lens Studio
