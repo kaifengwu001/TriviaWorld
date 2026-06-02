@@ -24,6 +24,11 @@ export class ChatGPT extends BaseScriptComponent {
   private ImageQuality = CompressionQuality.HighQuality
   private ImageEncoding = EncodingType.Jpg
 
+  // Interests chosen in recent captures (most-recent first). Used to nudge the
+  // model away from fixating on a single topic across consecutive captures.
+  private recentTopics: string[] = []
+  private readonly maxRecentTopics = 2
+
   onAwake() {
     this.logger = new Logger("ChatGPT", this.enableLogging || this.enableLoggingLifecycle, true);
     if (this.enableLoggingLifecycle) this.logger.debug("LIFECYCLE: onAwake()");
@@ -69,6 +74,7 @@ export class ChatGPT extends BaseScriptComponent {
         if (response.choices && response.choices.length > 0) {
           const safeText = this.sanitize(response.choices[0].message.content)
           this.logger.info("Response from OpenAI: " + safeText)
+          this.rememberChosenTopic(safeText)
           callback(safeText)
         }
       })
@@ -87,38 +93,89 @@ export class ChatGPT extends BaseScriptComponent {
     const interests: string[] =
       store && typeof store.getInterests === "function" ? store.getInterests() : []
 
+    // Present the interests in a fresh random order each call so the model
+    // doesn't anchor on whichever topic happens to be listed first.
+    const shuffled = this.shuffle(interests)
+
     const interestLine =
-      interests.length > 0
-        ? `The user is interested in: ${interests.join(", ")}.`
+      shuffled.length > 0
+        ? `The user's interests (in no particular order): ${shuffled.join(", ")}.`
         : `The user enjoys surprising, little-known facts.`
+
+    // Only forbid recent topics when at least one untouched interest remains,
+    // otherwise we'd leave the model with nothing valid to pick.
+    const avoidable = this.recentTopics.filter((t) => shuffled.some((i) => i === t))
+    const hasAlternative = shuffled.length > avoidable.length
+    const avoidLine =
+      shuffled.length > 0 && avoidable.length > 0 && hasAlternative
+        ? `For variety, do NOT pick any of these recently used interests: ${avoidable.join(", ")}. Pick a different one this time.`
+        : ``
+
     const pickLine =
-      interests.length > 0
-        ? [
-            `Choose ONE interest from that list, but DO NOT default to the interest most`,
-            `obviously or directly associated with the subject (e.g. avoid Botany for a plant,`,
-            `Aviation for a plane). Favor a less obvious interest that produces a lateral,`,
-            `unexpected connection. The more surprising the pairing, the better.`
-          ].join(" ")
-        : `Choose a lateral, non-obvious angle that produces the most surprising connection.`
+      shuffled.length > 0
+        ? `Weigh ALL of the interests above for THIS specific subject and pick the single one that yields the most surprising yet accurate connection. Judge each subject on its own; don't gravitate to a favorite topic, and don't reflexively pick the interest most obviously tied to the subject.`
+        : `Find a lateral, non-obvious angle that yields the most surprising connection.`
 
     return [
       `First, silently identify the main subject in the image.`,
       interestLine,
       pickLine,
+      avoidLine,
       `Then write a single piece of unexpected, true, little-known trivia that connects the subject to the chosen interest.`,
       ``,
       `Rules:`,
       `- Be specific and factually accurate. Do not invent facts; if unsure, choose a fact you are confident about.`,
       `- The trivia is around 30 words; never exceed 40 words. One or two sentences.`,
       `- After the trivia, add a final line with 3-4 hashtags, space-separated, no other text:`,
-      `  the chosen interest, the recognized subject, and 1-2 other relevant tags (e.g. #Renaissance).`,
+      `  the chosen interest first, then the recognized subject, then 1-2 other relevant tags.`,
       `  Use CamelCase with no spaces inside a hashtag (e.g. #ArtHistory).`,
       `- Output ONLY the trivia text then the hashtag line. No title, no preamble, no quotation marks, no emoji, no markdown.`,
       ``,
-      `Example of the desired tone and format (do not reuse this content):`,
-      `The Vatican used plaster fig leaves to cover the genitals of male statues during a 19th-century modesty campaign.`,
-      `#ArtHistory #FigPlant #Renaissance #Censorship`
-    ].join("\n")
+      `Format template (structure only — do NOT copy its topic or content):`,
+      `<one or two sentences of trivia>`,
+      `#<ChosenInterest> #<Subject> #<RelatedTag>`
+    ]
+      .filter((line) => line !== "")
+      .join("\n")
+  }
+
+  /**
+   * Records the interest the model chose (the first hashtag, mapped back to a
+   * real interest name) so subsequent prompts can ask for something different.
+   */
+  private rememberChosenTopic(text: string) {
+    const store = (global as any).cropInterestStore
+    const interests: string[] =
+      store && typeof store.getInterests === "function" ? store.getInterests() : []
+    if (interests.length === 0) {
+      return
+    }
+    const match = text.match(/#(\w+)/)
+    if (!match) {
+      return
+    }
+    const tag = match[1].toLowerCase()
+    const chosen = interests.find((i) => i.replace(/\s+/g, "").toLowerCase() === tag)
+    if (!chosen) {
+      return
+    }
+    this.recentTopics = [chosen, ...this.recentTopics.filter((t) => t !== chosen)].slice(
+      0,
+      this.maxRecentTopics
+    )
+    this.logger.info("Recent topics: " + this.recentTopics.join(", "))
+  }
+
+  /** Returns a new array with the elements in random order (no mutation). */
+  private shuffle<T>(input: T[]): T[] {
+    const copy = input.slice()
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      const tmp = copy[i]
+      copy[i] = copy[j]
+      copy[j] = tmp
+    }
+    return copy
   }
 
   /**

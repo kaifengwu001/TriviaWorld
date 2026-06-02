@@ -222,7 +222,7 @@ export class PictureBehavior extends BaseScriptComponent {
       // The two pinch points form a diagonal of the crop rectangle, but we don't
       // know which diagonal (top-left/bottom-right vs top-right/bottom-left).
       // Instead of assuming a fixed hand-to-corner mapping, build the rectangle
-      // from a camera-aligned basis so the crop always faces the user upright.
+      // from a basis that always faces the user upright.
       const pinchA = this.leftHand.thumbTip.position
       const pinchB = this.rightHand.thumbTip.position
       const centerPos = pinchA.add(pinchB).uniformScale(0.5)
@@ -230,7 +230,15 @@ export class PictureBehavior extends BaseScriptComponent {
 
       // forward points back toward the user so the surface normal never flips.
       const forward = camPos.sub(centerPos).normalize()
-      const right = this.camTrans.up.cross(forward).normalize()
+      // Lock the horizontal axis to WORLD up (not the camera's up) so head roll
+      // never tilts the crop; the rectangle stays upright relative to the world.
+      let right = vec3.up().cross(forward)
+      if (right.length < 1e-4) {
+        // Looking straight up/down: world up is parallel to forward, so fall
+        // back to the camera's right to keep a valid (non-degenerate) basis.
+        right = this.camTrans.right
+      }
+      right = right.normalize()
       const up = forward.cross(right).normalize()
 
       // Project the diagonal onto the camera right/up axes to get the half extents.
