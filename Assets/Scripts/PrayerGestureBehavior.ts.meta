@@ -1,0 +1,83 @@
+- !<AssetImportMetadata/c560a4e0-2558-4b07-8b84-5d436342b204>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> be741c00-2573-4869-8ab8-f83e81613778
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> be741c00-2573-4869-8ab8-f83e81613778
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> 6b74c802-c1c4-4d33-b01c-113c94dac791
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/6b74c802-c1c4-4d33-b01c-113c94dac791>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 18f96287-a627-4f0c-b3a4-8230f3db65f9
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    cooldownSec: false
+    debugMode: false
+    enableLogging: false
+    enableLoggingLifecycle: false
+    fingersUpPitchDeg: false
+    holdFrames: false
+    notificationDurationSec: false
+    notificationMessage: false
+    notificationText: false
+    palmDistanceCm: false
+    palmsFacingDot: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - notificationText: !<reference.Text> 00000000-0000-0000-0000-000000000000
+      notificationMessage: Prayer detected
+      palmDistanceCm: !<float> 8.000000
+      fingersUpPitchDeg: !<float> 30.000000
+      palmsFacingDot: -0.400000
+      holdFrames: !<float> 3.000000
+      cooldownSec: !<float> 2.000000
+      notificationDurationSec: 2.500000
+      debugMode: false
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">PrayerGestureBehavior – detects the 双手合十 prayer pose</span><br/><span style=\"color: #94A3B8; font-size: 11px;\">Requires both hands tracked, palms close + facing each other + fingers pointing up. On detection it shows a Text notification (placeholder for a future animation).</span>"}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">References</span>"}'
+    - '// @input Component.Text notificationText {"hint":"Text component shown briefly when the prayer pose is detected"}'
+    - '// @input string notificationMessage = "Prayer detected" {"hint":"Message displayed in the notification text"}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Detection thresholds</span>"}'
+    - "// @input float palmDistanceCm = 8 {\"hint\":\"Max distance (cm) between the two palm centers to count as 'together'\"}"
+    - '// @input float fingersUpPitchDeg = 30 {"hint":"Min palm pitch angle (deg) for each hand; >0 means fingers point up"}'
+    - '// @input float palmsFacingDot = 0.5 {"hint":"Min dot product of the two palm normals; closer to +1 = more directly facing each other (palms-together reads ~0.7-0.8)"}'
+    - '// @input float holdFrames = 3 {"hint":"Number of consecutive frames the pose must hold before firing"}'
+    - '// @input float cooldownSec = 2 {"hint":"Seconds to wait after a detection before it can fire again"}'
+    - '// @input float notificationDurationSec = 2.5 {"hint":"Seconds the notification stays visible"}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Debug</span>"}'
+    - "// @input bool debugMode {\"hint\":\"Continuously write hand count + every threshold's status to the notification Text (keeps it always visible)\"}"
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Logging</span>"}'
+    - '// @input bool enableLogging {"hint":"Enable general logging"}'
+    - '// @input bool enableLoggingLifecycle {"hint":"Enable lifecycle logging (onAwake, onStart, onUpdate, onDestroy)"}'

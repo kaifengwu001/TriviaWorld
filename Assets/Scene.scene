@@ -13,6 +13,7 @@
     - !<own> ca317462-cdcf-48c3-bec3-957345c57d06
     - !<own> 738ad89a-82c4-4718-85b1-3b99e9f41195
     - !<own> f2e20589-8081-4fdc-828c-a22c4fa507ac
+    - !<own> 5cb6ee5b-4854-423b-bf0e-7f3486d29f7a
   layers: !<Layers/267ee9a7-aff2-4f9d-9a49-f71214747d03>
     userLayers:
       []
@@ -35,6 +36,7 @@
   Children:
     - !<own> 1ebba6b5-4e0d-484c-ab8a-26199ae8dd76
     - !<own> e05c734e-e8cb-44ec-a60c-ec7b366eebdc
+    - !<own> fe3b3472-40be-4885-a734-fe2438f2514d
   Components:
     - !<own> 00000000-0000-0065-0000-000000000065
     - !<own> b75a7331-f6c9-4be7-8927-1ffb5efb626d
@@ -3300,6 +3302,21 @@
     ring-3_end_end_end: !<reference> 81dff09b-2333-4e30-9bb1-7772d9f5bd1f
     thumb-3_end_end_end_end: !<reference> a890df31-eb50-48e1-bfa9-14ba0d1dbe9e
     pinky-3_end_end: !<reference> 017d3718-a161-48c8-bf21-86bf49f41918
+- !<SceneObject/5cb6ee5b-4854-423b-bf0e-7f3486d29f7a>
+  PrefabRemaps:
+    []
+  Name: PrayerGestureController
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> 64db9a09-4d60-463b-bd33-8154fcd4d3b3
 - !<SceneObject/5d5dc618-ccfb-4fd9-a7d8-3e4fce2f9d5c>
   PrefabRemaps:
     []
@@ -3382,7 +3399,7 @@
   Enabled: true
   Layers: 1
   LocalTransform: !<TransformEntity>
-    Position: {x: 0.000000, y: 10.500000, z: 0.608019}
+    Position: {x: 0.000000, y: 10.500000, z: 0.100000}
     Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
     Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
     HasSegmentScaleCompensation: false
@@ -3405,6 +3422,39 @@
     - !<own> c2b0f168-d291-4942-af82-d93baecebe16
   Components:
     - !<own> 94b44120-1ef6-4ce8-93d6-d75f9852815a
+- !<ScriptComponent/64db9a09-4d60-463b-bd33-8154fcd4d3b3>
+  PrefabRemaps:
+    []
+  Name: PrayerGestureBehavior
+  Enabled: true
+  ScriptAsset: !<reference> be741c00-2573-4869-8ab8-f83e81613778
+  ScriptInputsDefault:
+    notificationMessage: true
+    palmDistanceCm: true
+    fingersUpPitchDeg: true
+    holdFrames: true
+    cooldownSec: true
+    notificationDurationSec: true
+    enableLogging: true
+    enableLoggingLifecycle: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      notificationText: !<reference.Text> ba3928e4-2cc8-4e2b-80af-d269989cb1b9
+      notificationMessage: Prayer detected
+      palmDistanceCm: !<float> 8.000000
+      fingersUpPitchDeg: !<float> 30.000000
+      palmsFacingDot: 0.500000
+      holdFrames: !<float> 3.000000
+      cooldownSec: !<float> 2.000000
+      notificationDurationSec: 2.500000
+      debugMode: true
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    "":
+      {}
 - !<SceneObject/6585b7e7-08fc-42a2-8b20-e75cc85a8d81>
   PrefabRemaps:
     []
@@ -6322,6 +6372,87 @@
   ScriptTypes:
     "":
       {}
+- !<Text/ba3928e4-2cc8-4e2b-80af-d269989cb1b9>
+  PrefabRemaps:
+    []
+  Name: Text
+  Enabled: true
+  RenderOrder: 0
+  StretchMode: Stretch
+  VerticalAlignment: Center
+  HorizontalAlignment: Center
+  MeshShadowMode: None
+  ShadowColor: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+  ShadowDensity: 1.000000
+  Text: Text
+  Editable: false
+  ShowEditingPreview: true
+  TouchHandler: !<reference> 00000000-0000-0000-0000-000000000000
+  SizeToFit: false
+  FontSize: 48
+  Font: !<reference> 00000000-0000-0000-0000-000000000000
+  LayoutRect:
+    left: -7.500000
+    bottom: -2.250000
+    right: 7.500000
+    top: 2.250000
+  OverflowVertical: Overflow
+  OverflowHorizontal: Overflow
+  Fill: !<TextFill>
+    Mode: Solid
+    Color: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    Texture: !<reference> 00000000-0000-0000-0000-000000000000
+    ColorTint: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    TileCount: 5.000000
+    TileZone: Rect
+    TextureStretch: FitWidth
+  BlendMode: PremultipliedAlpha
+  Outline: !<OutlineSettings>
+    Enabled: false
+    Fill: !<TextFill>
+      Mode: Solid
+      Color: {x: 0.000000, y: 0.000000, z: 0.000000, w: 1.000000}
+      Texture: !<reference> 00000000-0000-0000-0000-000000000000
+      ColorTint: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+      TileCount: 5.000000
+      TileZone: Rect
+      TextureStretch: FitWidth
+    Size: 0.250000
+  Dropshadow: !<DropshadowSettings>
+    Enabled: false
+    Fill: !<TextFill>
+      Mode: Solid
+      Color: {x: 0.000000, y: 0.000000, z: 0.000000, w: 1.000000}
+      Texture: !<reference> 00000000-0000-0000-0000-000000000000
+      ColorTint: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+      TileCount: 5.000000
+      TileZone: Rect
+      TextureStretch: FitWidth
+    OffsetX: 0.250000
+    OffsetY: 0.250000
+  Background: !<BackgroundSettings>
+    Enabled: false
+    Fill: !<TextFill>
+      Mode: Solid
+      Color: {x: 0.000000, y: 0.000000, z: 0.000000, w: 1.000000}
+      Texture: !<reference> 00000000-0000-0000-0000-000000000000
+      ColorTint: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+      TileCount: 5.000000
+      TileZone: Rect
+      TextureStretch: FitWidth
+    Margins:
+      left: 0.000000
+      bottom: 0.000000
+      right: 0.000000
+      top: 0.000000
+    CornerRadius: 0.000000
+  AdvancedLayout: !<TextAdvancedLayout>
+    ExtentsTarget: !<reference> 00000000-0000-0000-0000-000000000000
+    LetterSpacing: 0.000000
+    LineSpacing: 1.000000
+    CapitalizationOverride: None
+  DepthTest: false
+  TwoSided: false
 - !<ScriptComponent/baf0c20d-5932-4f4c-b7c0-11553bdde5ee>
   PrefabRemaps:
     []
@@ -8733,6 +8864,21 @@
   ScriptTypes:
     "":
       {}
+- !<SceneObject/fe3b3472-40be-4885-a734-fe2438f2514d>
+  PrefabRemaps:
+    []
+  Name: Prayer Notification
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: -80.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> ba3928e4-2cc8-4e2b-80af-d269989cb1b9
 - !<SceneObject/ff31a662-f45c-4e5d-bd51-9c336f2e4d38>
   PrefabRemaps:
     []
