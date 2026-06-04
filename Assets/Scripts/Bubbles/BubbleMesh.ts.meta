@@ -28,6 +28,7 @@
   ScriptInputsHidden:
     baseMaterial: false
     color: false
+    cornerWeight: false
     distortion: false
     enableLogging: false
     enableLoggingLifecycle: false
@@ -38,8 +39,6 @@
     progress: false
     radius: false
     referenceRadius: false
-    showStroke: false
-    strokeWidth: false
     targetCornerRadius: false
     targetHeight: false
     targetWidth: false
@@ -57,12 +56,11 @@
       color: !<Vec4> {x: 0.200000, y: 0.600000, z: 1.000000, w: 1.000000}
       innerFraction: 0.100000
       fillOpacity: 0.900000
-      showStroke: true
-      strokeWidth: 0.150000
       radius: !<float> 4.000000
       noiseScale: 0.480000
       distortion: !<float> 4.000000
       numPoints: !<float> 64.000000
+      cornerWeight: !<float> 0.000000
       referenceRadius: !<float> 0.000000
       undulateSpeed: 0.150000
       targetWidth: !<float> 12.000000
@@ -81,17 +79,16 @@
     - "// @input Asset.Material baseMaterial {\"hint\":\"Base material cloned per-bubble. baseColor is overwritten with this bubble's color. Use an unlit, two-sided material for a flat colored shape.\"}"
     - "// @input vec4 color = {0.2,0.6,1,1} {\"hint\":\"Fill color (RGBA) applied to the cloned material's baseColor\"}"
     - '// @ui {"widget":"separator"}'
-    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Ring &amp; Stroke</span>"}'
-    - "// @input float innerFraction = 0.1 {\"hint\":\"Ring band thickness as a fraction of the radius (the prototype's SUB_FRACTION). The bubble is hollow: only the band from the outer rim down to a radius*(1-fraction) inner contour is filled. Small = thin rim ring (prototype look); 1 = solid disc.\"}"
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Ring</span>"}'
+    - "// @input float innerFraction = 0.1 {\"hint\":\"Ring band thickness as a fraction of the radius (the prototype's SUB_FRACTION). The bubble is a hollow ring: the filled band runs from the outer rim down to a radius*(1-fraction) inner rim, and the two rims undulate independently. Small = thin rim ring; 1 = solid disc.\"}"
     - "// @input float fillOpacity = 0.9 {\"hint\":\"Opacity multiplier applied to the ring fill (needs a translucent material to show; an opaque material stays solid). Matches the prototype's 0.9 fill opacity.\"}"
-    - '// @input bool showStroke = true {"hint":"Draw a crisp outline stroke around the outer rim, like the prototype."}'
-    - '// @input float strokeWidth = 0.15 {"hint":"Stroke width in cm for the outer outline (when Show Stroke is on)"}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Blob Shape</span>"}'
     - "// @input float radius = 4 {\"hint\":\"Blob radius in cm (local). Drives the bubble's resting size before morphing.\"}"
     - '// @input float noiseScale = 0.48 {"hint":"Perlin sampling scale – higher values give more, tighter wobbles around the rim"}'
     - '// @input float distortion = 4 {"hint":"How far the noise pushes the rim in/out, in reference-radius units"}'
-    - '// @input float numPoints = 64 {"hint":"Number of outline points. More = smoother shape, higher per-frame cost."}'
+    - '// @input float numPoints = 48 {"hint":"Total outline points (shared by blob and rect). Corner-weighting means this can be low while corners stay smooth; raise for an even rounder blob."}'
+    - '// @input float cornerWeight {"hint":"How strongly rounded-rect points pack into the corners vs. straight edges (1 = by length only). Higher lets you lower Num Points further while keeping smooth corners."}'
     - '// @input float referenceRadius {"hint":"Reference radius used to normalize distortion (matches the source example)"}'
     - '// @input float undulateSpeed = 0.15 {"hint":"Wobble animation speed (noise offset advanced per second)"}'
     - '// @ui {"widget":"separator"}'

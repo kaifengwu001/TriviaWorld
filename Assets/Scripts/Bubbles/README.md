@@ -2,12 +2,12 @@
 
 Runtime-generated mesh system that renders organic, Perlin-distorted "bubble"
 blobs and morphs them into dynamically-sized, fixed-corner rounded rectangles.
-Each bubble renders as a **hollow ring** (a thin band hugging the rim) plus a
-crisp **outline stroke**, matching the SVG/React prototype's look rather than a
-solid disc. Each bubble is colored independently. Ported from the prototype in
+Each bubble renders as a single **hollow ring** — a filled band whose **outer
+rim and inner rim undulate independently** (each driven by its own noise, not a
+parallel offset) — rather than a solid disc. Each bubble is colored
+independently. Ported from the SVG/React prototype in
 [`../ExampleBubbleScript.js`](../ExampleBubbleScript.js), replacing its SVG
-`<path>` renderer (ring via even-odd fill + a separate stroke) with Lens Studio
-`MeshBuilder` band geometry.
+`<path>` renderer with a single Lens Studio `MeshBuilder` band (annulus).
 
 Scope of this pass: **rendering + morph only**. A `progress` value `0..1` drives
 each bubble from blob (`0`) to rounded rectangle (`1`). No activation, push-away,
@@ -22,19 +22,18 @@ Five small, feature-grouped files:
 | File | Responsibility |
 |---|---|
 | [`PerlinNoise.ts`](PerlinNoise.ts) | Classic 2D Perlin noise (verbatim math port). Pure, no engine deps. |
-| [`ShapeGeometry.ts`](ShapeGeometry.ts) | Pure geometry: blob outline, rounded-rect outline, morph lerp, radial inset (stroke), easing. |
-| [`BubbleMeshBuilder.ts`](BubbleMeshBuilder.ts) | Wraps `MeshBuilder`: two-contour **band** (annulus) mesh, static index buffer, per-frame vertex updates. |
-| [`BubbleMesh.ts`](BubbleMesh.ts) | `@component` per bubble: owns a ring `RenderMeshVisual` + optional stroke child, cloned material(s), drives its own morph. |
+| [`ShapeGeometry.ts`](ShapeGeometry.ts) | Geometry: precomputed rim directions, in-place blob fill, corner-weighted rounded-rect outline, in-place morph lerp, easing. |
+| [`BubbleMeshBuilder.ts`](BubbleMeshBuilder.ts) | Wraps `MeshBuilder`: two-contour **band** (annulus) mesh, static index buffer, per-frame vertex updates (reused scratch). |
+| [`BubbleMesh.ts`](BubbleMesh.ts) | `@component` per bubble: owns one ring `RenderMeshVisual` + cloned material, reusable point buffers, drives its own morph. |
 | [`BubbleField.ts`](BubbleField.ts) | `@component` spawner/manager: creates N bubbles, assigns colors/sizes, drives shared progress. |
 
 ### Data flow
 
 ```
 BubbleField (spawns N, assigns color/size/pos, drives progress)
-   └─> BubbleMesh (per bubble; progress + timeOffset)
-          ├─> PerlinNoise ─> ShapeGeometry (outer + inner blob, rounded-rect, morph, inset)
-          ├─> BubbleMeshBuilder (ring band: outer↔inner contours) ─> RenderMeshVisual.mesh + cloned fill Material
-          └─> BubbleMeshBuilder (stroke band: outer↔inset) ─> child RenderMeshVisual.mesh + cloned stroke Material
+   └─> BubbleMesh (per bubble; progress + timeOffset; reusable outer/inner buffers)
+          ├─> PerlinNoise ─> ShapeGeometry (outer rim + inner rim into buffers, morph in place)
+          └─> BubbleMeshBuilder (ring band: outer↔inner rims) ─> RenderMeshVisual.mesh + cloned Material
 ```
 
 ---
@@ -62,29 +61,35 @@ BubbleField (spawns N, assigns color/size/pos, drives progress)
     weighted `cornerWeight`× their arc length; a straight edge that wins no extra
     points simply renders as one straight span between its corners.
 
-  This is the key optimization: a small `N` (default `40`, was `64`) still
-  renders smooth corners because points are no longer wasted on the flats. Raise
-  `cornerWeight` to push `N` lower still. Correspondence is therefore **no longer
-  strictly radial**; the rect points are walked CCW and rotated so index `0`
-  lands near the blob's start angle, so the index-based morph still slides
-  cleanly (much like the original prototype's perimeter-ordered rect).
-- **Two-contour band, in-place vertex updates.** Each visual is an annulus
-  stitched between an outer and an inner contour (`2N` vertices, `2N` triangles,
-  even index = outer, odd = inner). The index buffer is built **once** (topology
-  never changes); each frame only rewrites vertex positions via
-  `setVertexInterleaved` + `updateMesh()` (the cheap path). The rounded-rect
-  outline is precomputed once per size change; only the wobbling blobs are
-  recomputed each frame.
-- **Hollow ring + outline stroke (matches the prototype).** The fill is the band
-  between the outer blob and a slightly smaller "sub" blob
-  (`radius*(1-innerFraction)`, with `noiseScale`/`distortion` scaled the same way
-  — a direct port of `subCirclePts`). **Both contours morph toward the same
-  rounded rect**, so the ring thins to zero exactly at full morph, just like the
-  prototype's even-odd ring path. The stroke is a second band hugging the outer
-  rim (rim minus a fixed-width radial inset), on its own child object so it can
-  render in front of the fill (small `+Z` nudge + higher render order) with the
-  bubble's full-alpha color. `innerFraction = 1` collapses the inner contour to
-  the origin for a solid disc if ever needed.
+  Each corner arc **owns its two endpoint vertices** (the rect's corner-edge
+  junctions), so a starved straight edge renders as one exact straight span
+  between corners with no junction artifact. This is the key optimization: a
+  small `N` (default `48`, was `64`) renders smooth corners because points are no
+  longer wasted on the flats — corners get the curvature, edges get ~their
+  endpoints. Raise `cornerWeight` to bias harder toward corners. Correspondence
+  is therefore **no longer strictly radial**; the rect points are walked CCW and
+  rotated so index `0` lands near the blob's start angle, so the index-based
+  morph still slides cleanly (like the prototype's perimeter-ordered rect).
+- **Single hollow ring; two independently-undulating rims.** Exactly one mesh
+  per bubble: an annulus stitched between an **outer rim** (the blob) and an
+  **inner rim** — a slightly smaller "sub" blob (`radius*(1-innerFraction)`, with
+  `noiseScale`/`distortion` scaled the same way, a direct port of `subCirclePts`).
+  Because each rim is its own noise sample, the rims wobble against each other
+  rather than as a parallel offset. **Both rims morph toward the same rounded
+  rect**, so the ring thins to zero exactly at full morph (prototype parity). The
+  band is `2N` vertices / `2N` triangles, even index = outer rim, odd = inner rim;
+  the index buffer is built **once** and each frame only rewrites positions via
+  `setVertexInterleaved` + `updateMesh()`. The rounded-rect outline is precomputed
+  once per size change. `innerFraction = 1` collapses the inner rim to the origin
+  for a solid disc if ever needed. (An earlier pass also drew a separate stroke
+  band — a redundant third outline — which was removed.)
+- **Allocation-free per-frame hot path.** Rim cos/sin are precomputed once per
+  bubble (no trig per frame); the two rims are written into reusable buffers and
+  morphed in place; the mesh builder reuses a single interleaved-vertex scratch
+  array. When a bubble sits fully morphed the ring is zero-area, so its visual is
+  disabled and mesh writes are skipped until it leaves that state. Net per-bubble
+  per-frame cost is two Perlin samples per point (intrinsic to two independent
+  rims) plus the `setVertexInterleaved` writes — no array/trig churn.
 - **Manual `UpdateEvent` binding.** Each component binds its update loop in
   `onAwake` via `createEvent("UpdateEvent")` rather than the `@bindUpdateEvent`
   decorator, which is more reliable for components created at runtime.
@@ -131,7 +136,7 @@ rendered. This is why the symptom looked shape-specific even though both shapes
 share the identical `updateBand` → `setVertexInterleaved` → `updateMesh` path.
 
 **Fix:** Guard against a non-positive reference radius in two places:
-`getBubblePoints` (the pure function falls back to `DEFAULT_REFERENCE_RADIUS`) and
+`getBubblePointsInto` (falls back to `DEFAULT_REFERENCE_RADIUS`) and
 `BubbleMesh.initialize()` (sanitizes `referenceRadius`, `radius`, `numPoints`).
 General lesson: **don't rely on `@input` defaults for runtime-created components —
 pass values explicitly or sanitize on init.**
@@ -150,14 +155,17 @@ Objects created with `createSceneObject` can land on a layer the camera doesn't
 render. `BubbleField` sets `obj.layer = this.sceneObject.layer` on each spawned
 bubble so the camera actually draws them.
 
-### 4. From solid fill to ring + stroke
+### 4. Solid fill → ring; and the redundant third outline
 
-The first rendering pass drew a solid triangle-fan disc, which read very
-differently from the prototype's **ring** (outer minus inner contour, even-odd
-fill) plus a separate stroke. The current pass replaces the fan with a
-two-contour band so the fill is a hollow ring, and adds the outer stroke as a
-second band on a child object. A solid disc is still reachable by setting
-`innerFraction = 1` (inner contour collapses to the origin).
+The first rendering pass drew a solid triangle-fan disc. It was replaced with a
+two-contour **band** so the fill is a hollow ring (outer rim + inner rim). A
+follow-up pass had *also* added a separate stroke band hugging the outer rim —
+which, on top of the ring band's own two edges, produced **three** visible
+outlines per bubble. Since the ring band's outer and inner edges already are the
+"outer ring" and "inner ring," the stroke was pure redundancy (and a second
+SceneObject + material + draw call per bubble). It was removed: one band, two
+rims. A solid disc is still reachable via `innerFraction = 1` (inner rim
+collapses to the origin).
 
 ---
 
@@ -165,23 +173,23 @@ second band on a child object. A solid disc is still reachable by setting
 
 1. Let Lens Studio import the scripts; confirm no compile errors in the Logger.
 2. Create a **two-sided Unlit material** (`baseColor` tint). Name it e.g.
-   `BubbleMat`. An opaque material renders the ring/stroke as fully solid color;
-   use an **alpha-blend/translucent** material if you want the `fillOpacity`
+   `BubbleMat`. An opaque material renders the ring as fully solid color; use an
+   **alpha-blend/translucent** material if you want the `fillOpacity`
    (default `0.9`) to actually show through.
 3. Create an empty `SceneObject` in front of the camera (camera sits at `z = 40`
    looking toward the origin; place the field at `z = 0`). Add the **BubbleField**
    component.
 4. Assign **Base Material**, optionally a **Palette**; leave other defaults.
-5. Preview: colored **rings** (hollow center) with a crisp outline wobble and
-   morph `0 <-> 1` into rounded rectangles (Auto Animate on); the ring fill thins
-   out into the outline at full morph, each keeping a fixed corner radius across
-   varied sizes.
+5. Preview: colored **rings** (hollow center) whose outer and inner rims wobble
+   independently, morphing `0 <-> 1` into rounded rectangles (Auto Animate on);
+   the ring thins to nothing at full morph, each keeping a fixed corner radius
+   across varied sizes.
 6. To isolate the morph, turn Auto Animate off and scrub **Global Progress**, or
    add a single **BubbleMesh** to an object and scrub its **Progress** (remember to
-   assign its **Base Material**). Tune **Inner Fraction** (band thickness),
-   **Show Stroke** / **Stroke Width**, and **Fill Opacity** to taste.
-7. Perf: lower **Num Points** (default `40`) and/or raise **Corner Weight**
-   (default `6`). Corners stay smooth at low counts because points are packed
+   assign its **Base Material**). Tune **Inner Fraction** (band thickness) and
+   **Fill Opacity** to taste.
+7. Perf: lower **Num Points** (default `48`) and/or raise **Corner Weight**
+   (default `12`). Corners stay smooth at low counts because points are packed
    into the corner arcs; the straight edges cost almost nothing. Watch the rect
    corners at full morph (Global Progress = 1) as you push Num Points down.
 
@@ -189,9 +197,11 @@ second band on a child object. A solid disc is still reachable by setting
 
 ## Out of scope / future work
 
-- Per-element opacity parity (the prototype uses `fillOpacity 0.9` + `stroke
-  opacity 1.0`; here that depends on the assigned material's blend mode).
+- Fill opacity only shows on a translucent/alpha-blend material (it folds into
+  the cloned material's `baseColor` alpha); an opaque material stays solid.
 - Interaction layer from the prototype: activation-by-proximity, push-away of
   neighboring bubbles, indicator radial wipe.
 - Batching/instancing for hundreds of bubbles (current path is per-bubble:
-  one `RenderMeshVisual` and draw call each).
+  one `RenderMeshVisual` and draw call each). With the stroke removed and the
+  hot path allocation-free, the remaining per-bubble cost is two Perlin samples
+  per outline point per frame.

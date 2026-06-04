@@ -30,6 +30,7 @@
     autoAnimate: false
     baseMaterial: false
     bubbleCount: false
+    cornerWeight: false
     distortion: false
     enableLogging: false
     enableLoggingLifecycle: false
@@ -72,6 +73,7 @@
       targetHeightMax: !<float> 10.000000
       targetCornerRadius: !<float> 2.000000
       numPoints: !<float> 64.000000
+      cornerWeight: !<float> 0.000000
       noiseScale: 0.480000
       distortion: !<float> 4.000000
       undulateSpeed: 0.150000
@@ -108,7 +110,8 @@
     - '// @input float targetCornerRadius = 2 {"hint":"Fixed corner radius (cm), kept constant regardless of size/aspect"}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Shape Detail</span>"}'
-    - '// @input float numPoints = 64 {"hint":"Outline points per bubble (smoothness vs. cost)"}'
+    - '// @input float numPoints = 40 {"hint":"Outline points per bubble (smoothness vs. cost). Corner-weighting keeps rect corners smooth at low counts."}'
+    - '// @input float cornerWeight {"hint":"How strongly rounded-rect points pack into the corners vs. straight edges (1 = by length only). Higher lets you lower Num Points further."}'
     - '// @input float noiseScale = 0.48 {"hint":"Perlin sampling scale for the blob rim"}'
     - '// @input float distortion = 4 {"hint":"Blob rim distortion amount"}'
     - '// @input float undulateSpeed = 0.15 {"hint":"Wobble animation speed"}'

@@ -28,6 +28,10 @@ export class BubbleMeshBuilder {
   // Half-extent used to normalize UVs into roughly [0,1]; flat-color materials
   // ignore UVs, but keeping them sane lets a texture map cleanly if desired.
   private readonly uvHalfExtent: number;
+  // Reused scratch for one interleaved vertex (pos.xyz, normal.xyz, uv.xy) so
+  // the per-frame update never allocates. Normal is fixed at +Z; only x/y and
+  // u/v are rewritten per vertex.
+  private readonly scratch: number[] = [0, 0, 0, 0, 0, 1, 0, 0];
 
   constructor(numPoints: number, uvHalfExtent: number) {
     this.numPoints = numPoints;
@@ -67,8 +71,8 @@ export class BubbleMeshBuilder {
       const o = outer[i];
       const n = inner[i];
       // Even index = outer ring vertex, odd index = matching inner ring vertex.
-      this.builder.setVertexInterleaved(2 * i, this.vertexData(o[0], o[1]));
-      this.builder.setVertexInterleaved(2 * i + 1, this.vertexData(n[0], n[1]));
+      this.writeVertex(2 * i, o[0], o[1]);
+      this.writeVertex(2 * i + 1, n[0], n[1]);
     }
     this.builder.updateMesh();
   }
@@ -104,9 +108,13 @@ export class BubbleMeshBuilder {
     this.builder.appendIndices(indices);
   }
 
-  private vertexData(x: number, y: number): number[] {
-    const u = x / (this.uvHalfExtent * 2) + 0.5;
-    const v = y / (this.uvHalfExtent * 2) + 0.5;
-    return [x, y, 0, 0, 0, 1, u, v];
+  private writeVertex(index: number, x: number, y: number): void {
+    const s = this.scratch;
+    s[0] = x;
+    s[1] = y;
+    // s[2..5] stay (z = 0, normal = 0,0,1).
+    s[6] = x / (this.uvHalfExtent * 2) + 0.5;
+    s[7] = y / (this.uvHalfExtent * 2) + 0.5;
+    this.builder.setVertexInterleaved(index, s);
   }
 }
