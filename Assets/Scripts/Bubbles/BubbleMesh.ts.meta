@@ -1,0 +1,94 @@
+- !<AssetImportMetadata/7b460821-fdb3-493c-99cb-80caf03e6a21>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> ad2ee416-a16c-49b0-b7f3-bdf735031fde
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> ad2ee416-a16c-49b0-b7f3-bdf735031fde
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> da63f724-7d8b-40e0-96bb-55447c5387e7
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/da63f724-7d8b-40e0-96bb-55447c5387e7>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 777a6cab-2a86-46e8-b72a-11da52763344
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    baseMaterial: false
+    color: false
+    distortion: false
+    enableLogging: false
+    enableLoggingLifecycle: false
+    noiseScale: false
+    numPoints: false
+    progress: false
+    radius: false
+    referenceRadius: false
+    targetCornerRadius: false
+    targetHeight: false
+    targetWidth: false
+    undulateSpeed: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - baseMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
+      color: !<Vec4> {x: 0.200000, y: 0.600000, z: 1.000000, w: 1.000000}
+      radius: !<float> 4.000000
+      noiseScale: 0.480000
+      distortion: !<float> 4.000000
+      numPoints: !<float> 64.000000
+      referenceRadius: !<float> 0.000000
+      undulateSpeed: 0.150000
+      targetWidth: !<float> 12.000000
+      targetHeight: !<float> 8.000000
+      targetCornerRadius: !<float> 2.000000
+      progress: !<float> 0.000000
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">BubbleMesh – morphs a Perlin blob into a rounded rectangle</span><br/><span style=\"color: #94A3B8; font-size: 11px;\">Builds a runtime mesh on its own RenderMeshVisual and interpolates blob &lt;-&gt; rounded rect by the progress value (0..1).</span>"}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Material</span>"}'
+    - "// @input Asset.Material baseMaterial {\"hint\":\"Base material cloned per-bubble. baseColor is overwritten with this bubble's color. Use an unlit, two-sided material for a flat colored shape.\"}"
+    - "// @input vec4 color = {0.2,0.6,1,1} {\"hint\":\"Fill color (RGBA) applied to the cloned material's baseColor\"}"
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Blob Shape</span>"}'
+    - "// @input float radius = 4 {\"hint\":\"Blob radius in cm (local). Drives the bubble's resting size before morphing.\"}"
+    - '// @input float noiseScale = 0.48 {"hint":"Perlin sampling scale – higher values give more, tighter wobbles around the rim"}'
+    - '// @input float distortion = 4 {"hint":"How far the noise pushes the rim in/out, in reference-radius units"}'
+    - '// @input float numPoints = 64 {"hint":"Number of outline points. More = smoother shape, higher per-frame cost."}'
+    - '// @input float referenceRadius {"hint":"Reference radius used to normalize distortion (matches the source example)"}'
+    - '// @input float undulateSpeed = 0.15 {"hint":"Wobble animation speed (noise offset advanced per second)"}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Target Rounded Rectangle</span>"}'
+    - '// @input float targetWidth = 12 {"hint":"Target rectangle width in cm. Arbitrary; corner radius stays fixed."}'
+    - '// @input float targetHeight = 8 {"hint":"Target rectangle height in cm. Arbitrary aspect ratio is supported."}'
+    - '// @input float targetCornerRadius = 2 {"hint":"Fixed corner radius in cm (clamped to half the shorter side)"}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Morph</span>"}'
+    - '// @input float progress {"hint":"Debug morph amount: 0 = blob, 1 = rounded rectangle"}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Logging</span>"}'
+    - '// @input bool enableLogging {"hint":"Enable general logging"}'
+    - '// @input bool enableLoggingLifecycle {"hint":"Enable lifecycle logging (onAwake, onStart, onUpdate, onDestroy)"}'

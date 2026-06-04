@@ -1,0 +1,115 @@
+- !<AssetImportMetadata/b8ddc898-69d4-4134-a8b0-abff5930ff5a>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> 9d71f1ff-4c59-4c84-87d2-402910def6cc
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> 9d71f1ff-4c59-4c84-87d2-402910def6cc
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> f3c9aae6-ede8-4579-b645-d3375149aa29
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/f3c9aae6-ede8-4579-b645-d3375149aa29>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 05abacdf-7c0c-4fec-8104-917a90d1e264
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    animateSpeed: false
+    autoAnimate: false
+    baseMaterial: false
+    bubbleCount: false
+    distortion: false
+    enableLogging: false
+    enableLoggingLifecycle: false
+    globalProgress: false
+    noiseScale: false
+    numPoints: false
+    palette: false
+    radiusMax: false
+    radiusMin: false
+    spawnExtents: false
+    targetCornerRadius: false
+    targetHeightMax: false
+    targetHeightMin: false
+    targetWidthMax: false
+    targetWidthMin: false
+    undulateSpeed: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - baseMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
+      palette: !<Vec4[]>
+        []
+      bubbleCount: !<float> 12.000000
+      spawnExtents: !<Vec2> {x: 30.000000, y: 30.000000}
+      radiusMin: !<float> 3.000000
+      radiusMax: !<float> 6.000000
+      targetWidthMin: !<float> 8.000000
+      targetWidthMax: !<float> 16.000000
+      targetHeightMin: !<float> 6.000000
+      targetHeightMax: !<float> 10.000000
+      targetCornerRadius: !<float> 2.000000
+      numPoints: !<float> 64.000000
+      noiseScale: 0.480000
+      distortion: !<float> 4.000000
+      undulateSpeed: 0.150000
+      globalProgress: !<float> 0.000000
+      autoAnimate: true
+      animateSpeed: !<float> 1.000000
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">BubbleField – spawns and drives a field of morphing bubbles</span><br/><span style=\"color: #94A3B8; font-size: 11px;\">Creates N BubbleMesh children with assorted colors/sizes and animates the blob &lt;-&gt; rounded-rect morph for testing.</span>"}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Material & Colors</span>"}'
+    - '// @input Asset.Material baseMaterial {"hint":"Base material cloned onto every bubble. Use an unlit, two-sided material."}'
+    - '// @input vec4[] palette = {} {"hint":"Color palette (RGBA). Bubbles cycle through these; if empty, random colors are used."}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Spawning</span>"}'
+    - '// @input float bubbleCount = 12 {"hint":"Number of bubbles to spawn"}'
+    - '// @input vec2 spawnExtents = {30,30} {"hint":"Half-extents (cm) of the local XY area bubbles are scattered within"}'
+    - '// @input float radiusMin = 3 {"hint":"Minimum blob radius (cm)"}'
+    - '// @input float radiusMax = 6 {"hint":"Maximum blob radius (cm)"}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Target Rounded Rectangles</span>"}'
+    - '// @input float targetWidthMin = 8 {"hint":"Minimum target rectangle width (cm)"}'
+    - '// @input float targetWidthMax = 16 {"hint":"Maximum target rectangle width (cm)"}'
+    - '// @input float targetHeightMin = 6 {"hint":"Minimum target rectangle height (cm)"}'
+    - '// @input float targetHeightMax = 10 {"hint":"Maximum target rectangle height (cm)"}'
+    - '// @input float targetCornerRadius = 2 {"hint":"Fixed corner radius (cm), kept constant regardless of size/aspect"}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Shape Detail</span>"}'
+    - '// @input float numPoints = 64 {"hint":"Outline points per bubble (smoothness vs. cost)"}'
+    - '// @input float noiseScale = 0.48 {"hint":"Perlin sampling scale for the blob rim"}'
+    - '// @input float distortion = 4 {"hint":"Blob rim distortion amount"}'
+    - '// @input float undulateSpeed = 0.15 {"hint":"Wobble animation speed"}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Morph Control (debug)</span>"}'
+    - '// @input float globalProgress {"hint":"Morph amount applied to all bubbles when Auto Animate is off (0 = blob, 1 = rounded rect)"}'
+    - '// @input bool autoAnimate = true {"hint":"Continuously oscillate the morph 0 <-> 1 for testing"}'
+    - '// @input float animateSpeed = 1 {"hint":"Oscillation speed (radians per second) when Auto Animate is on"}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Logging</span>"}'
+    - '// @input bool enableLogging {"hint":"Enable general logging"}'
+    - '// @input bool enableLoggingLifecycle {"hint":"Enable lifecycle logging (onAwake, onStart, onUpdate, onDestroy)"}'
