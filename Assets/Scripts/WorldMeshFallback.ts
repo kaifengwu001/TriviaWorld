@@ -46,8 +46,23 @@ export class WorldMeshFallback extends BaseScriptComponent {
   keepGroundWithMesh: boolean = false
 
   @input
+  @hint("On-device, treat the World Mesh as available even when faceCount reads 0. faceCount is reliable in the editor but often reports 0 on Spectacles while the mesh is still scanning/rendering. Disable only for non-Spectacles builds.")
+  assumeMeshOnDevice: boolean = true
+
+  @input
   @hint("How often (seconds) to re-evaluate World Mesh availability and floor height")
   checkIntervalSec: number = 1.0
+
+  @ui.separator
+  @ui.label('<span style="color: #60A5FA;">Debug</span>')
+  @input
+  @hint("Continuously write World Mesh status (faceCount, chosen surface, etc.) to this Text")
+  @allowUndefined
+  debugText: Text
+
+  @input
+  @hint("Enable writing the live status readout to debugText")
+  debugMode: boolean = false
 
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Logging</span>')
@@ -64,6 +79,7 @@ export class WorldMeshFallback extends BaseScriptComponent {
   private isEditor = global.deviceInfoSystem.isEditor()
   private worldQueryModule = require("LensStudio:WorldQueryModule")
   private hitTestSession = null
+  private trackingEnabled = false
 
   onAwake() {
     this.logger = new Logger("WorldMeshFallback", this.enableLogging || this.enableLoggingLifecycle, true);
@@ -78,10 +94,29 @@ export class WorldMeshFallback extends BaseScriptComponent {
       this.hitTestSession = this.createHitTestSession()
     }
 
+    this.enableWorldMeshTracking()
+
     // Place the ground at a sensible default immediately, then refine.
     this.positionGroundAtDefault()
     this.updateSurfaceState()
     this.scheduleRecheck()
+  }
+
+  // The World Mesh only accumulates faces while tracking is enabled. Turn it on
+  // explicitly so faceCount can grow and the mesh surface becomes available.
+  private enableWorldMeshTracking(): void {
+    if (!this.worldMeshVisual) {
+      return
+    }
+    try {
+      const provider = this.worldMeshVisual.mesh.control as WorldRenderObjectProvider
+      if (provider) {
+        provider.enableWorldMeshesTracking = true
+        this.trackingEnabled = true
+      }
+    } catch (e) {
+      this.logger.warn("Could not enable world mesh tracking: " + e)
+    }
   }
 
   private createHitTestSession() {
@@ -108,7 +143,16 @@ export class WorldMeshFallback extends BaseScriptComponent {
   }
 
   private updateSurfaceState(): void {
-    const meshAvailable = this.isMeshAvailable()
+    // faceCount is reliable in the editor but commonly reads 0 on Spectacles even
+    // while the World Mesh is actively scanning and rendering. So we trust the
+    // count in the editor, and on-device fall back to assuming the mesh is
+    // available (this is a Spectacles project where reconstruction is supported).
+    const faces = this.getMeshFaceCount()
+    const meshAvailable = faces > 0 || (this.assumeMeshOnDevice && !this.isEditor)
+
+    if (this.enableLogging) {
+      this.logger.debug("World mesh faceCount=" + faces + " -> " + (meshAvailable ? "use MESH" : "use ground"))
+    }
 
     if (this.worldMeshVisual) {
       this.worldMeshVisual.enabled = meshAvailable
@@ -121,13 +165,28 @@ export class WorldMeshFallback extends BaseScriptComponent {
     if (!meshAvailable || this.keepGroundWithMesh) {
       this.updateFloorHeight()
     }
+
+    this.writeDebugStatus(faces, meshAvailable)
   }
 
-  private isMeshAvailable(): boolean {
-    if (this.isEditor) {
-      return false
+  // Mirrors the Text-based debug readout used by PrayerGestureBehavior so the
+  // World Mesh decision can be inspected on-device without a console.
+  private writeDebugStatus(faces: number, meshAvailable: boolean): void {
+    if (!this.debugMode || !this.debugText) {
+      return
     }
-    return this.getMeshFaceCount() > 0
+    const onoff = (b: boolean) => (b ? "on" : "off")
+    const lines = [
+      "WORLD MESH",
+      "faceCount: " + faces,
+      "surface: " + (meshAvailable ? "MESH" : "GROUND"),
+      "meshVisual: " + (this.worldMeshVisual ? onoff(this.worldMeshVisual.enabled) : "n/a"),
+      "groundPlane: " + (this.groundPlane ? onoff(this.groundPlane.enabled) : "n/a"),
+      "tracking: " + onoff(this.trackingEnabled),
+      "assumeDevice: " + onoff(this.assumeMeshOnDevice && !this.isEditor),
+      "editor: " + (this.isEditor ? "yes" : "no")
+    ]
+    this.debugText.text = lines.join("\n")
   }
 
   private getMeshFaceCount(): number {

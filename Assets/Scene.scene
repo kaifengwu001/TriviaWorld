@@ -18,6 +18,7 @@
     - !<own> 5a002bfe-7ee4-4985-879c-df240824f398
     - !<own> cfa122d8-0a42-44f7-9c9d-f10923115ab9
     - !<own> c5be34f2-fd58-4bb9-b900-b610829dbfb4
+    - !<own> 400cc602-3dbd-4ebe-84a0-ced5815da4e1
   layers: !<Layers/267ee9a7-aff2-4f9d-9a49-f71214747d03>
     userLayers:
       []
@@ -41,6 +42,7 @@
     - !<own> 1ebba6b5-4e0d-484c-ab8a-26199ae8dd76
     - !<own> e05c734e-e8cb-44ec-a60c-ec7b366eebdc
     - !<own> fe3b3472-40be-4885-a734-fe2438f2514d
+    - !<own> ba45d868-3dd9-452e-8d6d-5f4d04929756
   Components:
     - !<own> 00000000-0000-0065-0000-000000000065
     - !<own> b75a7331-f6c9-4be7-8927-1ffb5efb626d
@@ -1340,6 +1342,87 @@
     - !<own> 91aa55eb-ec13-4565-824b-b5be3b0bd28e
   Components:
     []
+- !<Text/1ff9d132-0e28-48fa-96e0-2b64936a8b9b>
+  PrefabRemaps:
+    []
+  Name: Text
+  Enabled: true
+  RenderOrder: 0
+  StretchMode: Stretch
+  VerticalAlignment: Center
+  HorizontalAlignment: Center
+  MeshShadowMode: None
+  ShadowColor: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+  ShadowDensity: 1.000000
+  Text: Text
+  Editable: false
+  ShowEditingPreview: true
+  TouchHandler: !<reference> 00000000-0000-0000-0000-000000000000
+  SizeToFit: false
+  FontSize: 48
+  Font: !<reference> 00000000-0000-0000-0000-000000000000
+  LayoutRect:
+    left: -7.500000
+    bottom: -2.250000
+    right: 7.500000
+    top: 2.250000
+  OverflowVertical: Overflow
+  OverflowHorizontal: Overflow
+  Fill: !<TextFill>
+    Mode: Solid
+    Color: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    Texture: !<reference> 00000000-0000-0000-0000-000000000000
+    ColorTint: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    TileCount: 5.000000
+    TileZone: Rect
+    TextureStretch: FitWidth
+  BlendMode: PremultipliedAlpha
+  Outline: !<OutlineSettings>
+    Enabled: false
+    Fill: !<TextFill>
+      Mode: Solid
+      Color: {x: 0.000000, y: 0.000000, z: 0.000000, w: 1.000000}
+      Texture: !<reference> 00000000-0000-0000-0000-000000000000
+      ColorTint: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+      TileCount: 5.000000
+      TileZone: Rect
+      TextureStretch: FitWidth
+    Size: 0.250000
+  Dropshadow: !<DropshadowSettings>
+    Enabled: false
+    Fill: !<TextFill>
+      Mode: Solid
+      Color: {x: 0.000000, y: 0.000000, z: 0.000000, w: 1.000000}
+      Texture: !<reference> 00000000-0000-0000-0000-000000000000
+      ColorTint: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+      TileCount: 5.000000
+      TileZone: Rect
+      TextureStretch: FitWidth
+    OffsetX: 0.250000
+    OffsetY: 0.250000
+  Background: !<BackgroundSettings>
+    Enabled: false
+    Fill: !<TextFill>
+      Mode: Solid
+      Color: {x: 0.000000, y: 0.000000, z: 0.000000, w: 1.000000}
+      Texture: !<reference> 00000000-0000-0000-0000-000000000000
+      ColorTint: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+      TileCount: 5.000000
+      TileZone: Rect
+      TextureStretch: FitWidth
+    Margins:
+      left: 0.000000
+      bottom: 0.000000
+      right: 0.000000
+      top: 0.000000
+    CornerRadius: 0.000000
+  AdvancedLayout: !<TextAdvancedLayout>
+    ExtentsTarget: !<reference> 00000000-0000-0000-0000-000000000000
+    LetterSpacing: 0.000000
+    LineSpacing: 1.000000
+    CapitalizationOverride: None
+  DepthTest: false
+  TwoSided: false
 - !<SceneObject/220dcc3a-1757-4e1f-9b04-c10520760eaf>
   PrefabRemaps:
     []
@@ -2292,6 +2375,21 @@
     []
   Components:
     - !<own> 02ca03b3-224b-4053-b92c-9e45c4b3e5f0
+- !<SceneObject/400cc602-3dbd-4ebe-84a0-ced5815da4e1>
+  PrefabRemaps:
+    []
+  Name: World Mesh 1
+  Enabled: false
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> 8e360d06-9c32-49a8-8721-79d2e1248a2c
 - !<SceneObject/4342d268-8875-49df-b368-d5992caf434c>
   PrefabRemaps:
     []
@@ -4556,6 +4654,26 @@
     - !<own> ddad3bd8-4f7a-4a7c-a437-d91ae747af18
   Components:
     []
+- !<RenderMeshVisual/8e360d06-9c32-49a8-8721-79d2e1248a2c>
+  PrefabRemaps:
+    []
+  Name: Render Mesh Visual
+  Enabled: true
+  RenderOrder: 0
+  StretchMode: Stretch
+  VerticalAlignment: Center
+  HorizontalAlignment: Center
+  MeshShadowMode: None
+  ShadowColor: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+  ShadowDensity: 1.000000
+  Materials:
+    - !<reference> 7025785f-6492-46e9-b3e1-1a07b199104b
+  Mesh: !<reference> 1e560bf1-a78b-4234-b92b-13c04c5c72ad
+  Skin: !<reference> 00000000-0000-0000-0000-000000000000
+  BlendShapesEnabled: true
+  BlendNormals: false
+  BlendShapes:
+    {}
 - !<SceneObject/8eb8e346-260a-48a2-bdbc-4b8bab5fc921>
   PrefabRemaps:
     []
@@ -6547,6 +6665,21 @@
     CapitalizationOverride: None
   DepthTest: false
   TwoSided: false
+- !<SceneObject/ba45d868-3dd9-452e-8d6d-5f4d04929756>
+  PrefabRemaps:
+    []
+  Name: Ping Debug
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 10.000000, z: -80.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> 1ff9d132-0e28-48fa-96e0-2b64936a8b9b
 - !<ScriptComponent/baf0c20d-5932-4f4c-b7c0-11553bdde5ee>
   PrefabRemaps:
     []
@@ -8011,6 +8144,7 @@
   ScriptAsset: !<reference> bce6a0db-a3d6-428f-926a-ccf9a6531843
   ScriptInputsDefault:
     defaultFloorOffset: true
+    keepGroundWithMesh: true
     checkIntervalSec: true
     enableLogging: true
     enableLoggingLifecycle: true
@@ -8022,8 +8156,10 @@
       groundPlane: !<reference.SceneObject> 5a002bfe-7ee4-4985-879c-df240824f398
       headObject: !<reference.SceneObject> 00000000-0000-0065-0000-000000000064
       defaultFloorOffset: !<float> -120.000000
-      keepGroundWithMesh: true
+      keepGroundWithMesh: false
       checkIntervalSec: !<float> 1.000000
+      debugText: !<reference.Text> 1ff9d132-0e28-48fa-96e0-2b64936a8b9b
+      debugMode: true
       enableLogging: false
       enableLoggingLifecycle: false
   ScriptTypes:

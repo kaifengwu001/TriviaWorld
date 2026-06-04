@@ -26,7 +26,10 @@
   ExportUid: 00000000-0000-0000-0000-000000000000
   PackagePolicy: CanBeUnpacked
   ScriptInputsHidden:
+    assumeMeshOnDevice: false
     checkIntervalSec: false
+    debugMode: false
+    debugText: false
     defaultFloorOffset: false
     enableLogging: false
     enableLoggingLifecycle: false
@@ -48,7 +51,10 @@
       headObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
       defaultFloorOffset: !<float> -120.000000
       keepGroundWithMesh: false
+      assumeMeshOnDevice: true
       checkIntervalSec: !<float> 1.000000
+      debugText: !<reference.Text> 00000000-0000-0000-0000-000000000000
+      debugMode: false
       enableLogging: false
       enableLoggingLifecycle: false
   ScriptTypes:
@@ -65,7 +71,12 @@
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Tuning</span>"}'
     - '// @input float defaultFloorOffset = -120 {"hint":"Fallback floor offset below the head (cm, negative = below). Used when no floor hit is found."}'
     - '// @input bool keepGroundWithMesh {"hint":"Keep the ground plane enabled even when the World Mesh is available (covers mesh holes)"}'
+    - '// @input bool assumeMeshOnDevice = true {"hint":"On-device, treat the World Mesh as available even when faceCount reads 0. faceCount is reliable in the editor but often reports 0 on Spectacles while the mesh is still scanning/rendering. Disable only for non-Spectacles builds."}'
     - '// @input float checkIntervalSec = 1 {"hint":"How often (seconds) to re-evaluate World Mesh availability and floor height"}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Debug</span>"}'
+    - '// @input Component.Text debugText {"hint":"Continuously write World Mesh status (faceCount, chosen surface, etc.) to this Text"}'
+    - '// @input bool debugMode {"hint":"Enable writing the live status readout to debugText"}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Logging</span>"}'
     - '// @input bool enableLogging {"hint":"Enable general logging"}'
