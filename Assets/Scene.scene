@@ -18,6 +18,7 @@
     - !<own> 5a002bfe-7ee4-4985-879c-df240824f398
     - !<own> cfa122d8-0a42-44f7-9c9d-f10923115ab9
     - !<own> c5be34f2-fd58-4bb9-b900-b610829dbfb4
+    - !<own> cbc64de6-f36c-4d43-81ed-51724106378c
   layers: !<Layers/267ee9a7-aff2-4f9d-9a49-f71214747d03>
     userLayers:
       []
@@ -3551,7 +3552,6 @@
     holdFrames: true
     cooldownSec: true
     notificationDurationSec: true
-    debugMode: true
     enableLogging: true
     enableLoggingLifecycle: true
   ScriptTypesDefault:
@@ -3568,7 +3568,7 @@
       holdFrames: !<float> 3.000000
       cooldownSec: !<float> 2.000000
       notificationDurationSec: 2.500000
-      debugMode: false
+      debugMode: true
       enableLogging: false
       enableLoggingLifecycle: false
   ScriptTypes:
@@ -6634,7 +6634,7 @@
   PrefabRemaps:
     []
   Name: Ping Debug
-  Enabled: false
+  Enabled: true
   Layers: 1
   LocalTransform: !<TransformEntity>
     Position: {x: 0.000000, y: 10.000000, z: -80.000000}
@@ -7337,6 +7337,21 @@
   ScriptTypes:
     "":
       {}
+- !<SceneObject/cbc64de6-f36c-4d43-81ed-51724106378c>
+  PrefabRemaps:
+    []
+  Name: BubbleField
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> d6415e26-4b5d-4fa7-ab71-93cc4876ccf1
 - !<SceneObject/cc80db17-5863-4fa0-9a51-76e6afda8848>
   PrefabRemaps:
     []
@@ -7673,6 +7688,59 @@
     - !<own> 05895070-dad6-4a63-83d9-a15594dbf4ea
   Components:
     []
+- !<ScriptComponent/d6415e26-4b5d-4fa7-ab71-93cc4876ccf1>
+  PrefabRemaps:
+    []
+  Name: BubbleField
+  Enabled: true
+  ScriptAsset: !<reference> 9d71f1ff-4c59-4c84-87d2-402910def6cc
+  ScriptInputsDefault:
+    palette: true
+    targetWidthMin: true
+    targetWidthMax: true
+    targetHeightMin: true
+    targetHeightMax: true
+    targetCornerRadius: true
+    noiseScale: true
+    distortion: true
+    undulateSpeed: true
+    rectLineWidth: true
+    fillOpacity: true
+    autoAnimate: true
+    animateSpeed: true
+    enableLogging: true
+    enableLoggingLifecycle: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      baseMaterial: !<reference.Material> 539454c8-637b-438a-9281-722f5ace94c8
+      palette: !<Vec4[]>
+        []
+      bubbleCount: !<float> 25.000000
+      spawnExtents: !<Vec2> {x: -100.000000, y: 100.000000}
+      radiusMin: !<float> 1.000000
+      radiusMax: !<float> 3.000000
+      targetWidthMin: !<float> 8.000000
+      targetWidthMax: !<float> 16.000000
+      targetHeightMin: !<float> 6.000000
+      targetHeightMax: !<float> 10.000000
+      targetCornerRadius: !<float> 2.000000
+      numPoints: !<float> 16.000000
+      noiseScale: 0.480000
+      distortion: !<float> 4.000000
+      undulateSpeed: 0.150000
+      innerFraction: 0.300000
+      rectLineWidth: 0.400000
+      fillOpacity: 0.900000
+      globalProgress: 0.400000
+      autoAnimate: true
+      animateSpeed: !<float> 1.000000
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    "":
+      {}
 - !<ScriptComponent/d730387e-343b-4e6d-b7b0-c1e372d4af69>
   PrefabRemaps:
     []
@@ -8112,7 +8180,6 @@
     keepGroundWithMesh: true
     assumeMeshOnDevice: true
     checkIntervalSec: true
-    debugMode: true
     enableLogging: true
     enableLoggingLifecycle: true
   ScriptTypesDefault:
@@ -8127,7 +8194,7 @@
       assumeMeshOnDevice: true
       checkIntervalSec: !<float> 1.000000
       debugText: !<reference.Text> 1ff9d132-0e28-48fa-96e0-2b64936a8b9b
-      debugMode: false
+      debugMode: true
       enableLogging: false
       enableLoggingLifecycle: false
   ScriptTypes:
@@ -9142,7 +9209,7 @@
   PrefabRemaps:
     []
   Name: Prayer Debug
-  Enabled: false
+  Enabled: true
   Layers: 1
   LocalTransform: !<TransformEntity>
     Position: {x: 0.000000, y: 0.000000, z: -80.000000}

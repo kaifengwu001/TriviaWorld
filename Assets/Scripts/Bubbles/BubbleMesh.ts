@@ -17,12 +17,11 @@ import {
   Point,
   buildRimDirections,
   getBubblePointsInto,
-  getRoundedRectPoints,
+  getRoundedRectRing,
   morphInPlace,
   allocPointBuffer,
   easeInOutQuad,
   DEFAULT_REFERENCE_RADIUS,
-  DEFAULT_CORNER_WEIGHT,
 } from "./ShapeGeometry";
 
 // Runtime configuration accepted by configure(). All fields optional; anything
@@ -37,11 +36,11 @@ export interface BubbleConfig {
   noiseScale?: number;
   distortion?: number;
   numPoints?: number;
-  cornerWeight?: number;
   referenceRadius?: number;
   undulateSpeed?: number;
   progress?: number;
   innerFraction?: number;
+  rectLineWidth?: number;
   fillOpacity?: number;
 }
 
@@ -63,8 +62,12 @@ export class BubbleMesh extends BaseScriptComponent {
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Ring</span>')
   @input
-  @hint("Ring band thickness as a fraction of the radius (the prototype's SUB_FRACTION). The bubble is a hollow ring: the filled band runs from the outer rim down to a radius*(1-fraction) inner rim, and the two rims undulate independently. Small = thin rim ring; 1 = solid disc.")
+  @hint("BLOB ring thickness as a fraction of the radius (the prototype's SUB_FRACTION). Sets the inner rim at radius*(1-fraction); since radius varies per bubble, the blob band varies per bubble. The rect band uses Rect Line Width instead. Small = thin rim ring; 1 = solid disc.")
   innerFraction: number = 0.1
+
+  @input
+  @hint("RECT ring thickness in cm. Uniform across every bubble, so all morphed rounded rects share the same line width regardless of bubble size.")
+  rectLineWidth: number = 0.4
 
   @input
   @hint("Opacity multiplier applied to the ring fill (needs a translucent material to show; an opaque material stays solid). Matches the prototype's 0.9 fill opacity.")
@@ -85,12 +88,8 @@ export class BubbleMesh extends BaseScriptComponent {
   distortion: number = 4.0
 
   @input
-  @hint("Total outline points (shared by blob and rect). Corner-weighting means this can be low while corners stay smooth; raise for an even rounder blob.")
-  numPoints: number = 48
-
-  @input
-  @hint("How strongly rounded-rect points pack into the corners vs. straight edges (1 = by length only). Higher lets you lower Num Points further while keeping smooth corners.")
-  cornerWeight: number = DEFAULT_CORNER_WEIGHT
+  @hint("Points per RIM (one outline). The ring mesh uses 2x this many vertices (outer rim + inner rim). On the rounded rect every point goes to the corners (none on the straight edges), so each corner gets ~numPoints/4 points. Raise for denser corners.")
+  numPoints: number = 64
 
   @input
   @hint("Reference radius used to normalize distortion (matches the source example)")
@@ -144,13 +143,16 @@ export class BubbleMesh extends BaseScriptComponent {
   private outerBuf: Point[] = []
   private innerBuf: Point[] = []
 
-  private rectPts: Point[] = []
+  // The ring's two morph targets: the outer rounded rect and an inner rounded
+  // rect inset by the line weight, so the band keeps its width at full morph.
+  private rectOuter: Point[] = []
+  private rectInner: Point[] = []
   private timeOffset: number = 0
   private undulateDir: number = 1
   private initialized: boolean = false
-  // Tracks the collapsed-at-full-morph state so we can skip mesh writes/draws
-  // while a bubble sits as a finished (zero-area, invisible) rounded rect.
-  private collapsed: boolean = false
+  // Once the bubble has settled on the (static) full-morph rect we push the ring
+  // once and skip further per-frame work until it animates back.
+  private restingAtRect: boolean = false
 
   onAwake() {
     this.ensureLogger()
@@ -194,11 +196,11 @@ export class BubbleMesh extends BaseScriptComponent {
     if (config.noiseScale !== undefined) this.noiseScale = config.noiseScale
     if (config.distortion !== undefined) this.distortion = config.distortion
     if (config.numPoints !== undefined) this.numPoints = config.numPoints
-    if (config.cornerWeight !== undefined) this.cornerWeight = config.cornerWeight
     if (config.referenceRadius !== undefined) this.referenceRadius = config.referenceRadius
     if (config.undulateSpeed !== undefined) this.undulateSpeed = config.undulateSpeed
     if (config.progress !== undefined) this.progress = config.progress
     if (config.innerFraction !== undefined) this.innerFraction = config.innerFraction
+    if (config.rectLineWidth !== undefined) this.rectLineWidth = config.rectLineWidth
     if (config.fillOpacity !== undefined) this.fillOpacity = config.fillOpacity
 
     this.initialize(true)
@@ -213,14 +215,29 @@ export class BubbleMesh extends BaseScriptComponent {
     return this.progress
   }
 
-  /** Updates the target rectangle and recomputes its (static) outline. */
+  /** Updates the target rectangle and recomputes its (static) ring outlines. */
   setTargetSize(width: number, height: number, cornerRadius?: number): void {
     this.targetWidth = width
     this.targetHeight = height
     if (cornerRadius !== undefined) this.targetCornerRadius = cornerRadius
     if (this.initialized) {
-      this.rectPts = getRoundedRectPoints(this.numPoints, this.targetWidth, this.targetHeight, this.targetCornerRadius, this.cornerWeight)
+      this.buildRectRing()
     }
+  }
+
+  // Builds the outer/inner rounded-rect morph targets. The rect band width is a
+  // uniform cm value (rectLineWidth), independent of this bubble's radius, so
+  // every morphed rect shares the same line width regardless of bubble size.
+  private buildRectRing(): void {
+    const ring = getRoundedRectRing(
+      this.numPoints,
+      this.targetWidth,
+      this.targetHeight,
+      this.targetCornerRadius,
+      this.rectLineWidth
+    )
+    this.rectOuter = ring.outer
+    this.rectInner = ring.inner
   }
 
   /** Updates the bubble color on its cloned material. */
@@ -250,12 +267,12 @@ export class BubbleMesh extends BaseScriptComponent {
     // could arrive as 0/undefined and break the blob math.
     if (!(this.referenceRadius > 0)) this.referenceRadius = DEFAULT_REFERENCE_RADIUS
     if (!(this.radius > 0)) this.radius = 4
-    if (!(this.numPoints > 0)) this.numPoints = 40
-    if (!(this.cornerWeight >= 0)) this.cornerWeight = DEFAULT_CORNER_WEIGHT
+    if (!(this.numPoints > 0)) this.numPoints = 64
     // Clamp the ring band fraction to [0, 1]; 1 collapses the inner contour to
     // the origin (a solid disc), small values give a thin rim ring.
     if (!(this.innerFraction >= 0)) this.innerFraction = 0.1
     this.innerFraction = Math.min(this.innerFraction, 1)
+    if (!(this.rectLineWidth >= 0)) this.rectLineWidth = 0.4
     if (!(this.fillOpacity >= 0)) this.fillOpacity = 0.9
 
     const points = Math.max(8, Math.floor(this.numPoints))
@@ -271,7 +288,7 @@ export class BubbleMesh extends BaseScriptComponent {
     this.sinDir = dirs.sin
     this.outerBuf = allocPointBuffer(points)
     this.innerBuf = allocPointBuffer(points)
-    this.rectPts = getRoundedRectPoints(points, this.targetWidth, this.targetHeight, this.targetCornerRadius, this.cornerWeight)
+    this.buildRectRing()
 
     this.ensureRenderMesh()
     this.applyMaterial()
@@ -319,20 +336,17 @@ export class BubbleMesh extends BaseScriptComponent {
 
     const eased = easeInOutQuad(Math.max(0, Math.min(1, this.progress)))
 
-    // Full morph: both rims coincide with the rect, so the ring band collapses
-    // to zero area (invisible). Stop animating the wobble, hide the visual, and
-    // skip mesh writes until the bubble leaves the fully-morphed state.
+    // Full morph: the ring is the static outer/inner rounded-rect band (a
+    // constant-width rounded rect, NOT collapsed). Push it once, then skip the
+    // noise/morph each frame until the bubble animates back off the rect.
     if (eased >= 0.9999) {
-      if (!this.collapsed) {
-        if (this.rmv) this.rmv.enabled = false
-        this.collapsed = true
+      if (!this.restingAtRect) {
+        this.builder.updateBand(this.rectOuter, this.rectInner)
+        this.restingAtRect = true
       }
       return
     }
-    if (this.collapsed) {
-      if (this.rmv) this.rmv.enabled = true
-      this.collapsed = false
-    }
+    this.restingAtRect = false
 
     this.timeOffset += this.undulateSpeed * this.undulateDir * dt
 
@@ -343,10 +357,11 @@ export class BubbleMesh extends BaseScriptComponent {
     getBubblePointsInto(this.outerBuf, this.noise, this.cosDir, this.sinDir, this.radius, this.timeOffset, this.noiseScale, this.distortion, this.referenceRadius)
     getBubblePointsInto(this.innerBuf, this.noise, this.cosDir, this.sinDir, this.radius * (1 - f), this.timeOffset, this.noiseScale * (1 - f), this.distortion * (1 - f), this.referenceRadius)
 
-    // Both rims morph toward the SAME rounded rect (in place; no allocation).
+    // Each rim morphs toward its OWN rounded rect (outer rim -> outer rect,
+    // inner rim -> inset rect) so the band keeps its line weight. In place.
     if (eased > 0.0001) {
-      morphInPlace(this.outerBuf, this.rectPts, eased)
-      morphInPlace(this.innerBuf, this.rectPts, eased)
+      morphInPlace(this.outerBuf, this.rectOuter, eased)
+      morphInPlace(this.innerBuf, this.rectInner, eased)
     }
 
     this.builder.updateBand(this.outerBuf, this.innerBuf)

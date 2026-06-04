@@ -30,7 +30,6 @@
     autoAnimate: false
     baseMaterial: false
     bubbleCount: false
-    cornerWeight: false
     distortion: false
     enableLogging: false
     enableLoggingLifecycle: false
@@ -42,9 +41,8 @@
     palette: false
     radiusMax: false
     radiusMin: false
-    showStroke: false
+    rectLineWidth: false
     spawnExtents: false
-    strokeWidth: false
     targetCornerRadius: false
     targetHeightMax: false
     targetHeightMin: false
@@ -73,14 +71,12 @@
       targetHeightMax: !<float> 10.000000
       targetCornerRadius: !<float> 2.000000
       numPoints: !<float> 64.000000
-      cornerWeight: !<float> 0.000000
       noiseScale: 0.480000
       distortion: !<float> 4.000000
       undulateSpeed: 0.150000
       innerFraction: 0.100000
+      rectLineWidth: 0.400000
       fillOpacity: 0.900000
-      showStroke: true
-      strokeWidth: 0.150000
       globalProgress: !<float> 0.000000
       autoAnimate: true
       animateSpeed: !<float> 1.000000
@@ -110,17 +106,15 @@
     - '// @input float targetCornerRadius = 2 {"hint":"Fixed corner radius (cm), kept constant regardless of size/aspect"}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Shape Detail</span>"}'
-    - '// @input float numPoints = 40 {"hint":"Outline points per bubble (smoothness vs. cost). Corner-weighting keeps rect corners smooth at low counts."}'
-    - '// @input float cornerWeight {"hint":"How strongly rounded-rect points pack into the corners vs. straight edges (1 = by length only). Higher lets you lower Num Points further."}'
+    - '// @input float numPoints = 64 {"hint":"Points per RIM (the ring mesh uses 2x for outer + inner). On the rounded rect every point goes to the corners (none on the straight edges), so each corner gets ~numPoints/4 points. Raise for denser corners."}'
     - '// @input float noiseScale = 0.48 {"hint":"Perlin sampling scale for the blob rim"}'
     - '// @input float distortion = 4 {"hint":"Blob rim distortion amount"}'
     - '// @input float undulateSpeed = 0.15 {"hint":"Wobble animation speed"}'
     - '// @ui {"widget":"separator"}'
-    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Ring &amp; Stroke</span>"}'
-    - "// @input float innerFraction = 0.1 {\"hint\":\"Ring band thickness as a fraction of the radius (the prototype's SUB_FRACTION). Small = thin rim ring; 1 = solid disc.\"}"
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Ring</span>"}'
+    - "// @input float innerFraction = 0.1 {\"hint\":\"BLOB ring thickness as a fraction of the radius (the prototype's SUB_FRACTION). Varies per bubble with the radius. Small = thin rim ring; 1 = solid disc.\"}"
+    - '// @input float rectLineWidth = 0.4 {"hint":"RECT ring thickness in cm. Uniform across every bubble, so all morphed rounded rects share the same line width regardless of bubble size."}'
     - "// @input float fillOpacity = 0.9 {\"hint\":\"Opacity multiplier for the ring fill (needs a translucent material to show). Matches the prototype's 0.9 fill opacity.\"}"
-    - "// @input bool showStroke = true {\"hint\":\"Draw a crisp outline stroke around each bubble's rim, like the prototype.\"}"
-    - '// @input float strokeWidth = 0.15 {"hint":"Stroke width in cm for the outer outline (when Show Stroke is on)"}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Morph Control (debug)</span>"}'
     - '// @input float globalProgress {"hint":"Morph amount applied to all bubbles when Auto Animate is off (0 = blob, 1 = rounded rect)"}'

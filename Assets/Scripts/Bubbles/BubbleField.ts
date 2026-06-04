@@ -9,7 +9,6 @@
  */
 import { Logger } from "Utilities.lspkg/Scripts/Utils/Logger";
 import { BubbleMesh } from "./BubbleMesh";
-import { DEFAULT_CORNER_WEIGHT } from "./ShapeGeometry";
 
 @component
 export class BubbleField extends BaseScriptComponent {
@@ -69,12 +68,8 @@ export class BubbleField extends BaseScriptComponent {
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Shape Detail</span>')
   @input
-  @hint("Outline points per bubble (smoothness vs. cost). Corner-weighting keeps rect corners smooth at low counts.")
-  numPoints: number = 48
-
-  @input
-  @hint("How strongly rounded-rect points pack into the corners vs. straight edges (1 = by length only). Higher lets you lower Num Points further.")
-  cornerWeight: number = DEFAULT_CORNER_WEIGHT
+  @hint("Points per RIM (the ring mesh uses 2x for outer + inner). On the rounded rect every point goes to the corners (none on the straight edges), so each corner gets ~numPoints/4 points. Raise for denser corners.")
+  numPoints: number = 64
 
   @input
   @hint("Perlin sampling scale for the blob rim")
@@ -91,8 +86,12 @@ export class BubbleField extends BaseScriptComponent {
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Ring</span>')
   @input
-  @hint("Ring band thickness as a fraction of the radius (the prototype's SUB_FRACTION). The bubble is a hollow ring whose outer and inner rims undulate independently. Small = thin rim ring; 1 = solid disc.")
+  @hint("BLOB ring thickness as a fraction of the radius (the prototype's SUB_FRACTION). Varies per bubble with the radius. Small = thin rim ring; 1 = solid disc.")
   innerFraction: number = 0.1
+
+  @input
+  @hint("RECT ring thickness in cm. Uniform across every bubble, so all morphed rounded rects share the same line width regardless of bubble size.")
+  rectLineWidth: number = 0.4
 
   @input
   @hint("Opacity multiplier for the ring fill (needs a translucent material to show). Matches the prototype's 0.9 fill opacity.")
@@ -163,10 +162,10 @@ export class BubbleField extends BaseScriptComponent {
         noiseScale: this.noiseScale,
         distortion: this.distortion,
         numPoints: this.numPoints,
-        cornerWeight: this.cornerWeight,
         undulateSpeed: this.undulateSpeed,
         progress: this.globalProgress,
         innerFraction: this.innerFraction,
+        rectLineWidth: this.rectLineWidth,
         fillOpacity: this.fillOpacity,
       })
       this.bubbles.push(bubble)

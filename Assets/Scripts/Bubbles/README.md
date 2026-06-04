@@ -55,41 +55,51 @@ BubbleField (spawns N, assigns color/size/pos, drives progress)
   `N` and morph by index, but distribute those points differently:
   - the **blob** keeps an **even angular distribution** (point `i` at a uniform
     angle), so the resting bubble at morph `0` is uniform — unchanged;
-  - the **rounded rect** spends most of its points on the **corner arcs** (high
-    curvature) and very few on the straight edges (which only need their
-    endpoints). Each boundary segment gets points ∝ its weight, with corners
-    weighted `cornerWeight`× their arc length; a straight edge that wins no extra
-    points simply renders as one straight span between its corners.
+  - the **rounded rect** puts **all** of its points on the **corner arcs** (the
+    only curved part) and **none** on the straight edges. A straight edge is
+    geometrically exact between its two corner endpoints, so it needs zero
+    interior vertices and simply renders as one straight span between its corners.
 
-  Each corner arc **owns its two endpoint vertices** (the rect's corner-edge
-  junctions), so a starved straight edge renders as one exact straight span
-  between corners with no junction artifact. This is the key optimization: a
-  small `N` (default `48`, was `64`) renders smooth corners because points are no
-  longer wasted on the flats — corners get the curvature, edges get ~their
-  endpoints. Raise `cornerWeight` to bias harder toward corners. Correspondence
-  is therefore **no longer strictly radial**; the rect points are walked CCW and
-  rotated so index `0` lands near the blob's start angle, so the index-based
-  morph still slides cleanly (like the prototype's perimeter-ordered rect).
+  The allocation is **deterministic, not weight-based**: all `numPoints` are
+  split as evenly as possible across the four corners, so a corner gets exactly
+  ~`numPoints / 4` points (`numPoints` is **per rim** — the ring mesh is `2N`
+  vertices). E.g. `N = 16` → `[4,4,4,4]` corners and `[0,0,0,0]` edges; the
+  default `N = 64` → 16 points per corner. Lower `N` for cheaper corners, raise
+  for denser ones. Each corner arc **owns its two endpoint vertices** (the
+  corner-edge junctions), so there are never stray midpoints on the flats and no
+  junction artifacts. (Sharp corners, `targetCornerRadius ≈ 0`, are the one
+  exception: with no arc to sample, each corner gets a single vertex and the rest
+  spread along the edges by length.) Correspondence is therefore **no longer
+  strictly radial**; the rect points are walked CCW and rotated so index `0`
+  lands near the blob's start angle, so the index-based morph still slides
+  cleanly (like the prototype's perimeter-ordered rect).
 - **Single hollow ring; two independently-undulating rims.** Exactly one mesh
   per bubble: an annulus stitched between an **outer rim** (the blob) and an
   **inner rim** — a slightly smaller "sub" blob (`radius*(1-innerFraction)`, with
   `noiseScale`/`distortion` scaled the same way, a direct port of `subCirclePts`).
   Because each rim is its own noise sample, the rims wobble against each other
-  rather than as a parallel offset. **Both rims morph toward the same rounded
-  rect**, so the ring thins to zero exactly at full morph (prototype parity). The
+  rather than as a parallel offset. Each rim morphs toward its **own** rounded
+  rect: the outer rim onto the target rect, the inner rim onto that rect **inset
+  by `rectLineWidth`** (a uniform cm value, *not* derived from the per-bubble
+  radius — so every morphed rect shares the same line width), so the band keeps a
+  constant width at full morph instead of collapsing (there is no separate
+  outline stroke to fall back on). Note the *blob* band still scales per bubble
+  (`radius*innerFraction`); only the rect band is uniform. The outer/inner rects
+  share one point allocation and one
+  start-angle rotation, so they stay index-aligned and the band never twists. The
   band is `2N` vertices / `2N` triangles, even index = outer rim, odd = inner rim;
   the index buffer is built **once** and each frame only rewrites positions via
-  `setVertexInterleaved` + `updateMesh()`. The rounded-rect outline is precomputed
-  once per size change. `innerFraction = 1` collapses the inner rim to the origin
-  for a solid disc if ever needed. (An earlier pass also drew a separate stroke
-  band — a redundant third outline — which was removed.)
+  `setVertexInterleaved` + `updateMesh()`. Both rects are precomputed once per
+  size change. `innerFraction = 1` collapses the inner rim to the origin for a
+  solid disc if ever needed. (An earlier pass also drew a separate stroke band —
+  a redundant third outline — which was removed.)
 - **Allocation-free per-frame hot path.** Rim cos/sin are precomputed once per
   bubble (no trig per frame); the two rims are written into reusable buffers and
   morphed in place; the mesh builder reuses a single interleaved-vertex scratch
-  array. When a bubble sits fully morphed the ring is zero-area, so its visual is
-  disabled and mesh writes are skipped until it leaves that state. Net per-bubble
-  per-frame cost is two Perlin samples per point (intrinsic to two independent
-  rims) plus the `setVertexInterleaved` writes — no array/trig churn.
+  array. When a bubble settles on the (static) full-morph rect, the ring band is
+  pushed once and per-frame mesh writes are skipped until it animates back. Net
+  per-bubble per-frame cost is two Perlin samples per point (intrinsic to two
+  independent rims) plus the `setVertexInterleaved` writes — no array/trig churn.
 - **Manual `UpdateEvent` binding.** Each component binds its update loop in
   `onAwake` via `createEvent("UpdateEvent")` rather than the `@bindUpdateEvent`
   decorator, which is more reliable for components created at runtime.
@@ -182,16 +192,16 @@ collapses to the origin).
 4. Assign **Base Material**, optionally a **Palette**; leave other defaults.
 5. Preview: colored **rings** (hollow center) whose outer and inner rims wobble
    independently, morphing `0 <-> 1` into rounded rectangles (Auto Animate on);
-   the ring thins to nothing at full morph, each keeping a fixed corner radius
-   across varied sizes.
+   the ring stays a constant-width rounded-rect band at full morph, each keeping
+   a fixed corner radius across varied sizes.
 6. To isolate the morph, turn Auto Animate off and scrub **Global Progress**, or
    add a single **BubbleMesh** to an object and scrub its **Progress** (remember to
-   assign its **Base Material**). Tune **Inner Fraction** (band thickness) and
-   **Fill Opacity** to taste.
-7. Perf: lower **Num Points** (default `48`) and/or raise **Corner Weight**
-   (default `12`). Corners stay smooth at low counts because points are packed
-   into the corner arcs; the straight edges cost almost nothing. Watch the rect
-   corners at full morph (Global Progress = 1) as you push Num Points down.
+   assign its **Base Material**). Tune **Inner Fraction** (blob band thickness),
+   **Rect Line Width** (uniform rect band, cm), and **Fill Opacity** to taste.
+7. Perf: lower **Num Points** (default `64`, *per rim*). Every rect point goes to
+   the corners (none on the straight edges), so a corner gets exactly
+   ~`numPoints / 4` points (`N = 16` → 4 per corner). Watch the rect corners at
+   full morph (Global Progress = 1) as you push Num Points down.
 
 ---
 

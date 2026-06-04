@@ -15,9 +15,10 @@
  * Point distribution is deliberately ASYMMETRIC between the two shapes:
  *   - The blob keeps an EVEN angular distribution (point i at a uniformly spaced
  *     angle), so the resting bubble at morph 0 stays uniform.
- *   - The rounded rect spends almost all of its points on the CORNER arcs (the
- *     only curved part) and barely any on the straight edges (which only need
- *     their endpoints). This lets a small N render smooth corners.
+ *   - The rounded rect spends ALL of its points on the CORNER arcs (the only
+ *     curved part) and NONE on the straight edges (which are exact between their
+ *     corner endpoints). So N=16 gives 4 points per corner and 0 on the flats;
+ *     this lets a small N render smooth corners with no wasted midpoints.
  * The rect's points are perimeter-ordered (CCW) and rotated to start near the
  * blob's start angle, so the index-based morph still slides cleanly.
  *
@@ -34,11 +35,6 @@ export type Point = [number, number];
 
 // Matches the original example's reference radius used to normalize distortion.
 export const DEFAULT_REFERENCE_RADIUS = 40;
-
-// Default weighting of corner arcs vs. straight edges when distributing
-// rounded-rect points. Higher packs points into the corners (high curvature)
-// and leaves the straight edges with little more than their endpoints.
-export const DEFAULT_CORNER_WEIGHT = 12;
 
 // Starting angle of the first outline point, matching the example (-60 degrees).
 const START_ANGLE = -Math.PI / 3;
@@ -127,52 +123,81 @@ export function morphInPlace(out: Point[], rect: Point[], progress: number): voi
 }
 
 /**
- * Generates the rounded-rectangle outline (centered at the origin) with exactly
- * `numPoints` points. Width/height are arbitrary; the corner radius is held
- * FIXED (clamped to half the shorter side) so corners keep their shape no matter
- * the size or aspect ratio.
+ * Generates the rounded-rectangle RING the bubble's two rims morph onto: an
+ * `outer` rounded rect and an `inner` rounded rect inset uniformly by
+ * `lineWeight`, so the band keeps a constant width at full morph (the ring no
+ * longer collapses to nothing now that there is no separate outline stroke).
  *
- * Each of the four corner arcs OWNS its two endpoint vertices (the rect's
- * corner-edge junctions); straight edges contribute only interior points. That
- * means a starved edge simply renders as one exact straight span between its
- * corners — no junction artifacts. Corners receive a curvature-weighted share
- * (scaled by `cornerWeight`) and edges a length-weighted share, so most points
- * land where the curvature is.
+ * Width/height are arbitrary; the corner radius is held FIXED (clamped to half
+ * the shorter side) so corners keep their shape at any size/aspect.
  *
- * The boundary is walked CCW, then rotated so index 0 lands near the blob's
- * start angle, keeping the index-based morph aligned. Called once per size
+ * Point distribution is deterministic, NOT weight-based:
+ *   - Rounded corners (r > 0): a straight edge is exact between its two corner
+ *     endpoints, so it needs ZERO interior points. ALL `numPoints` go to the four
+ *     corner arcs, split as evenly as possible (each corner gets ~numPoints/4,
+ *     remainder spread round-robin). Each arc owns its two endpoint vertices.
+ *   - Sharp corners (r ~ 0): there are no arcs to sample, so each corner gets a
+ *     single vertex and the rest spread along the edges by length.
+ * This is what makes a small N render clean corners with no stray midpoints on
+ * the flats (e.g. N=16 -> 4 points per corner, 0 on edges).
+ *
+ * The point allocation AND the start-angle rotation are computed once from the
+ * outer rect and reused verbatim for the inner rect, so `outer[i]` and
+ * `inner[i]` correspond exactly (the band never twists). Called once per size
  * change (cached), so it is not on the per-frame hot path.
  */
-export function getRoundedRectPoints(
+export function getRoundedRectRing(
   numPoints: number,
   width: number,
   height: number,
   cornerRadius: number,
-  cornerWeight: number = DEFAULT_CORNER_WEIGHT
-): Point[] {
+  lineWeight: number
+): { outer: Point[]; inner: Point[] } {
   const n = Math.max(4, Math.floor(numPoints));
   const halfW = Math.max(width, 0.0001) * 0.5;
   const halfH = Math.max(height, 0.0001) * 0.5;
   const r = Math.max(0, Math.min(cornerRadius, Math.min(halfW, halfH)));
-  const ix = halfW - r; // corner-arc center x (inner box half-width)
-  const iy = halfH - r; // corner-arc center y (inner box half-height)
-  const arcLen = HALF_PI * r;
-  const cw = Math.max(0, cornerWeight);
-  const hasCorners = r > 1e-6;
 
-  // Corners in CCW order (TR, TL, BL, BR), each as a center + start angle that
-  // sweeps +90 degrees. The edge that FOLLOWS each corner (top, left, bottom,
-  // right) runs from this corner's end vertex to the next corner's start vertex.
+  // Allocate points from the OUTER rect; the inner rect reuses the same counts.
+  const edgeLens = [2 * (halfW - r), 2 * (halfH - r), 2 * (halfW - r), 2 * (halfH - r)];
+  const { cornerCounts, edgeCounts } = allocateRoundedRect(n, r > 1e-6, edgeLens);
+
+  const outer = buildRectPoints(cornerCounts, edgeCounts, halfW, halfH, r);
+
+  // Inner rect: uniform inset by the line weight (constant-width band). The
+  // corner radius shrinks with the inset; everything clamps so it never inverts.
+  const lw = Math.max(0, Math.min(lineWeight, Math.min(halfW, halfH)));
+  const innerHalfW = Math.max(halfW - lw, 0.0001);
+  const innerHalfH = Math.max(halfH - lw, 0.0001);
+  const innerR = Math.max(0, Math.min(r - lw, Math.min(innerHalfW, innerHalfH)));
+  const inner = buildRectPoints(cornerCounts, edgeCounts, innerHalfW, innerHalfH, innerR);
+
+  // Align both rings to the blob's start angle using the SAME rotation.
+  const rot = startAngleRotation(outer);
+  return { outer: rotateBy(outer, rot), inner: rotateBy(inner, rot) };
+}
+
+/**
+ * Builds a single rounded-rect outline (CCW, unrotated) from a fixed per-segment
+ * point budget. Sharing `cornerCounts`/`edgeCounts` across two different
+ * (outer/inner) rects guarantees index-aligned points.
+ */
+function buildRectPoints(
+  cornerCounts: number[],
+  edgeCounts: number[],
+  halfW: number,
+  halfH: number,
+  r: number
+): Point[] {
+  const ix = halfW - r;
+  const iy = halfH - r;
+  // Corners CCW (TR, TL, BL, BR): center + start angle sweeping +90 degrees.
   const corners = [
     { cx: ix, cy: iy, a0: 0 },
     { cx: -ix, cy: iy, a0: HALF_PI },
     { cx: -ix, cy: -iy, a0: Math.PI },
     { cx: ix, cy: -iy, a0: 3 * HALF_PI },
   ];
-  const edgeLens = [2 * ix, 2 * iy, 2 * ix, 2 * iy]; // top, left, bottom, right
-
-  const minCorner = hasCorners ? 2 : 1; // endpoints (or the single sharp vertex)
-  const { cornerCounts, edgeCounts } = allocateRoundedRect(n, arcLen * cw, edgeLens, minCorner);
 
   const pts: Point[] = [];
   for (let k = 0; k < 4; k++) {
@@ -198,50 +223,50 @@ export function getRoundedRectPoints(
       }
     }
   }
-
-  return rotateToStartAngle(pts);
+  return pts;
 }
 
 /**
- * Allocates `n` points across 4 corners + 4 edges, summing to exactly `n`.
- * Every corner is reserved `minCorner` points (its endpoint vertices) so the
- * boundary is always closed; the remainder is split by weight (corners by their
- * curvature weight, edges by length).
+ * Allocates exactly `n` points across 4 corners + 4 edges (counts sum to `n`).
+ *
+ * Rounded corners: a straight edge between two corner endpoints is geometrically
+ * exact, so edges get ZERO interior points and ALL `n` go to the corners, split
+ * as evenly as possible (each corner ~n/4, remainder round-robin). This is what
+ * gives, e.g., n=16 -> [4,4,4,4] corners and [0,0,0,0] edges — no stray midpoints
+ * on the flats and the full corner budget the caller expects.
+ *
+ * Sharp corners: there is no arc to sample, so each corner gets a single vertex
+ * and the remaining points spread along the edges by length.
  */
 function allocateRoundedRect(
   n: number,
-  cornerWeightValue: number,
-  edgeLens: number[],
-  minCorner: number
+  hasRoundedCorners: boolean,
+  edgeLens: number[]
 ): { cornerCounts: number[]; edgeCounts: number[] } {
-  const counts = [0, 0, 0, 0, 0, 0, 0, 0]; // 4 corners then 4 edges
+  const cornerCounts = [0, 0, 0, 0];
+  const edgeCounts = [0, 0, 0, 0];
 
-  // Reserve corner endpoints (round-robin so a tiny n still spreads sanely).
-  let toReserve = Math.min(n, 4 * minCorner);
-  let rr = 0;
-  while (toReserve > 0) {
-    counts[rr % 4]++;
-    toReserve--;
-    rr++;
+  if (hasRoundedCorners) {
+    // Even split across the four corner arcs; spread any remainder round-robin so
+    // the corners stay as balanced as possible. Edges contribute no interior pts.
+    const base = Math.floor(n / 4);
+    let remainder = n - base * 4;
+    for (let k = 0; k < 4; k++) {
+      cornerCounts[k] = base + (remainder > 0 ? 1 : 0);
+      if (remainder > 0) remainder--;
+    }
+    return { cornerCounts, edgeCounts };
   }
 
-  const remaining = n - Math.min(n, 4 * minCorner);
+  // Sharp rect: one vertex per corner, the rest distributed along edges by length.
+  let toCorners = Math.min(n, 4);
+  for (let k = 0; k < toCorners; k++) cornerCounts[k] = 1;
+  const remaining = n - toCorners;
   if (remaining > 0) {
-    const weights = [
-      cornerWeightValue,
-      cornerWeightValue,
-      cornerWeightValue,
-      cornerWeightValue,
-      edgeLens[0],
-      edgeLens[1],
-      edgeLens[2],
-      edgeLens[3],
-    ];
-    const add = distributeByWeight(weights, remaining);
-    for (let i = 0; i < 8; i++) counts[i] += add[i];
+    const add = distributeByWeight(edgeLens, remaining);
+    for (let k = 0; k < 4; k++) edgeCounts[k] = add[k];
   }
-
-  return { cornerCounts: counts.slice(0, 4), edgeCounts: counts.slice(4, 8) };
+  return { cornerCounts, edgeCounts };
 }
 
 /** Splits `total` across `weights`, summing to exactly `total`. */
@@ -284,12 +309,10 @@ function angularDistance(a: number, b: number): number {
 }
 
 /**
- * Rotates a CCW-ordered point ring so index 0 is the point whose angle from the
- * origin is closest to START_ANGLE, aligning it with the blob's first vertex.
- * Returns a new array (the input is never mutated).
+ * Index of the CCW point whose angle from the origin is closest to START_ANGLE
+ * (used to align the rect rings with the blob's first vertex).
  */
-function rotateToStartAngle(pts: Point[]): Point[] {
-  if (pts.length === 0) return pts;
+function startAngleRotation(pts: Point[]): number {
   let best = 0;
   let bestDiff = Infinity;
   for (let i = 0; i < pts.length; i++) {
@@ -299,6 +322,11 @@ function rotateToStartAngle(pts: Point[]): Point[] {
       best = i;
     }
   }
-  if (best === 0) return pts;
-  return pts.slice(best).concat(pts.slice(0, best));
+  return best;
+}
+
+/** Cyclically rotates a point ring by `k`, returning a new array. */
+function rotateBy(pts: Point[], k: number): Point[] {
+  if (k <= 0 || k >= pts.length) return pts.slice();
+  return pts.slice(k).concat(pts.slice(0, k));
 }
