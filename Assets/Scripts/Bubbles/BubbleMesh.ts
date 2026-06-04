@@ -19,8 +19,10 @@ import {
   getBubblePoints,
   getRoundedRectPoints,
   morphPoints,
+  insetRadial,
   easeInOutQuad,
   DEFAULT_REFERENCE_RADIUS,
+  DEFAULT_CORNER_WEIGHT,
 } from "./ShapeGeometry";
 
 // Runtime configuration accepted by configure(). All fields optional; anything
@@ -35,10 +37,19 @@ export interface BubbleConfig {
   noiseScale?: number;
   distortion?: number;
   numPoints?: number;
+  cornerWeight?: number;
   referenceRadius?: number;
   undulateSpeed?: number;
   progress?: number;
+  innerFraction?: number;
+  fillOpacity?: number;
+  showStroke?: boolean;
+  strokeWidth?: number;
 }
+
+// Tiny local +Z nudge (cm) so the stroke band always renders in front of the
+// ring fill it overlaps, avoiding z-fighting on the shared z=0 plane.
+const STROKE_Z_OFFSET = 0.05;
 
 @component
 export class BubbleMesh extends BaseScriptComponent {
@@ -56,6 +67,24 @@ export class BubbleMesh extends BaseScriptComponent {
   color: vec4 = new vec4(0.2, 0.6, 1.0, 1.0)
 
   @ui.separator
+  @ui.label('<span style="color: #60A5FA;">Ring &amp; Stroke</span>')
+  @input
+  @hint("Ring band thickness as a fraction of the radius (the prototype's SUB_FRACTION). The bubble is hollow: only the band from the outer rim down to a radius*(1-fraction) inner contour is filled. Small = thin rim ring (prototype look); 1 = solid disc.")
+  innerFraction: number = 0.1
+
+  @input
+  @hint("Opacity multiplier applied to the ring fill (needs a translucent material to show; an opaque material stays solid). Matches the prototype's 0.9 fill opacity.")
+  fillOpacity: number = 0.9
+
+  @input
+  @hint("Draw a crisp outline stroke around the outer rim, like the prototype.")
+  showStroke: boolean = true
+
+  @input
+  @hint("Stroke width in cm for the outer outline (when Show Stroke is on)")
+  strokeWidth: number = 0.15
+
+  @ui.separator
   @ui.label('<span style="color: #60A5FA;">Blob Shape</span>')
   @input
   @hint("Blob radius in cm (local). Drives the bubble's resting size before morphing.")
@@ -70,8 +99,12 @@ export class BubbleMesh extends BaseScriptComponent {
   distortion: number = 4.0
 
   @input
-  @hint("Number of outline points. More = smoother shape, higher per-frame cost.")
-  numPoints: number = 64
+  @hint("Total outline points (shared by blob and rect). Corner-weighting means this can be low while corners stay smooth; raise for an even rounder blob.")
+  numPoints: number = 40
+
+  @input
+  @hint("How strongly rounded-rect points pack into the corners vs. straight edges (1 = by length only). Higher lets you lower Num Points further while keeping smooth corners.")
+  cornerWeight: number = DEFAULT_CORNER_WEIGHT
 
   @input
   @hint("Reference radius used to normalize distortion (matches the source example)")
@@ -116,6 +149,13 @@ export class BubbleMesh extends BaseScriptComponent {
   private builder: BubbleMeshBuilder = null
   private rmv: RenderMeshVisual = null
   private material: Material = null
+
+  // Optional outer-outline stroke: its own child object, visual, material and
+  // band builder so it can sit in front of the fill with its own color/opacity.
+  private strokeObject: SceneObject = null
+  private strokeRmv: RenderMeshVisual = null
+  private strokeMaterial: Material = null
+  private strokeBuilder: BubbleMeshBuilder = null
 
   private angles: number[] = []
   private rectPts: Point[] = []
@@ -165,9 +205,14 @@ export class BubbleMesh extends BaseScriptComponent {
     if (config.noiseScale !== undefined) this.noiseScale = config.noiseScale
     if (config.distortion !== undefined) this.distortion = config.distortion
     if (config.numPoints !== undefined) this.numPoints = config.numPoints
+    if (config.cornerWeight !== undefined) this.cornerWeight = config.cornerWeight
     if (config.referenceRadius !== undefined) this.referenceRadius = config.referenceRadius
     if (config.undulateSpeed !== undefined) this.undulateSpeed = config.undulateSpeed
     if (config.progress !== undefined) this.progress = config.progress
+    if (config.innerFraction !== undefined) this.innerFraction = config.innerFraction
+    if (config.fillOpacity !== undefined) this.fillOpacity = config.fillOpacity
+    if (config.showStroke !== undefined) this.showStroke = config.showStroke
+    if (config.strokeWidth !== undefined) this.strokeWidth = config.strokeWidth
 
     this.initialize(true)
   }
@@ -187,16 +232,26 @@ export class BubbleMesh extends BaseScriptComponent {
     this.targetHeight = height
     if (cornerRadius !== undefined) this.targetCornerRadius = cornerRadius
     if (this.initialized) {
-      this.rectPts = getRoundedRectPoints(this.angles, this.targetWidth, this.targetHeight, this.targetCornerRadius)
+      this.rectPts = getRoundedRectPoints(this.numPoints, this.targetWidth, this.targetHeight, this.targetCornerRadius, this.cornerWeight)
     }
   }
 
-  /** Updates the bubble color on its cloned material. */
+  /** Updates the bubble color on its cloned material(s). */
   setColor(color: vec4): void {
     this.color = color
     if (this.material) {
-      ;(this.material.mainPass as any).baseColor = color
+      ;(this.material.mainPass as any).baseColor = this.fillColor()
     }
+    if (this.strokeMaterial) {
+      ;(this.strokeMaterial.mainPass as any).baseColor = this.color
+    }
+  }
+
+  // The ring fill carries the bubble color with the fill-opacity multiplier
+  // folded into its alpha (the stroke keeps the color's own alpha).
+  private fillColor(): vec4 {
+    const a = Math.max(0, Math.min(1, this.fillOpacity))
+    return new vec4(this.color.r, this.color.g, this.color.b, this.color.a * a)
   }
 
   // --- Internal --------------------------------------------------------------
@@ -211,7 +266,14 @@ export class BubbleMesh extends BaseScriptComponent {
     // could arrive as 0/undefined and break the blob math.
     if (!(this.referenceRadius > 0)) this.referenceRadius = DEFAULT_REFERENCE_RADIUS
     if (!(this.radius > 0)) this.radius = 4
-    if (!(this.numPoints > 0)) this.numPoints = 64
+    if (!(this.numPoints > 0)) this.numPoints = 40
+    if (!(this.cornerWeight >= 0)) this.cornerWeight = DEFAULT_CORNER_WEIGHT
+    // Clamp the ring band fraction to [0, 1]; 1 collapses the inner contour to
+    // the origin (a solid disc), small values give a thin rim ring.
+    if (!(this.innerFraction >= 0)) this.innerFraction = 0.1
+    this.innerFraction = Math.min(this.innerFraction, 1)
+    if (!(this.fillOpacity >= 0)) this.fillOpacity = 0.9
+    if (!(this.strokeWidth >= 0)) this.strokeWidth = 0.15
 
     const points = Math.max(8, Math.floor(this.numPoints))
     this.numPoints = points
@@ -222,7 +284,7 @@ export class BubbleMesh extends BaseScriptComponent {
     this.undulateDir = Math.random() < 0.5 ? -1 : 1
 
     this.angles = buildAngles(points)
-    this.rectPts = getRoundedRectPoints(this.angles, this.targetWidth, this.targetHeight, this.targetCornerRadius)
+    this.rectPts = getRoundedRectPoints(points, this.targetWidth, this.targetHeight, this.targetCornerRadius, this.cornerWeight)
 
     this.ensureRenderMesh()
     this.applyMaterial()
@@ -233,6 +295,8 @@ export class BubbleMesh extends BaseScriptComponent {
     if (this.rmv) {
       this.rmv.mesh = this.builder.getMesh()
     }
+
+    this.setupStroke(points, uvHalfExtent)
 
     this.initialized = true
     // Render an initial frame immediately so the bubble is visible before the
@@ -256,12 +320,53 @@ export class BubbleMesh extends BaseScriptComponent {
     // Clone so each bubble owns its color and the shared asset is never mutated.
     this.material = this.baseMaterial.clone()
     const pass = this.material.mainPass as any
-    pass.baseColor = this.color
+    pass.baseColor = this.fillColor()
     // Defensive: a flat 2D shape should not be backface-culled. Harmless if the
     // material doesn't expose these.
     pass.twoSided = true
     if (this.rmv) {
       this.rmv.mainMaterial = this.material
+    }
+  }
+
+  /**
+   * Builds (or rebuilds) the optional outer-outline stroke: a thin band hugging
+   * the outer rim, on its own child object so it can render in front of the
+   * fill with the bubble's full color. Tears itself down if the stroke is off.
+   */
+  private setupStroke(points: number, uvHalfExtent: number): void {
+    if (!this.showStroke || !this.baseMaterial) {
+      this.teardownStroke()
+      return
+    }
+
+    if (!this.strokeObject) {
+      this.strokeObject = global.scene.createSceneObject("BubbleStroke")
+      this.strokeObject.setParent(this.sceneObject)
+      this.strokeObject.layer = this.sceneObject.layer
+      this.strokeObject.getTransform().setLocalPosition(new vec3(0, 0, STROKE_Z_OFFSET))
+      this.strokeRmv = this.strokeObject.createComponent("Component.RenderMeshVisual") as RenderMeshVisual
+    }
+
+    this.strokeMaterial = this.baseMaterial.clone()
+    const pass = this.strokeMaterial.mainPass as any
+    pass.baseColor = this.color
+    pass.twoSided = true
+    this.strokeRmv.mainMaterial = this.strokeMaterial
+    // Draw the stroke after (on top of) the fill.
+    this.strokeRmv.setRenderOrder(this.rmv ? this.rmv.getRenderOrder() + 1 : 1)
+
+    this.strokeBuilder = new BubbleMeshBuilder(points, uvHalfExtent)
+    this.strokeRmv.mesh = this.strokeBuilder.getMesh()
+  }
+
+  private teardownStroke(): void {
+    this.strokeBuilder = null
+    this.strokeMaterial = null
+    this.strokeRmv = null
+    if (this.strokeObject) {
+      this.strokeObject.destroy()
+      this.strokeObject = null
     }
   }
 
@@ -271,25 +376,45 @@ export class BubbleMesh extends BaseScriptComponent {
     this.timeOffset += this.undulateSpeed * this.undulateDir * dt
     const eased = easeInOutQuad(Math.max(0, Math.min(1, this.progress)))
 
-    let points: Point[]
-    if (eased <= 0.0001) {
-      points = this.computeBlob()
-    } else if (eased >= 0.9999) {
-      points = this.rectPts
-    } else {
-      points = morphPoints(this.computeBlob(), this.rectPts, eased)
+    // Outer rim and a slightly smaller inner contour (the prototype's "sub"
+    // blob). Both morph toward the SAME rounded rect, so the ring band thins to
+    // nothing exactly at full morph. Mirrors getCirclePoints/subCirclePts.
+    const f = this.innerFraction
+    const outerBlob = this.computeBlob(this.radius, this.noiseScale, this.distortion)
+    const innerBlob = this.computeBlob(
+      this.radius * (1 - f),
+      this.noiseScale * (1 - f),
+      this.distortion * (1 - f)
+    )
+
+    const outer = this.morphContour(outerBlob, eased)
+    const inner = this.morphContour(innerBlob, eased)
+    this.builder.updateBand(outer, inner)
+
+    // Stroke: a thin band hugging the outer rim, present at any morph amount
+    // (it does not thin out the way the ring fill does).
+    if (this.showStroke && this.strokeBuilder) {
+      const strokeInner = insetRadial(outer, this.strokeWidth)
+      this.strokeBuilder.updateBand(outer, strokeInner)
     }
-    this.builder.updatePositions(points)
   }
 
-  private computeBlob(): Point[] {
+  // Applies the blob -> rounded-rect morph with cheap fast paths at the ends.
+  // Returns the shared rectPts array at full morph (callers must not mutate it).
+  private morphContour(blob: Point[], eased: number): Point[] {
+    if (eased <= 0.0001) return blob
+    if (eased >= 0.9999) return this.rectPts
+    return morphPoints(blob, this.rectPts, eased)
+  }
+
+  private computeBlob(radius: number, noiseScale: number, distortion: number): Point[] {
     return getBubblePoints(
       this.noise,
       this.angles,
-      this.radius,
+      radius,
       this.timeOffset,
-      this.noiseScale,
-      this.distortion,
+      noiseScale,
+      distortion,
       this.referenceRadius
     )
   }

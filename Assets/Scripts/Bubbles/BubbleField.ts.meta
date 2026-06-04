@@ -33,13 +33,17 @@
     distortion: false
     enableLogging: false
     enableLoggingLifecycle: false
+    fillOpacity: false
     globalProgress: false
+    innerFraction: false
     noiseScale: false
     numPoints: false
     palette: false
     radiusMax: false
     radiusMin: false
+    showStroke: false
     spawnExtents: false
+    strokeWidth: false
     targetCornerRadius: false
     targetHeightMax: false
     targetHeightMin: false
@@ -71,6 +75,10 @@
       noiseScale: 0.480000
       distortion: !<float> 4.000000
       undulateSpeed: 0.150000
+      innerFraction: 0.100000
+      fillOpacity: 0.900000
+      showStroke: true
+      strokeWidth: 0.150000
       globalProgress: !<float> 0.000000
       autoAnimate: true
       animateSpeed: !<float> 1.000000
@@ -104,6 +112,12 @@
     - '// @input float noiseScale = 0.48 {"hint":"Perlin sampling scale for the blob rim"}'
     - '// @input float distortion = 4 {"hint":"Blob rim distortion amount"}'
     - '// @input float undulateSpeed = 0.15 {"hint":"Wobble animation speed"}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Ring &amp; Stroke</span>"}'
+    - "// @input float innerFraction = 0.1 {\"hint\":\"Ring band thickness as a fraction of the radius (the prototype's SUB_FRACTION). Small = thin rim ring; 1 = solid disc.\"}"
+    - "// @input float fillOpacity = 0.9 {\"hint\":\"Opacity multiplier for the ring fill (needs a translucent material to show). Matches the prototype's 0.9 fill opacity.\"}"
+    - "// @input bool showStroke = true {\"hint\":\"Draw a crisp outline stroke around each bubble's rim, like the prototype.\"}"
+    - '// @input float strokeWidth = 0.15 {"hint":"Stroke width in cm for the outer outline (when Show Stroke is on)"}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Morph Control (debug)</span>"}'
     - '// @input float globalProgress {"hint":"Morph amount applied to all bubbles when Auto Animate is off (0 = blob, 1 = rounded rect)"}'

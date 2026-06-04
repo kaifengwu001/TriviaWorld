@@ -31,11 +31,15 @@
     distortion: false
     enableLogging: false
     enableLoggingLifecycle: false
+    fillOpacity: false
+    innerFraction: false
     noiseScale: false
     numPoints: false
     progress: false
     radius: false
     referenceRadius: false
+    showStroke: false
+    strokeWidth: false
     targetCornerRadius: false
     targetHeight: false
     targetWidth: false
@@ -51,6 +55,10 @@
   DefaultScriptInputs:
     - baseMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
       color: !<Vec4> {x: 0.200000, y: 0.600000, z: 1.000000, w: 1.000000}
+      innerFraction: 0.100000
+      fillOpacity: 0.900000
+      showStroke: true
+      strokeWidth: 0.150000
       radius: !<float> 4.000000
       noiseScale: 0.480000
       distortion: !<float> 4.000000
@@ -72,6 +80,12 @@
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Material</span>"}'
     - "// @input Asset.Material baseMaterial {\"hint\":\"Base material cloned per-bubble. baseColor is overwritten with this bubble's color. Use an unlit, two-sided material for a flat colored shape.\"}"
     - "// @input vec4 color = {0.2,0.6,1,1} {\"hint\":\"Fill color (RGBA) applied to the cloned material's baseColor\"}"
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Ring &amp; Stroke</span>"}'
+    - "// @input float innerFraction = 0.1 {\"hint\":\"Ring band thickness as a fraction of the radius (the prototype's SUB_FRACTION). The bubble is hollow: only the band from the outer rim down to a radius*(1-fraction) inner contour is filled. Small = thin rim ring (prototype look); 1 = solid disc.\"}"
+    - "// @input float fillOpacity = 0.9 {\"hint\":\"Opacity multiplier applied to the ring fill (needs a translucent material to show; an opaque material stays solid). Matches the prototype's 0.9 fill opacity.\"}"
+    - '// @input bool showStroke = true {"hint":"Draw a crisp outline stroke around the outer rim, like the prototype."}'
+    - '// @input float strokeWidth = 0.15 {"hint":"Stroke width in cm for the outer outline (when Show Stroke is on)"}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Blob Shape</span>"}'
     - "// @input float radius = 4 {\"hint\":\"Blob radius in cm (local). Drives the bubble's resting size before morphing.\"}"

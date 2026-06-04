@@ -1,11 +1,20 @@
 /**
  * Specs Inc. 2026
- * Runtime mesh builder for a single bubble in the Bubble Morph Mesh system.
+ * Runtime mesh builder for a single bubble contour band in the Bubble Morph
+ * Mesh system.
  *
- * Wraps a Lens Studio MeshBuilder to turn a closed outline (N points around the
- * local origin) into a filled, triangle-fan mesh. The index buffer is built
- * once (topology never changes); only vertex positions are rewritten each frame
- * via setVertexInterleaved + updateMesh, which is the cheap in-place update path.
+ * Wraps a Lens Studio MeshBuilder to turn TWO closed outlines (an outer and an
+ * inner ring, each with N points around the local origin) into a filled band
+ * (annulus) mesh. This replaces the earlier solid triangle-fan so bubbles read
+ * as the prototype's hollow ring rather than a solid disc.
+ *
+ * The same builder serves both:
+ *   - the ring fill   (outer = blob,  inner = slightly smaller "sub" blob), and
+ *   - the edge stroke (outer = blob,  inner = blob inset by the stroke width).
+ *
+ * The index buffer is built once (topology never changes); only vertex
+ * positions are rewritten each frame via setVertexInterleaved + updateMesh,
+ * which is the cheap in-place update path.
  */
 import { Point } from "./ShapeGeometry";
 
@@ -33,7 +42,7 @@ export class BubbleMeshBuilder {
     this.builder.indexType = MeshIndexType.UInt16;
 
     this.appendInitialVertices();
-    this.appendFanIndices();
+    this.appendBandIndices();
     this.builder.updateMesh();
   }
 
@@ -46,16 +55,20 @@ export class BubbleMeshBuilder {
   }
 
   /**
-   * Rewrites all vertex positions from the given outline and rebuilds the mesh.
-   * Expects exactly `numPoints` outline points centered on the local origin.
+   * Rewrites all vertex positions from the given outer and inner outlines and
+   * rebuilds the mesh. Both arrays are expected to hold exactly `numPoints`
+   * points centered on the local origin. The filled area is the band between
+   * them; when outer and inner coincide the band collapses to nothing (e.g. the
+   * ring at full rounded-rect morph), which is the intended behavior.
    */
-  updatePositions(points: Point[]): void {
-    // Vertex 0 is the shared fan hub at the local origin.
-    this.builder.setVertexInterleaved(0, this.vertexData(0, 0));
-    const count = Math.min(points.length, this.numPoints);
+  updateBand(outer: Point[], inner: Point[]): void {
+    const count = Math.min(outer.length, inner.length, this.numPoints);
     for (let i = 0; i < count; i++) {
-      const p = points[i];
-      this.builder.setVertexInterleaved(1 + i, this.vertexData(p[0], p[1]));
+      const o = outer[i];
+      const n = inner[i];
+      // Even index = outer ring vertex, odd index = matching inner ring vertex.
+      this.builder.setVertexInterleaved(2 * i, this.vertexData(o[0], o[1]));
+      this.builder.setVertexInterleaved(2 * i + 1, this.vertexData(n[0], n[1]));
     }
     this.builder.updateMesh();
   }
@@ -63,9 +76,9 @@ export class BubbleMeshBuilder {
   // --- internal --------------------------------------------------------------
 
   private appendInitialVertices(): void {
-    // Hub vertex + one per outline point, all at the origin until the first
-    // updatePositions() call sets real geometry.
-    const totalVerts = this.numPoints + 1;
+    // Two vertices per outline point (outer + inner), all at the origin until
+    // the first updateBand() call sets real geometry.
+    const totalVerts = this.numPoints * 2;
     const verts = new Array<number>(totalVerts * FLOATS_PER_VERTEX).fill(0);
     // Normals must point along +Z even in the placeholder so lighting is valid.
     for (let v = 0; v < totalVerts; v++) {
@@ -74,14 +87,19 @@ export class BubbleMeshBuilder {
     this.builder.appendVerticesInterleaved(verts);
   }
 
-  private appendFanIndices(): void {
-    // Fan around hub vertex 0: triangle (0, 1+i, 1+next) for each edge, with the
-    // outline closed back to the first point. CCW winding faces +Z.
+  private appendBandIndices(): void {
+    // For each segment i -> next, stitch a quad (two triangles) across the band:
+    //   outer_i, inner_i, outer_next, inner_next.
+    // Materials are rendered two-sided, so winding direction is not critical.
     const indices: number[] = [];
     for (let i = 0; i < this.numPoints; i++) {
-      const a = 1 + i;
-      const b = 1 + ((i + 1) % this.numPoints);
-      indices.push(0, a, b);
+      const next = (i + 1) % this.numPoints;
+      const o0 = 2 * i;
+      const n0 = 2 * i + 1;
+      const o1 = 2 * next;
+      const n1 = 2 * next + 1;
+      indices.push(o0, n0, o1);
+      indices.push(o1, n0, n1);
     }
     this.builder.appendIndices(indices);
   }

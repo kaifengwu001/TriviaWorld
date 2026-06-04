@@ -9,6 +9,7 @@
  */
 import { Logger } from "Utilities.lspkg/Scripts/Utils/Logger";
 import { BubbleMesh } from "./BubbleMesh";
+import { DEFAULT_CORNER_WEIGHT } from "./ShapeGeometry";
 
 @component
 export class BubbleField extends BaseScriptComponent {
@@ -68,8 +69,12 @@ export class BubbleField extends BaseScriptComponent {
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Shape Detail</span>')
   @input
-  @hint("Outline points per bubble (smoothness vs. cost)")
-  numPoints: number = 64
+  @hint("Outline points per bubble (smoothness vs. cost). Corner-weighting keeps rect corners smooth at low counts.")
+  numPoints: number = 40
+
+  @input
+  @hint("How strongly rounded-rect points pack into the corners vs. straight edges (1 = by length only). Higher lets you lower Num Points further.")
+  cornerWeight: number = DEFAULT_CORNER_WEIGHT
 
   @input
   @hint("Perlin sampling scale for the blob rim")
@@ -82,6 +87,24 @@ export class BubbleField extends BaseScriptComponent {
   @input
   @hint("Wobble animation speed")
   undulateSpeed: number = 0.15
+
+  @ui.separator
+  @ui.label('<span style="color: #60A5FA;">Ring &amp; Stroke</span>')
+  @input
+  @hint("Ring band thickness as a fraction of the radius (the prototype's SUB_FRACTION). Small = thin rim ring; 1 = solid disc.")
+  innerFraction: number = 0.1
+
+  @input
+  @hint("Opacity multiplier for the ring fill (needs a translucent material to show). Matches the prototype's 0.9 fill opacity.")
+  fillOpacity: number = 0.9
+
+  @input
+  @hint("Draw a crisp outline stroke around each bubble's rim, like the prototype.")
+  showStroke: boolean = true
+
+  @input
+  @hint("Stroke width in cm for the outer outline (when Show Stroke is on)")
+  strokeWidth: number = 0.15
 
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Morph Control (debug)</span>')
@@ -148,8 +171,13 @@ export class BubbleField extends BaseScriptComponent {
         noiseScale: this.noiseScale,
         distortion: this.distortion,
         numPoints: this.numPoints,
+        cornerWeight: this.cornerWeight,
         undulateSpeed: this.undulateSpeed,
         progress: this.globalProgress,
+        innerFraction: this.innerFraction,
+        fillOpacity: this.fillOpacity,
+        showStroke: this.showStroke,
+        strokeWidth: this.strokeWidth,
       })
       this.bubbles.push(bubble)
     }
