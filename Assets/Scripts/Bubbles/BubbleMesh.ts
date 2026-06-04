@@ -153,14 +153,21 @@ export class BubbleMesh extends BaseScriptComponent {
   // Once the bubble has settled on the (static) full-morph rect we push the ring
   // once and skip further per-frame work until it animates back.
   private restingAtRect: boolean = false
+  // When driven by BubbleField the field owns the update cadence (alternate-frame
+  // + FOV culling + billboarding), so the bubble must NOT also self-tick.
+  private externallyDriven: boolean = false
 
   onAwake() {
     this.ensureLogger()
     if (this.enableLoggingLifecycle) this.logger.debug("LIFECYCLE: onAwake()")
 
-    // Self-driving update. Bound manually (rather than via a decorator) so it
-    // works reliably for components created at runtime by BubbleField.
-    this.createEvent("UpdateEvent").bind(() => this.tick(getDeltaTime()))
+    // Self-driving update for editor-placed bubbles. Bound manually (rather than
+    // via a decorator) so it works reliably for components created at runtime.
+    // BubbleField calls configure(), which flips externallyDriven and silences
+    // this so the field can update each bubble on its own schedule.
+    this.createEvent("UpdateEvent").bind(() => {
+      if (!this.externallyDriven) this.tick(getDeltaTime())
+    })
   }
 
   // Logger is created in onAwake, but configure()/initialize() may run first for
@@ -203,6 +210,8 @@ export class BubbleMesh extends BaseScriptComponent {
     if (config.rectLineWidth !== undefined) this.rectLineWidth = config.rectLineWidth
     if (config.fillOpacity !== undefined) this.fillOpacity = config.fillOpacity
 
+    // The field drives updates; stop the self-tick so work isn't done twice.
+    this.externallyDriven = true
     this.initialize(true)
   }
 
@@ -213,6 +222,16 @@ export class BubbleMesh extends BaseScriptComponent {
 
   getProgress(): number {
     return this.progress
+  }
+
+  /**
+   * Advances the bubble's animation/mesh by `dt` seconds. Called by BubbleField
+   * for externally-driven bubbles (so the field can throttle to alternate frames
+   * and skip off-screen bubbles). `dt` is the time since THIS bubble last
+   * advanced, which may span several frames when it was culled or half-rated.
+   */
+  advance(dt: number): void {
+    this.tick(dt)
   }
 
   /** Updates the target rectangle and recomputes its (static) ring outlines. */

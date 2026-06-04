@@ -24,14 +24,15 @@ Five small, feature-grouped files:
 | [`PerlinNoise.ts`](PerlinNoise.ts) | Classic 2D Perlin noise (verbatim math port). Pure, no engine deps. |
 | [`ShapeGeometry.ts`](ShapeGeometry.ts) | Geometry: precomputed rim directions, in-place blob fill, corner-weighted rounded-rect outline, in-place morph lerp, easing. |
 | [`BubbleMeshBuilder.ts`](BubbleMeshBuilder.ts) | Wraps `MeshBuilder`: two-contour **band** (annulus) mesh, static index buffer, per-frame vertex updates (reused scratch). |
-| [`BubbleMesh.ts`](BubbleMesh.ts) | `@component` per bubble: owns one ring `RenderMeshVisual` + cloned material, reusable point buffers, drives its own morph. |
-| [`BubbleField.ts`](BubbleField.ts) | `@component` spawner/manager: creates N bubbles, assigns colors/sizes, drives shared progress. |
+| [`BubbleMesh.ts`](BubbleMesh.ts) | `@component` per bubble: owns one ring `RenderMeshVisual` + cloned material, reusable point buffers. Self-ticks when placed in the editor; advances on demand (`advance(dt)`) when driven by a field. |
+| [`BubbleField.ts`](BubbleField.ts) | `@component` spawner/manager: scatters N bubbles in a **3D cylindrical pipe** around the player, assigns colors/sizes, drives shared progress, **billboards** bubbles to the camera, and throttles updates (alternate-frame + FOV culling). |
 
 ### Data flow
 
 ```
-BubbleField (spawns N, assigns color/size/pos, drives progress)
-   └─> BubbleMesh (per bubble; progress + timeOffset; reusable outer/inner buffers)
+BubbleField (spawns N in a 3D pipe; billboards to camera; drives progress;
+             schedules updates: half the bubbles per frame, in-FOV only)
+   └─> BubbleMesh.advance(dt) (per bubble; progress + timeOffset; reusable buffers)
           ├─> PerlinNoise ─> ShapeGeometry (outer rim + inner rim into buffers, morph in place)
           └─> BubbleMeshBuilder (ring band: outer↔inner rims) ─> RenderMeshVisual.mesh + cloned Material
 ```
@@ -103,6 +104,38 @@ BubbleField (spawns N, assigns color/size/pos, drives progress)
 - **Manual `UpdateEvent` binding.** Each component binds its update loop in
   `onAwake` via `createEvent("UpdateEvent")` rather than the `@bindUpdateEvent`
   decorator, which is more reliable for components created at runtime.
+- **Centralized updates when fielded.** An editor-placed `BubbleMesh` self-ticks.
+  But `configure()` (called by `BubbleField`) flips `externallyDriven`, which
+  silences the self-tick; the field then calls `advance(dt)` on the bubbles it
+  chooses to update. This single point of control is what makes the two perf
+  optimizations possible.
+
+### 3D layout, billboarding, and update throttling (`BubbleField`)
+
+- **Cylindrical-pipe spawn.** Bubbles scatter in a vertical "pipe" around the
+  field origin (≈ the player): a random angle in the XZ plane, a radius between
+  **Min/Max Distance** (`sqrt`-biased so the ring is area-uniform, no clumping at
+  the inner wall), and a height between **Floor/Ceiling Height** (local Y, floor
+  may be negative). Positions are local, so the field object's placement defines
+  the center — drop it at the player/origin.
+- **Billboarding.** Each visible bubble is screen-aligned to the camera every
+  frame via `quat.lookAt(cameraTransform.forward, vec3.up())` (the same convention
+  as `PictureBehavior`; the camera looks along `-forward`). One rotation is
+  computed per frame and shared by all bubbles. Needs **Camera Object** assigned.
+- **Alternate-frame updates (`halfRateUpdate`).** Even/odd-indexed bubbles update
+  on alternating frames, halving per-frame mesh compute. Correctness comes from
+  two `dt` accumulators (one per half): wall-time accrues into both every frame
+  and is reset for whichever half just advanced, so each bubble always advances
+  by the true elapsed time and the wobble never slows down or stutters.
+- **FOV culling (`fovCullEnabled`).** Bubbles outside the camera's view **cone**
+  are skipped entirely (no billboard, no mesh update) and simply freeze; they
+  resume seamlessly on re-entry because their `timeOffset` is untouched while
+  hidden and then advanced by the accumulated `dt`. A cone (half-angle
+  `fovCullHalfAngleDeg`, expanded by each bubble's angular size) is used instead
+  of the exact frustum: no projection matrix needed, and a generous angle means a
+  false positive only ever updates a just-off-screen bubble (harmless), never
+  culls a visible one. `progress` is still set on every bubble each frame (cheap),
+  so a culled bubble is current the instant it reappears.
 
 ---
 
@@ -186,14 +219,18 @@ collapses to the origin).
    `BubbleMat`. An opaque material renders the ring as fully solid color; use an
    **alpha-blend/translucent** material if you want the `fillOpacity`
    (default `0.9`) to actually show through.
-3. Create an empty `SceneObject` in front of the camera (camera sits at `z = 40`
-   looking toward the origin; place the field at `z = 0`). Add the **BubbleField**
-   component.
-4. Assign **Base Material**, optionally a **Palette**; leave other defaults.
-5. Preview: colored **rings** (hollow center) whose outer and inner rims wobble
-   independently, morphing `0 <-> 1` into rounded rectangles (Auto Animate on);
-   the ring stays a constant-width rounded-rect band at full morph, each keeping
-   a fixed corner radius across varied sizes.
+3. Create an empty `SceneObject` at the player/origin and add the **BubbleField**
+   component. Bubbles spawn in a 3D **cylindrical pipe** around it (local space),
+   so position the field where the player stands.
+4. Assign **Base Material**, optionally a **Palette**, and the **Camera Object**
+   (the scene's camera). Leave other defaults. Without a Camera Object the bubbles
+   still spawn and animate, but billboarding and FOV culling are disabled.
+5. Preview: colored **rings** (hollow center) scattered in 3D around you, each
+   **facing the camera**, whose outer and inner rims wobble independently and
+   morph `0 <-> 1` into rounded rectangles (Auto Animate on); the ring stays a
+   constant-width rounded-rect band at full morph, each keeping a fixed corner
+   radius across varied sizes. Tune **Min/Max Distance** and **Floor/Ceiling
+   Height** to reshape the pipe.
 6. To isolate the morph, turn Auto Animate off and scrub **Global Progress**, or
    add a single **BubbleMesh** to an object and scrub its **Progress** (remember to
    assign its **Base Material**). Tune **Inner Fraction** (blob band thickness),
@@ -202,6 +239,11 @@ collapses to the origin).
    the corners (none on the straight edges), so a corner gets exactly
    ~`numPoints / 4` points (`N = 16` → 4 per corner). Watch the rect corners at
    full morph (Global Progress = 1) as you push Num Points down.
+8. Perf (field): **Half Rate Update** updates half the bubbles per frame, and
+   **FOV Cull Enabled** skips bubbles outside the view cone (widen/narrow with
+   **FOV Cull Half Angle**). Toggle either off to A/B the cost; with a Camera
+   Object assigned, look away from a bubble and confirm it freezes, then resumes
+   smoothly when it re-enters view.
 
 ---
 
