@@ -238,9 +238,10 @@ export class MapViewport extends BaseScriptComponent {
     this.tableVisual.mainMaterial = this.material
   }
 
-  // Creates a RenderMeshVisual on this object with a centered, +Z-facing quad of
-  // edge length `sizeCm` in the local XY plane, with windowUV (texture0) in
-  // [0,1] across it — which is exactly what the crop-mask graph samples.
+  // Creates a RenderMeshVisual on this object with a centered, +Y-facing quad
+  // that lies flat in the local XZ plane (edge length `sizeCm`), with windowUV
+  // (texture0) in [0,1] across it — exactly what the crop-mask graph samples.
+  // u runs along +X, v along +Z.
   private buildQuadVisual(sizeCm: number): RenderMeshVisual {
     const h = Math.max(1, sizeCm) / 2
     const builder = new MeshBuilder([
@@ -250,14 +251,16 @@ export class MapViewport extends BaseScriptComponent {
     ])
     builder.topology = MeshTopology.Triangles
     builder.indexType = MeshIndexType.UInt16
-    // position(xyz), normal(+Z), uv. Corners: BL, BR, TR, TL.
+    // position(xyz), normal(+Y), uv. Corners in the XZ plane; index order makes
+    // the front face point +Y. v is mapped so the top of the map (v=1) is toward
+    // -Z, the bottom (v=0) toward +Z.
     builder.appendVerticesInterleaved([
-      -h, -h, 0, 0, 0, 1, 0, 0,
-       h, -h, 0, 0, 0, 1, 1, 0,
-       h,  h, 0, 0, 0, 1, 1, 1,
-      -h,  h, 0, 0, 0, 1, 0, 1,
+      -h, 0, -h, 0, 1, 0, 0, 1,
+       h, 0, -h, 0, 1, 0, 1, 1,
+       h, 0,  h, 0, 1, 0, 1, 0,
+      -h, 0,  h, 0, 1, 0, 0, 0,
     ])
-    builder.appendIndices([0, 1, 2, 0, 2, 3])
+    builder.appendIndices([0, 2, 1, 0, 3, 2])
     builder.updateMesh()
 
     let rmv = this.sceneObject.getComponent("Component.RenderMeshVisual") as RenderMeshVisual

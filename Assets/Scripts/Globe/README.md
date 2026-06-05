@@ -90,10 +90,12 @@ a textured globe mesh and the table's material graph.
    (override only if you want a specific value); set `tableSizeCm` to your table
    size.
 2. **Map table**: add `MapViewport` to an empty object. Leave `tableVisual`
-   **empty** and the component **builds a quad by code** (size `tableSizeCm`,
-   `windowUV` 0..1). Assign the table **material graph** (below) to
-   `tableMaterial`. (You can still assign a pre-made `tableVisual` to opt out of
-   code geometry.)
+   **empty** and the component **builds a flat quad by code** (size `tableSizeCm`,
+   `windowUV` 0..1, lying in the local **XZ plane** with its face pointing **+Y**,
+   so it reads as a horizontal table). Assign the table **material graph** (below)
+   to `tableMaterial`. (You can still assign a pre-made `tableVisual` to opt out of
+   code geometry.) Note: a flat table is edge-on from a head-on camera — tilt the
+   editor camera **down** toward it, or place it lower/in front, to see its face.
 3. **City markers**: leave `GlobeController.markers[]` **empty** and keep
    `autoCreateMarkers` on — the controller **creates and places one marker per
    city** from its lat/lng (`GeoMath.lonLatToSpherePos`), parented to the globe so

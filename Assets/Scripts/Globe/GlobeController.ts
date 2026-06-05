@@ -391,18 +391,18 @@ export class GlobeController extends BaseScriptComponent {
     }
   }
 
-  // Converts a world-space hand delta into a clamped UV pan along the table.
+  // Converts a world-space hand delta into a clamped UV pan along the flat table.
+  // The table lies in its XZ plane, so the in-surface axes are right (+X) and
+  // forward (+Z), not up.
   private applyPan(deltaWorld: vec3): void {
     const right = this.tableTransform.right
-    const up = this.tableTransform.up
+    const forward = this.tableTransform.forward
     const localRight = deltaWorld.dot(right)
-    const localUp = deltaWorld.dot(up)
+    const localFwd = deltaWorld.dot(forward)
     const size = Math.max(1e-3, this.tableSizeCm)
     const scale = this.mapViewport.getUvScale()
-    // Drag content right -> reveal west (offset.x down); drag content down ->
-    // reveal north (offset.y down). v increases southward.
     const dx = -(localRight / size) * scale * this.panSpeed
-    const dy = (localUp / size) * scale * this.panSpeed
+    const dy = (localFwd / size) * scale * this.panSpeed
     this.mapViewport.pan({ x: dx, y: dy })
   }
 

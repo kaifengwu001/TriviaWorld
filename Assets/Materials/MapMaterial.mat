@@ -4,7 +4,66 @@
     - !<own> d830a511-6171-4dcc-9c2a-b7c49682b340
 - !<PassInfo/d830a511-6171-4dcc-9c2a-b7c49682b340>
   CachedProperties:
-    []
+    - Port_Depth_N004:
+        typeIdx: 1
+        value: 1.000000
+    - Port_FinalColor1_N004:
+        typeIdx: 5
+        value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    - Port_FinalColor2_N004:
+        typeIdx: 5
+        value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    - Port_FinalColor3_N004:
+        typeIdx: 5
+        value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    - Port_GSplatPointSize_N004:
+        typeIdx: 1
+        value: 0.000000
+    - Port_GSplatRotation_N004:
+        typeIdx: 5
+        value: {x: 0.000000, y: 0.000000, z: 0.000000, w: 1.000000}
+    - Port_GSplatScale_N004:
+        typeIdx: 4
+        value: {x: 0.000000, y: 0.000000, z: 0.000000}
+    - Port_Input0_N015:
+        typeIdx: 5
+        value: {x: 0.000000, y: 0.000000, z: 0.000000, w: 0.000000}
+    - Port_LODValue_N002:
+        typeIdx: 1
+        value: 0.000000
+    - Port_PrevWorldPosition_N004:
+        typeIdx: 4
+        value: {x: 0.000000, y: 0.000000, z: 0.000000}
+    - Port_RangeMaxA_N015:
+        typeIdx: 1
+        value: 1.000000
+    - Port_RangeMaxB_N015:
+        typeIdx: 1
+        value: 1.000000
+    - Port_RangeMinA_N015:
+        typeIdx: 1
+        value: -1.000000
+    - Port_RangeMinB_N015:
+        typeIdx: 1
+        value: 0.000000
+    - Port_RayDirection_N004:
+        typeIdx: 4
+        value: {x: 0.000000, y: 1.000000, z: 0.000000}
+    - Port_RayOrigin_N004:
+        typeIdx: 4
+        value: {x: 0.000000, y: 0.000000, z: 0.000000}
+    - Port_ValueIn_N015:
+        typeIdx: 5
+        value: {x: 0.000000, y: 0.000000, z: 0.000000, w: 0.000000}
+    - Port_WorldNormal_N004:
+        typeIdx: 4
+        value: {x: 0.000000, y: 1.000000, z: 0.000000}
+    - Port_WorldPosition_N004:
+        typeIdx: 4
+        value: {x: 0.000000, y: 0.000000, z: 0.000000}
+    - Port_WorldTangent_N004:
+        typeIdx: 4
+        value: {x: 0.000000, y: 0.000000, z: 1.000000}
   DepthWrite: false
   DepthTest: true
   DepthFunction: LessEqual
@@ -21,13 +80,13 @@
   Properties:
     Port_Input1_N001:
       typeIdx: 3
-      value: {x: 1.000000, y: 1.000000}
+      value: {x: 0.500000, y: 0.500000}
     Port_Value_N011:
       typeIdx: 1
-      value: 0.000000
+      value: 0.300000
     Port_Value_N012:
       typeIdx: 1
-      value: 0.000000
+      value: 0.500000
     PreviewEnabled:
       typeIdx: 0
       value: 0
