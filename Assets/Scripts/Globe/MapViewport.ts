@@ -20,7 +20,6 @@
 import { Logger } from "Utilities.lspkg/Scripts/Utils/Logger";
 import {
   GeoBounds,
-  LatLng,
   UvTransform,
   Vec2Like,
   boundsToUv,
@@ -117,11 +116,14 @@ export class MapViewport extends BaseScriptComponent {
 
   /**
    * Sets the active LOD. By default frames the level's whole texture (home
-   * framing: scale 1, offset 0). If `keepCenter` is given, frames that
-   * coordinate at the level's home span instead, so a LOD step keeps the
-   * centered point put. `dissolve` does a fade-out/swap/fade-in transition.
+   * framing: scale 1, offset 0). If `keepView` is given, frames that exact
+   * geographic view (center AND span) on the new level instead, so a LOD step is
+   * CONTINUOUS: stepping IN lands near the new level's home (max) framing, while
+   * stepping OUT lands near its min (zoomed-in) framing — never re-triggering the
+   * edge that caused the step. The resulting scale is clamped to the level's
+   * [minUvScale, maxUvScale] band. `dissolve` does a fade-out/swap/fade-in.
    */
-  setLevel(level: LodLevel, keepCenter?: LatLng, dissolve: boolean = false): void {
+  setLevel(level: LodLevel, keepView?: GeoBounds, dissolve: boolean = false): void {
     if (!level || !level.mapTex) {
       this.logger.warn("setLevel called with no level/texture.")
       return
@@ -129,15 +131,16 @@ export class MapViewport extends BaseScriptComponent {
     const prevLevel = this.currentLevel
     this.currentLevel = level
 
-    if (keepCenter) {
-      // Frame the new level at its home span, centered on the kept coordinate so
-      // a LOD step keeps the focused point put.
-      const view: GeoBounds = {
-        centerLatLng: { lat: keepCenter.lat, lng: keepCenter.lng },
-        spanDeg: level.bounds.spanDeg,
-      }
-      const t = boundsToUv(level.bounds, view)
-      this.uv = { offset: clampPan(t.offset, t.scale), scale: t.scale }
+    if (keepView) {
+      // Frame the new level to show the same geographic view we were already
+      // looking at, keeping the center fixed and clamping the scale into range.
+      const t = boundsToUv(level.bounds, keepView)
+      const s = clamp(t.scale.x, this.minUvScale, this.maxUvScale)
+      const centerU = t.offset.x + t.scale.x / 2
+      const centerV = t.offset.y + t.scale.y / 2
+      const scale = { x: s, y: s }
+      const offset = clampPan({ x: centerU - s / 2, y: centerV - s / 2 }, scale)
+      this.uv = { offset, scale }
     } else {
       this.uv = { offset: { x: 0, y: 0 }, scale: { x: 1, y: 1 } }
     }

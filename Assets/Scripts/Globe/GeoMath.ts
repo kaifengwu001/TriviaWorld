@@ -98,12 +98,16 @@ export function uvToLonLat(u: number, v: number): LatLng {
 /**
  * Position of a coordinate on a unit-ish sphere of the given radius.
  *
- * Convention (matches a globe whose equirectangular texture wraps +lng around
- * +Y, with the prime meridian / (0,0) facing -Z toward a viewer in front):
- *   x = R * cos(lat) * sin(lng)
- *   y = R * sin(lat)
+ * Convention (matches our globe mesh, whose equirectangular texture wraps so
+ * that +lng/east runs toward -X, with the prime meridian / (0,0) facing -Z
+ * toward a viewer in front):
+ *   x = -R * cos(lat) * sin(lng)
+ *   y =  R * sin(lat)
  *   z = -R * cos(lat) * cos(lng)
- * Returns a plain {x, y, z}; callers wrap it in a vec3.
+ * The -sin(lng) on X mirrors longitude east<->west to match the mesh's texture
+ * wrap; keep it in lockstep with {@link aimEuler}'s +lng yaw so a selected
+ * marker still rotates to front-center. Returns a plain {x, y, z}; callers wrap
+ * it in a vec3.
  */
 export function lonLatToSpherePos(
   lng: number,
@@ -114,7 +118,7 @@ export function lonLatToSpherePos(
   const lo = lng * DEG2RAD;
   const cl = Math.cos(la);
   return {
-    x: radius * cl * Math.sin(lo),
+    x: -radius * cl * Math.sin(lo),
     y: radius * Math.sin(la),
     z: -radius * cl * Math.cos(lo),
   };
@@ -125,13 +129,16 @@ export function lonLatToSpherePos(
  * brought to FRONT-CENTER (facing the viewer along -Z).
  *
  * With the {@link lonLatToSpherePos} convention, (0,0) already faces -Z. To
- * bring (lat, lng) forward we yaw the globe by -lng about +Y, then pitch by
- * +lat about +X. Returned as a plain {x, y, z}; GlobeView builds the quat.
+ * bring (lat, lng) forward we yaw the globe by +lng about +Y, then pitch by
+ * +lat about +X. The +lng yaw matches the east<->west mirror baked into
+ * lonLatToSpherePos's -sin(lng); the two MUST share the same sign so a marker
+ * placed by lonLatToSpherePos rotates to front-center when its city is picked.
+ * Returned as a plain {x, y, z}; GlobeView builds the quat.
  */
 export function aimEuler(lng: number, lat: number): { x: number; y: number; z: number } {
   return {
     x: lat * DEG2RAD,
-    y: -lng * DEG2RAD,
+    y: lng * DEG2RAD,
     z: 0,
   };
 }

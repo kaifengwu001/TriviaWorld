@@ -24,11 +24,15 @@
  */
 import { Logger } from "Utilities.lspkg/Scripts/Utils/Logger";
 import { SIK } from "SpectaclesInteractionKit.lspkg/SIK";
+import { Interactable } from "SpectaclesInteractionKit.lspkg/Components/Interaction/Interactable/Interactable";
+import { Interactor } from "SpectaclesInteractionKit.lspkg/Core/Interactor/Interactor";
+import { InteractorEvent, DragInteractorEvent } from "SpectaclesInteractionKit.lspkg/Core/Interactor/InteractorEvent";
 import { GlobeView } from "./GlobeView";
 import { MapViewport } from "./MapViewport";
 import { CityData, City } from "./CityData";
 import { CityMarker } from "./CityMarker";
-import { lonLatToSpherePos } from "./GeoMath";
+import { lonLatToSpherePos, LatLng } from "./GeoMath";
+import { PinchDragTracker } from "./PinchDragTracker";
 
 interface Vec2 {
   x: number;
@@ -78,6 +82,10 @@ export class GlobeController extends BaseScriptComponent {
   @hint("Uniform local scale applied to each auto-created marker object.")
   markerScale: number = 1.0
 
+  @input
+  @hint("Longitude offset in degrees added to every city before placing its marker AND aiming the globe. Use this to line cities up with the globe base texture when the texture can't be shifted in Lens Studio (+ rotates cities east, - west).")
+  textureLonOffsetDeg: number = 0
+
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Scene</span>')
   @input
@@ -114,11 +122,15 @@ export class GlobeController extends BaseScriptComponent {
 
   @input
   @hint("Pan speed multiplier for one-hand drag -> uvOffset.")
-  panSpeed: number = 1.0
+  panSpeed: number = 0.3
 
   @input
   @hint("Two-hand pinch zoom sensitivity (>1 = faster). Applies to both hand and two-finger touch zoom.")
   zoomSpeed: number = 1.0
+
+  @input
+  @hint("Globe rotation gain for a one-hand pinch-drag in OVERVIEW (radians of spin per cm of smoothed hand movement).")
+  handRotateSpeed: number = 0.03
 
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Touch input</span>')
@@ -151,14 +163,36 @@ export class GlobeController extends BaseScriptComponent {
   private leftHand = SIK.HandInputData.getHand("left")
   private leftDown = false
   private rightDown = false
-  // One-hand pan tracking.
-  private panHandPrev: vec3 | null = null
   // Two-hand zoom tracking.
   private pinchDistPrev: number = -1
+  private pinchDistSmoothed: number = -1
   private camTransform: Transform = null
   private camComponent: Camera = null
   private tableTransform: Transform = null
   private gazedMarker: CityMarker | null = null
+
+  // SIK interaction (Interactable + collider) drives the on-surface cursor and
+  // jitter-filtered drag, replacing the raw thumbTip bookkeeping. The globe
+  // Interactable rotates the globe; the map Interactable pans the table; each
+  // marker Interactable taps to select a city.
+  private globeInteractable: Interactable | null = null
+  private mapInteractable: Interactable | null = null
+  private markerInteractables: Interactable[] = []
+
+  // Smoothed globe-rotation drag (OVERVIEW). Both the globe surface and any
+  // marker forward into this so a drag started on a pin still spins the globe.
+  private globeDragTracker = new PinchDragTracker()
+  private globeDragInteractor: Interactor | null = null
+  private globeDragAccum: vec3 = vec3.zero()
+  private globeDragMoved: boolean = false
+
+  // Smoothed map pan drag (DOCKED).
+  private mapDragTracker = new PinchDragTracker()
+  private mapDragInteractor: Interactor | null = null
+  private mapDragAccum: vec3 = vec3.zero()
+
+  // A smoothed drag is treated as movement (vs a tap) past this many cm.
+  private readonly DRAG_MOVE_EPS = 0.4
 
   // Touch state. `touches` maps an active touch id -> its latest screen pos
   // ([0,1], top-left origin). A single touch that never moves past the tap
@@ -202,7 +236,94 @@ export class GlobeController extends BaseScriptComponent {
     }
     this.cities = this.cityData.getCities()
     this.ensureMarkers()
+    this.setupInteractions()
     this.enterOverview()
+  }
+
+  // Adds a collider + SIK Interactable to the globe, the map table, and each
+  // marker (created in code so no manual scene wiring is needed). This is what
+  // gives the on-surface cursor feedback and clean, filterable drag events —
+  // mirroring how the official Frame example builds its interaction.
+  private setupInteractions(): void {
+    if (this.globeView) {
+      const globeObj = this.globeView.getSceneObject()
+      const r = Math.max(0.1, this.globeView.getLocalRadiusCm())
+      this.addSphereCollider(globeObj, r)
+      this.globeInteractable = this.makeInteractable(globeObj)
+      this.globeInteractable.onTriggerStart.add(() => (this.globeDragMoved = false))
+      this.globeInteractable.onDragStart.add((e) => this.beginGlobeDrag(e))
+      this.globeInteractable.onDragUpdate.add((e) => this.updateGlobeDrag(e))
+      this.globeInteractable.onDragEnd.add(() => this.endGlobeDrag())
+      this.globeInteractable.onTriggerEnd.add(() => this.endGlobeDrag())
+      this.globeInteractable.onTriggerCanceled.add(() => this.endGlobeDrag())
+    }
+
+    const tableObj = this.tableObject ?? (this.mapViewport ? this.mapViewport.getSceneObject() : null)
+    if (tableObj) {
+      this.addBoxCollider(tableObj, new vec3(this.tableSizeCm, 1, this.tableSizeCm))
+      this.mapInteractable = this.makeInteractable(tableObj)
+      this.mapInteractable.onDragStart.add((e) => this.beginMapDrag(e))
+      this.mapInteractable.onDragUpdate.add((e) => this.updateMapDrag(e))
+      this.mapInteractable.onDragEnd.add(() => this.endMapDrag())
+      this.mapInteractable.onTriggerEnd.add(() => this.endMapDrag())
+      this.mapInteractable.onTriggerCanceled.add(() => this.endMapDrag())
+    }
+
+    this.setupMarkerInteractions()
+  }
+
+  // Each marker becomes tappable (its own Interactable) so SELECTING a city now
+  // requires actually targeting the pin — this removes the old "any pinch while
+  // gazing instantly zooms" behavior. A drag that starts on a marker still spins
+  // the globe (forwarded into the globe drag) and is then NOT treated as a tap.
+  private setupMarkerInteractions(): void {
+    if (!this.markers) return
+    const radius = this.globeView ? Math.max(0.1, this.globeView.getLocalRadiusCm() * 0.06) : 2
+    for (let i = 0; i < this.markers.length; i++) {
+      const marker = this.markers[i]
+      if (!marker) continue
+      const obj = marker.getSceneObject()
+      const localR = radius / Math.max(0.001, obj.getTransform().getLocalScale().x)
+      this.addSphereCollider(obj, localR)
+      const interactable = this.makeInteractable(obj)
+      interactable.onTriggerStart.add(() => (this.globeDragMoved = false))
+      interactable.onDragStart.add((e) => this.beginGlobeDrag(e))
+      interactable.onDragUpdate.add((e) => this.updateGlobeDrag(e))
+      interactable.onDragEnd.add(() => this.endGlobeDrag())
+      interactable.onTriggerEnd.add(() => this.onMarkerTriggerEnd(marker))
+      interactable.onTriggerCanceled.add(() => this.endGlobeDrag())
+      this.markerInteractables.push(interactable)
+    }
+  }
+
+  private makeInteractable(obj: SceneObject): Interactable {
+    let interactable = obj.getComponent(Interactable.getTypeName()) as Interactable
+    if (!interactable) {
+      interactable = obj.createComponent(Interactable.getTypeName()) as Interactable
+    }
+    // Direct (near-field) + Indirect (far-field ray) so it works hand-near and
+    // pointed-at; one interactor at a time so two-hand zoom never fights a drag.
+    interactable.targetingMode = 3
+    interactable.allowMultipleInteractors = false
+    return interactable
+  }
+
+  private addSphereCollider(obj: SceneObject, radius: number): void {
+    if (obj.getComponent("Physics.ColliderComponent")) return
+    const collider = obj.createComponent("Physics.ColliderComponent") as ColliderComponent
+    const shape = Shape.createSphereShape()
+    shape.radius = radius
+    collider.shape = shape
+    collider.fitVisual = false
+  }
+
+  private addBoxCollider(obj: SceneObject, size: vec3): void {
+    if (obj.getComponent("Physics.ColliderComponent")) return
+    const collider = obj.createComponent("Physics.ColliderComponent") as ColliderComponent
+    const shape = Shape.createBoxShape()
+    shape.size = size
+    collider.shape = shape
+    collider.fitVisual = false
   }
 
   // Creates + places a marker per city from its lat/lng if none were assigned
@@ -221,7 +342,8 @@ export class GlobeController extends BaseScriptComponent {
     const created: CityMarker[] = []
     for (let i = 0; i < this.cities.length; i++) {
       const city = this.cities[i]
-      const p = lonLatToSpherePos(city.latLng.lng, city.latLng.lat, radius)
+      const aimed = this.applyTextureLonOffset(city.latLng)
+      const p = lonLatToSpherePos(aimed.lng, aimed.lat, radius)
       const obj = this.markerPrefab
         ? this.markerPrefab.instantiate(globeObj)
         : global.scene.createSceneObject("Marker_" + city.name)
@@ -275,8 +397,9 @@ export class GlobeController extends BaseScriptComponent {
     const l0 = city.levels[0]
     const dockScale = this.globeView.dockScaleForSpan(l0.bounds.spanDeg)
     // Tween the globe to aim at the city and zoom to the matched footprint, then
-    // crossfade globe-out / table-in.
-    this.globeView.animate(city.latLng, dockScale, 1, this.approachSec, () => this.dock())
+    // crossfade globe-out / table-in. Aim uses the same texture longitude offset
+    // as the marker so the pin stays under the viewer through the zoom.
+    this.globeView.animate(this.applyTextureLonOffset(city.latLng), dockScale, 1, this.approachSec, () => this.dock())
   }
 
   // Crossfade: globe fades out while the table fades in at L0 home framing.
@@ -302,7 +425,10 @@ export class GlobeController extends BaseScriptComponent {
       return
     }
     if (next >= this.activeCity.levels.length) return
-    const keep = this.currentViewCenter()
+    // Carry the CURRENT view (center + span) into the new level so the step is
+    // continuous: stepping out lands the shallower level zoomed-in (near its min
+    // edge), not at home, so a single zoom-out no longer cascades to the globe.
+    const keep = this.currentViewBounds()
     this.activeLevelIndex = next
     const level = this.activeCity.levels[next]
     this.mapViewport.setLevel(level, keep, true)
@@ -319,7 +445,7 @@ export class GlobeController extends BaseScriptComponent {
     this.mapViewport.hide(() => {
       this.globeView.getSceneObject().enabled = true
       // Aim back at the city at overview scale (scale 1), fading in.
-      const aim = city ? city.latLng : null
+      const aim = city ? this.applyTextureLonOffset(city.latLng) : null
       this.globeView.animate(aim, 1, 1, this.approachSec, () => this.enterOverview())
     })
   }
@@ -360,14 +486,20 @@ export class GlobeController extends BaseScriptComponent {
     this.gazedMarker = best
   }
 
+  // Single-hand pan is now handled by the map Interactable's drag events (with
+  // jitter filtering + cursor feedback). This path only owns the TWO-hand pinch
+  // zoom, which is read straight from the tracked hands.
   private updateDockedInput(): void {
     const both = this.leftDown && this.rightDown
-    const one = this.leftDown !== this.rightDown // exactly one
 
     if (both) {
-      // Two-hand pinch -> zoom (uvScale); reset pan tracking.
-      this.panHandPrev = null
-      const dist = this.leftHand.thumbTip.position.distance(this.rightHand.thumbTip.position)
+      // Two-hand pinch -> zoom (uvScale). Drop any single-hand pan in progress so
+      // the two paths never fight over the table.
+      this.endMapDrag()
+      const rawDist = this.leftHand.thumbTip.position.distance(this.rightHand.thumbTip.position)
+      // Low-pass the pinch distance so two-hand zoom doesn't jitter.
+      const dist = this.pinchDistSmoothed < 0 ? rawDist : this.pinchDistSmoothed + (rawDist - this.pinchDistSmoothed) * 0.5
+      this.pinchDistSmoothed = dist
       if (this.pinchDistPrev > 0) {
         // Spread (dist up) zooms IN (uvScale down): factor = prev/curr scaled by speed.
         const ratio = this.pinchDistPrev / Math.max(1e-3, dist)
@@ -376,46 +508,122 @@ export class GlobeController extends BaseScriptComponent {
         this.maybeStepLodByZoom(scale, dist < this.pinchDistPrev)
       }
       this.pinchDistPrev = dist
-    } else if (one) {
-      // One-hand drag -> pan (uvOffset).
-      this.pinchDistPrev = -1
-      const hand = this.rightDown ? this.rightHand : this.leftHand
-      const pos = hand.thumbTip.position
-      if (this.panHandPrev && this.tableTransform) {
-        this.applyPan(pos.sub(this.panHandPrev))
-      }
-      this.panHandPrev = pos
     } else {
-      this.panHandPrev = null
       this.pinchDistPrev = -1
+      this.pinchDistSmoothed = -1
     }
   }
 
-  // Converts a world-space hand delta into a clamped UV pan along the flat table.
-  // The table lies in its XZ plane, so the in-surface axes are right (+X) and
-  // forward (+Z), not up.
+  private bothHandsPinching(): boolean {
+    return this.leftDown && this.rightDown
+  }
+
+  // --- Interactable drag: globe rotate (OVERVIEW) ----------------------------
+
+  // Begins a smoothed globe-rotation drag. Shared by the globe surface and the
+  // markers so starting a drag on a pin still spins the globe.
+  private beginGlobeDrag(e: DragInteractorEvent): void {
+    if (this.state !== "OVERVIEW" || e.target !== e.interactable) return
+    this.globeDragInteractor = e.interactor
+    this.globeDragAccum = vec3.zero()
+    this.globeDragMoved = false
+    this.globeDragTracker.begin(this.globeDragAccum)
+  }
+
+  private updateGlobeDrag(e: DragInteractorEvent): void {
+    if (this.state !== "OVERVIEW" || !this.globeView || e.target !== e.interactable) return
+    if (this.globeDragInteractor && e.interactor !== this.globeDragInteractor) return
+    // Accumulate the interactor's per-frame world delta into a running point so
+    // the OneEuroFilter smooths an absolute path (not a noisy raw delta).
+    this.globeDragAccum = this.globeDragAccum.add(e.dragVector ?? vec3.zero())
+    const delta = this.globeDragTracker.update(this.globeDragAccum)
+    if (delta.length > this.DRAG_MOVE_EPS) this.globeDragMoved = true
+    // Map the smoothed hand motion onto the screen's horizontal/vertical axes so
+    // dragging right spins the globe right and dragging up tilts it up.
+    const right = this.camTransform ? this.camTransform.right : vec3.right()
+    const up = this.camTransform ? this.camTransform.up : vec3.up()
+    const yaw = delta.dot(right) * this.handRotateSpeed
+    // Pitch is negated so dragging up tilts the globe up (matches the touch path).
+    const pitch = -delta.dot(up) * this.handRotateSpeed
+    this.globeView.rotateBy(yaw, pitch)
+  }
+
+  private endGlobeDrag(): void {
+    this.globeDragInteractor = null
+    this.globeDragTracker.end()
+  }
+
+  private onMarkerTriggerEnd(marker: CityMarker): void {
+    this.endGlobeDrag()
+    // A drag (rotate) is never a selection; only a clean tap selects a city.
+    if (this.state !== "OVERVIEW" || this.globeDragMoved) return
+    const city = this.cityData.getCity(marker.getCityName())
+    if (city) this.selectCity(city)
+  }
+
+  // --- Interactable drag: map pan (DOCKED) -----------------------------------
+
+  private beginMapDrag(e: DragInteractorEvent): void {
+    if (this.state !== "DOCKED" || this.bothHandsPinching() || e.target !== e.interactable) return
+    this.mapDragInteractor = e.interactor
+    this.mapDragAccum = vec3.zero()
+    this.mapDragTracker.begin(this.mapDragAccum)
+  }
+
+  private updateMapDrag(e: DragInteractorEvent): void {
+    if (this.state !== "DOCKED" || this.bothHandsPinching() || !this.tableTransform || e.target !== e.interactable) return
+    if (this.mapDragInteractor && e.interactor !== this.mapDragInteractor) return
+    this.mapDragAccum = this.mapDragAccum.add(e.dragVector ?? vec3.zero())
+    const delta = this.mapDragTracker.update(this.mapDragAccum)
+    this.applyPan(delta)
+  }
+
+  private endMapDrag(): void {
+    this.mapDragInteractor = null
+    this.mapDragTracker.end()
+  }
+
+  // Converts a smoothed world-space drag delta into a clamped UV pan.
+  //
+  // Horizontal pan projects onto the table's right axis (already screen-aligned).
+  // Vertical pan projects onto the CAMERA's up axis rather than the table's
+  // (near-horizontal) forward axis: a flat table viewed at a steep angle
+  // foreshortens that forward axis, so an up/down drag would otherwise be 2-3x
+  // weaker than left/right. The sign is matched to the table's forward direction
+  // so the pan direction stays the same.
   private applyPan(deltaWorld: vec3): void {
-    const right = this.tableTransform.right
-    const forward = this.tableTransform.forward
-    const localRight = deltaWorld.dot(right)
-    const localFwd = deltaWorld.dot(forward)
+    const localRight = deltaWorld.dot(this.tableTransform.right)
     const size = Math.max(1e-3, this.tableSizeCm)
     const scale = this.mapViewport.getUvScale()
+
+    let localUp: number
+    if (this.camTransform) {
+      const camUp = this.camTransform.up
+      const sFwd = Math.sign(camUp.dot(this.tableTransform.forward)) || 1
+      localUp = deltaWorld.dot(camUp) * sFwd
+    } else {
+      localUp = deltaWorld.dot(this.tableTransform.forward)
+    }
+
     const dx = -(localRight / size) * scale * this.panSpeed
-    const dy = (localFwd / size) * scale * this.panSpeed
+    const dy = (localUp / size) * scale * this.panSpeed
     this.mapViewport.pan({ x: dx, y: dy })
   }
 
-  // Steps LOD when the zoom reaches an edge: at min uvScale step IN, and when
-  // already at home (uvScale ~ max) and still zooming out, step OUT / back.
+  // Steps LOD when the zoom reaches an edge. The direction guards are symmetric:
+  // step IN only while zooming in (min edge), step OUT only while zooming out
+  // (max edge). This prevents a step that lands near an edge from immediately
+  // re-triggering the opposite (or same) step on the following frame.
   private maybeStepLodByZoom(scale: number, zoomingOut: boolean): void {
-    if (scale <= this.minScaleEdge()) {
+    if (!zoomingOut && scale <= this.minScaleEdge()) {
       this.stepLod(+1)
       this.pinchDistPrev = -1
+      this.pinchDistSmoothed = -1
       this.touchPinchPrev = -1
     } else if (zoomingOut && scale >= this.maxScaleEdge()) {
       this.stepLod(-1)
       this.pinchDistPrev = -1
+      this.pinchDistSmoothed = -1
       this.touchPinchPrev = -1
     }
   }
@@ -429,38 +637,36 @@ export class GlobeController extends BaseScriptComponent {
     return 0.999
   }
 
-  private currentViewCenter() {
+  // The geographic view (center + span) currently shown, used to keep a LOD step
+  // continuous. Falls back to the active level's home framing if unavailable.
+  private currentViewBounds() {
     const vb = this.mapViewport.getViewBounds()
-    return vb ? vb.centerLatLng : (this.activeCity ? this.activeCity.latLng : { lat: 0, lng: 0 })
+    if (vb) return vb
+    const level = this.activeCity ? this.activeCity.levels[this.activeLevelIndex] : null
+    const center = this.activeCity ? this.activeCity.latLng : { lat: 0, lng: 0 }
+    return { centerLatLng: center, spanDeg: level ? level.bounds.spanDeg : 1 }
   }
 
   // --- Pinch callbacks -------------------------------------------------------
 
+  // The pinch callbacks now only track which hands are down for the two-hand
+  // zoom. City selection moved to the marker Interactables (a deliberate tap),
+  // and globe rotation moved to the globe Interactable drag.
   private onRightPinchDown = () => {
     this.rightDown = true
-    this.onPinchDown()
   }
   private onRightPinchUp = () => {
     this.rightDown = false
-    this.panHandPrev = null
     this.pinchDistPrev = -1
+    this.pinchDistSmoothed = -1
   }
   private onLeftPinchDown = () => {
     this.leftDown = true
-    this.onPinchDown()
   }
   private onLeftPinchUp = () => {
     this.leftDown = false
-    this.panHandPrev = null
     this.pinchDistPrev = -1
-  }
-
-  // A pinch in OVERVIEW while gazing a marker selects that city.
-  private onPinchDown(): void {
-    if (this.state === "OVERVIEW" && this.gazedMarker) {
-      const city = this.cityData.getCity(this.gazedMarker.getCityName())
-      if (city) this.selectCity(city)
-    }
+    this.pinchDistSmoothed = -1
   }
 
   // --- Touch input -----------------------------------------------------------
@@ -580,6 +786,14 @@ export class GlobeController extends BaseScriptComponent {
   }
 
   // --- Helpers ---------------------------------------------------------------
+
+  // Adds the configured texture longitude offset to a coordinate, returning a
+  // NEW LatLng (never mutates the city's own data). Applied identically to
+  // marker placement and globe aim so the two never drift apart.
+  private applyTextureLonOffset(latLng: LatLng): LatLng {
+    if (!this.textureLonOffsetDeg) return latLng
+    return { lat: latLng.lat, lng: latLng.lng + this.textureLonOffsetDeg }
+  }
 
   private setMarkersVisible(visible: boolean): void {
     if (!this.markers) return

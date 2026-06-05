@@ -395,8 +395,8 @@
     crossfadeSec: true
     gazeHalfAngleDeg: true
     tableSizeCm: true
-    panSpeed: true
     zoomSpeed: true
+    handRotateSpeed: true
     touchRotateSpeed: true
     touchPanGain: true
     enableLogging: true
@@ -414,6 +414,7 @@
       markerPrefab: !<reference.ObjectPrefab> 5944fc67-e5d2-469e-9886-2a3a91e1c40b
       markerSurfaceOffset: 1.040000
       markerScale: 0.100000
+      textureLonOffsetDeg: !<float> 113.000000
       cameraObject: !<reference.SceneObject> 00000000-0000-0065-0000-000000000064
       tableObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
       labelText: !<reference.Text> 00000000-0000-0000-0000-000000000000
@@ -421,8 +422,9 @@
       crossfadeSec: 0.500000
       gazeHalfAngleDeg: !<float> 12.000000
       tableSizeCm: !<float> 60.000000
-      panSpeed: !<float> 1.000000
+      panSpeed: 0.300000
       zoomSpeed: !<float> 1.000000
+      handRotateSpeed: 0.030000
       touchRotateSpeed: !<float> 3.000000
       touchPanGain: 1.200000
       enableLogging: false
@@ -1074,7 +1076,7 @@
   LocalTransform: !<TransformEntity>
     Position: {x: 0.000000, y: 0.000000, z: -84.690804}
     Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
-    Scale: {x: 15.000000, y: 15.000000, z: 15.000000}
+    Scale: {x: 25.000000, y: 25.000000, z: 25.000000}
     HasSegmentScaleCompensation: false
   Children:
     []
