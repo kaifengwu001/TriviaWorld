@@ -4,25 +4,49 @@
  *
  * Owns a low/moderate-poly sphere with an UNLIT equirectangular base texture.
  * It is moved by TRADITIONAL rotate-to-aim + scale-to-zoom (the interaction
- * model never changes with depth). During the dock handoff the controller tweens
- * the globe to a footprint that matches the table's L0 (via dockScaleForSpan),
- * then crossfades it OUT; the globe stays HIDDEN for the whole DOCKED phase and
- * fades back IN on the way out.
+ * model never changes with depth). During the dock handoff the controller drives
+ * a full WORLD-pose tween (animateToPose): the globe simultaneously rotates the
+ * selected location to its top, slides so that top lands on the table center,
+ * scales up until that surface patch matches the table footprint (dockScaleForSpan),
+ * and fades OUT — so it visually "becomes" the map. It stays HIDDEN for the whole
+ * DOCKED phase and reverses the same pose tween on the way back out.
  *
  * Fading is done on a CLONED material's baseColor alpha (clone-before-modify, so
  * the shared asset is never mutated — same pattern as PictureBehavior /
  * PingController). Aim/zoom/alpha are tweened in a single UpdateEvent.
  */
 import { Logger } from "Utilities.lspkg/Scripts/Utils/Logger";
-import { LatLng, aimEuler, dockScaleForSpan, easeInOutCubic, clamp01, lerp } from "./GeoMath";
+import { LatLng, Easing, aimEuler, dockScaleForSpan, easeInOutCubic, clamp01, lerp } from "./GeoMath";
+
+/**
+ * Per-channel easing for a pose tween. Each channel (position / rotation / scale
+ * / alpha) advances on its own curve so the dive can, e.g., shoot the globe
+ * toward the table early (ease-out position) while the zoom accelerates late
+ * (ease-in scale). Any omitted channel defaults to ease-in-out cubic.
+ */
+export interface PoseEasing {
+  position?: Easing;
+  rotation?: Easing;
+  scale?: Easing;
+  alpha?: Easing;
+}
 
 interface GlobeTween {
+  // Position is tracked as the globe's TOP TIP (its world-up-most surface point),
+  // NOT its center, so scale and position both pivot about that tip — the dive
+  // looks like zooming into the top surface instead of flinging the center.
+  fromTop: vec3;
+  toTop: vec3;
   fromRot: quat;
   toRot: quat;
   fromScale: number;
   toScale: number;
   fromAlpha: number;
   toAlpha: number;
+  easePos: Easing;
+  easeRot: Easing;
+  easeScale: Easing;
+  easeAlpha: Easing;
   duration: number;
   elapsed: number;
   onDone: (() => void) | null;
@@ -117,6 +141,38 @@ export class GlobeView extends BaseScriptComponent {
     this.transform.setLocalRotation(delta.multiply(this.transform.getLocalRotation()))
   }
 
+  /**
+   * Eases the globe one frame toward "upright" — its spin axis (local +Y / the
+   * north pole) brought back to vertical — while leaving its heading (which
+   * longitude faces the viewer) untouched. This is the self-righting spring that
+   * undoes pole-tilt after the user lets go, so an up/down drag never leaves the
+   * globe stuck at an awkward angle.
+   *
+   * The correction is a critically-damped exponential (no overshoot): each call
+   * removes a `1 - e^(-speed*dt)` fraction of the remaining tilt, so it slows as
+   * it levels and naturally settles. Returns the tilt (radians) BEFORE this
+   * step, so callers can tell when it has finished (~0). No-op during a tween.
+   */
+  rightingStep(dt: number, speed: number): number {
+    if (this.tween || speed <= 0 || dt <= 0) return 0
+    const q = this.transform.getLocalRotation()
+    // Where the north pole currently points (same space rotateBy operates in).
+    const upNow = q.multiplyVec3(vec3.up())
+    const cosTilt = Math.max(-1, Math.min(1, upNow.dot(vec3.up())))
+    const tilt = Math.acos(cosTilt)
+    if (tilt < 1e-3) return tilt
+    // Axis that swings the pole back to vertical along the shortest arc. When the
+    // globe is exactly upside-down the cross product vanishes, so fall back to a
+    // fixed horizontal axis to keep righting.
+    let axis = upNow.cross(vec3.up())
+    const len = axis.length
+    axis = len < 1e-5 ? vec3.right() : axis.uniformScale(1 / len)
+    const target = quat.angleAxis(tilt, axis).multiply(q)
+    const k = 1 - Math.exp(-speed * dt)
+    this.transform.setLocalRotation(quat.slerp(q, target, k))
+    return tilt
+  }
+
   // Local-space half-extent (largest axis) times the authored base scale gives
   // the world radius at scale = 1, independent of any runtime zoom we apply.
   private detectRadiusCm(): number {
@@ -155,10 +211,15 @@ export class GlobeView extends BaseScriptComponent {
     this.applyAlpha()
   }
 
+  /** The globe's current world TOP TIP (its world-up-most surface point). */
+  getTopTip(): vec3 {
+    return this.currentTopTip()
+  }
+
   /**
-   * Tweens aim + zoom + alpha together over `duration` seconds. Used both for
-   * the OVERVIEW->dock approach (aim to the city, zoom to dock scale) and for the
-   * crossfade (alpha to 0). Calls `onDone` when finished.
+   * Tweens aim + zoom + alpha together over `duration` seconds, leaving the
+   * globe's world POSITION unchanged. Used by show()/hide() for plain fades.
+   * Calls `onDone` when finished.
    */
   animate(
     targetLatLng: LatLng | null,
@@ -167,19 +228,91 @@ export class GlobeView extends BaseScriptComponent {
     duration: number,
     onDone?: () => void
   ): void {
-    const toRot = targetLatLng ? this.rotationFor(targetLatLng) : this.transform.getLocalRotation()
+    const toRot = targetLatLng ? this.rotationFor(targetLatLng) : this.transform.getWorldRotation()
+    this.startTween(this.currentTopTip(), toRot, targetScale, targetAlpha, duration, onDone ?? null)
+  }
+
+  /**
+   * Tweens the full WORLD pose plus alpha over `duration` seconds, with position
+   * and scale pivoting about the globe's TOP TIP. This is the dock handoff: the
+   * globe rotates the selected location to its top, moves that top tip onto
+   * `toTopTip` (the table center), scales up about that tip until the surface
+   * patch matches the table footprint, and (optionally) fades out — so it
+   * visually "becomes" the map without the center flinging away. Passing null for
+   * `toTopTip`/`toRot` keeps the current world value. `easing` supplies an
+   * independent curve per channel (defaults to ease-in-out cubic).
+   */
+  animateToPose(
+    toTopTip: vec3 | null,
+    toRot: quat | null,
+    toScale: number,
+    toAlpha: number,
+    duration: number,
+    easing?: PoseEasing,
+    onDone?: () => void
+  ): void {
+    this.startTween(
+      toTopTip ?? this.currentTopTip(),
+      toRot ?? this.transform.getWorldRotation(),
+      toScale,
+      toAlpha,
+      duration,
+      onDone ?? null,
+      easing
+    )
+  }
+
+  /**
+   * Instantly snaps the globe so its TOP TIP is at `topTip`, with `rot`/`scale`.
+   * The transform center is derived so the tip lands exactly where asked.
+   */
+  setPose(topTip: vec3, rot: quat, scale: number): void {
+    this.tween = null
+    this.currentScale = Math.max(1e-3, scale)
+    this.transform.setWorldRotation(rot)
+    this.transform.setWorldPosition(this.centerFromTop(topTip, this.currentScale))
+    this.applyScale()
+  }
+
+  private startTween(
+    toTop: vec3,
+    toRot: quat,
+    toScale: number,
+    toAlpha: number,
+    duration: number,
+    onDone: (() => void) | null,
+    easing?: PoseEasing
+  ): void {
     this.tween = {
-      fromRot: this.transform.getLocalRotation(),
+      fromTop: this.currentTopTip(),
+      toTop,
+      fromRot: this.transform.getWorldRotation(),
       toRot,
       fromScale: this.currentScale,
-      toScale: Math.max(1e-3, targetScale),
+      toScale: Math.max(1e-3, toScale),
       fromAlpha: this.currentAlpha,
-      toAlpha: clamp01(targetAlpha),
+      toAlpha: clamp01(toAlpha),
+      easePos: easing?.position ?? easeInOutCubic,
+      easeRot: easing?.rotation ?? easeInOutCubic,
+      easeScale: easing?.scale ?? easeInOutCubic,
+      easeAlpha: easing?.alpha ?? easeInOutCubic,
       duration: Math.max(0.0001, duration),
       elapsed: 0,
-      onDone: onDone ?? null,
+      onDone,
     }
     if (duration <= 0) this.finishTween()
+  }
+
+  // The globe's current top tip: the world-up-most point of the sphere surface,
+  // i.e. center + worldUp * (worldRadiusAtScale1 * currentScale). Independent of
+  // the globe's rotation, by construction.
+  private currentTopTip(): vec3 {
+    return this.transform.getWorldPosition().add(vec3.up().uniformScale(this.getRadiusCm() * this.currentScale))
+  }
+
+  // The transform center that places the top tip at `top` for a given `scale`.
+  private centerFromTop(top: vec3, scale: number): vec3 {
+    return top.sub(vec3.up().uniformScale(this.getRadiusCm() * scale))
   }
 
   /** Fades the globe in (and enables it) over `duration` seconds. */
@@ -231,12 +364,16 @@ export class GlobeView extends BaseScriptComponent {
     if (!this.tween) return
     const t = this.tween
     t.elapsed += dt
-    const k = easeInOutCubic(clamp01(t.elapsed / t.duration))
+    const raw = clamp01(t.elapsed / t.duration)
 
-    this.transform.setLocalRotation(quat.slerp(t.fromRot, t.toRot, k))
-    this.currentScale = lerp(t.fromScale, t.toScale, k)
+    // Scale first, then derive the center from the (independently eased) top tip
+    // so the tip tracks its own curve exactly no matter how scale eases.
+    this.currentScale = lerp(t.fromScale, t.toScale, t.easeScale(raw))
     this.applyScale()
-    this.currentAlpha = lerp(t.fromAlpha, t.toAlpha, k)
+    const top = vec3.lerp(t.fromTop, t.toTop, t.easePos(raw))
+    this.transform.setWorldPosition(this.centerFromTop(top, this.currentScale))
+    this.transform.setWorldRotation(quat.slerp(t.fromRot, t.toRot, t.easeRot(raw)))
+    this.currentAlpha = lerp(t.fromAlpha, t.toAlpha, t.easeAlpha(raw))
     this.applyAlpha()
 
     if (t.elapsed >= t.duration) this.finishTween()
@@ -245,9 +382,10 @@ export class GlobeView extends BaseScriptComponent {
   private finishTween(): void {
     if (!this.tween) return
     const t = this.tween
-    this.transform.setLocalRotation(t.toRot)
     this.currentScale = t.toScale
     this.applyScale()
+    this.transform.setWorldPosition(this.centerFromTop(t.toTop, this.currentScale))
+    this.transform.setWorldRotation(t.toRot)
     this.currentAlpha = t.toAlpha
     this.applyAlpha()
     const done = t.onDone

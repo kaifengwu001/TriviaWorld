@@ -21,7 +21,6 @@
     - !<own> 26c1313c-9ea6-4551-a994-27a6202111b0
     - !<own> 5940ecac-841c-4d64-8123-3ae62452ec4a
     - !<own> 829adcc4-89f6-4ba0-93be-000d78f33988
-    - !<own> 2733713e-9b63-4991-9e81-a9ef29c95f1a
     - !<own> 88f81952-1481-4cec-af46-2c6672cb056a
   layers: !<Layers/267ee9a7-aff2-4f9d-9a49-f71214747d03>
     userLayers:
@@ -391,12 +390,13 @@
     markerSurfaceOffset: true
     tableObject: true
     labelText: true
-    approachSec: true
-    crossfadeSec: true
+    fadeOutGlobe: true
     gazeHalfAngleDeg: true
     tableSizeCm: true
     zoomSpeed: true
+    lodEnterZoom: true
     handRotateSpeed: true
+    globeRightingSpeed: true
     touchRotateSpeed: true
     touchPanGain: true
     enableLogging: true
@@ -418,13 +418,20 @@
       cameraObject: !<reference.SceneObject> 00000000-0000-0065-0000-000000000064
       tableObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
       labelText: !<reference.Text> 00000000-0000-0000-0000-000000000000
-      approachSec: 1.100000
-      crossfadeSec: 0.500000
+      approachSec: !<float> 5.000000
+      crossfadeSec: !<float> 5.000000
+      positionBias: !<float> 1.000000
+      rotationBias: !<float> 1.000000
+      scaleBias: !<float> -1.000000
+      fadeBias: -0.350000
+      fadeOutGlobe: true
       gazeHalfAngleDeg: !<float> 12.000000
       tableSizeCm: !<float> 60.000000
       panSpeed: 0.300000
       zoomSpeed: !<float> 1.000000
+      lodEnterZoom: 0.700000
       handRotateSpeed: 0.030000
+      globeRightingSpeed: !<float> 6.000000
       touchRotateSpeed: !<float> 3.000000
       touchPanGain: 1.200000
       enableLogging: false
@@ -1083,22 +1090,6 @@
   Components:
     - !<own> a68f4e5a-b414-419b-96b0-721edc8679a1
     - !<own> 1537e6de-5cfe-42ea-873c-8c8719a6f4a4
-- !<SceneObject/2733713e-9b63-4991-9e81-a9ef29c95f1a>
-  PrefabRemaps:
-    - 2733713e-9b63-4991-9e81-a9ef29c95f1a: 973772e6-7774-4912-758e-4b078f57e513
-    - 3687943c-a454-4f5c-b29d-1c996ee4c035: 9f00cdbb-fa84-41c9-53c9-c35bf1fbd62b
-  Name: MapMarker
-  Enabled: false
-  Layers: 1
-  LocalTransform: !<TransformEntity>
-    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
-    Rotation: {x: 0.000000, y: 0.000000, z: 180.000000}
-    Scale: {x: 3.000000, y: 3.000000, z: 3.000000}
-    HasSegmentScaleCompensation: false
-  Children:
-    []
-  Components:
-    - !<own> 3687943c-a454-4f5c-b29d-1c996ee4c035
 - !<SceneObject/286b253d-ee01-4526-b319-79cf67bc9053>
   PrefabRemaps:
     []
@@ -1287,26 +1278,6 @@
     - !<own> 843020d0-c45e-4c97-8890-6b8eda5a37e0
   Components:
     []
-- !<RenderMeshVisual/3687943c-a454-4f5c-b29d-1c996ee4c035>
-  PrefabRemaps:
-    []
-  Name: Render Mesh Visual
-  Enabled: true
-  RenderOrder: 0
-  StretchMode: Stretch
-  VerticalAlignment: Center
-  HorizontalAlignment: Center
-  MeshShadowMode: None
-  ShadowColor: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
-  ShadowDensity: 1.000000
-  Materials:
-    - !<reference> 268c2841-9394-4119-bce9-ac4c98189143
-  Mesh: !<reference> 0cd78c63-14cc-4d35-97c6-69d9340d4dcf
-  Skin: !<reference> 00000000-0000-0000-0000-000000000000
-  BlendShapesEnabled: true
-  BlendNormals: false
-  BlendShapes:
-    {}
 - !<SceneObject/3796f29d-c156-4ed0-a6d1-e21bb4f52492>
   PrefabRemaps:
     []
@@ -1466,7 +1437,7 @@
   PrefabRemaps:
     []
   Name: PictureController
-  Enabled: true
+  Enabled: false
   Layers: 1
   LocalTransform: !<TransformEntity>
     Position: {x: 0.000000, y: 0.000000, z: -10.000000}
@@ -2199,7 +2170,7 @@
   PrefabRemaps:
     []
   Name: TopicPanel
-  Enabled: true
+  Enabled: false
   Layers: 1
   LocalTransform: !<TransformEntity>
     Position: {x: 0.000000, y: 0.000000, z: 0.000000}

@@ -63,7 +63,7 @@
     - '// @input float tableSizeCm = 60 {"hint":"Edge length (cm) of the code-built table quad. Ignored if a tableVisual is assigned. Match GlobeView.tableSizeCm."}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Zoom limits (uvScale within a level)</span>"}'
-    - '// @input float minUvScale = 0.34 {"hint":"Smallest uvScale allowed while zoomed into a level (shows the least area / most detail). Below this the controller should step to the next LOD."}'
+    - '// @input float minUvScale = 0.34 {"hint":"Smallest uvScale allowed while zoomed into a level (shows the least area / most detail). The controller lowers this at runtime (via setMinUvScale) so its deeper per-level step-in thresholds are reachable; this inspector value is just the authored default/floor."}'
     - "// @input float maxUvScale = 1 {\"hint\":\"Largest uvScale (1 = the whole LOD texture fills the pane = the level's home framing). Above this the controller should step out a LOD.\"}"
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Transitions</span>"}'

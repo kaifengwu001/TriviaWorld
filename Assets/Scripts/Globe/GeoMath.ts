@@ -74,6 +74,47 @@ export function easeInOutCubic(t: number): number {
   return c < 0.5 ? 4 * c * c * c : 1 - Math.pow(-2 * c + 2, 3) / 2;
 }
 
+/** No easing — constant rate. */
+export function easeLinear(t: number): number {
+  return clamp01(t);
+}
+
+/** Ease in (cubic): slow start, fast end. */
+export function easeInCubic(t: number): number {
+  const c = clamp01(t);
+  return c * c * c;
+}
+
+/** Ease out (cubic): fast start, slow end. */
+export function easeOutCubic(t: number): number {
+  const c = clamp01(t);
+  return 1 - Math.pow(1 - c, 3);
+}
+
+/** A scalar easing curve over t in [0, 1]. */
+export type Easing = (t: number) => number;
+
+/**
+ * A single, intuitive easing knob driven by one signed `bias` in [-1, 1]:
+ *
+ *   bias  0  -> smooth ease-in-out (the natural default: gentle start AND stop)
+ *   bias +1  -> FRONT-LOADED: fast start, gentle finish (ease-out)
+ *   bias -1  -> BACK-LOADED:  slow start, fast finish (ease-in)
+ *
+ * The magnitude is the strength (how far from the symmetric S-curve it leans), so
+ * one number fully describes a channel's feel — no opaque mode codes. It blends
+ * the symmetric cubic S-curve toward a pure ease-out (bias > 0) or pure ease-in
+ * (bias < 0). Returns the eased fraction for `t` in [0, 1].
+ */
+export function biasedEase(t: number, bias: number): number {
+  const c = clamp01(t);
+  const b = clamp(bias, -1, 1);
+  const s = easeInOutCubic(c);
+  if (b > 0) return lerp(s, easeOutCubic(c), b);
+  if (b < 0) return lerp(s, easeInCubic(c), -b);
+  return s;
+}
+
 // --- equirectangular UV (globe base texture) --------------------------------
 
 /**

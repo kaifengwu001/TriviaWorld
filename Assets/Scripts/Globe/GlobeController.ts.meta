@@ -33,16 +33,23 @@
     crossfadeSec: false
     enableLogging: false
     enableLoggingLifecycle: false
+    fadeBias: false
+    fadeOutGlobe: false
     gazeHalfAngleDeg: false
+    globeRightingSpeed: false
     globeView: false
     handRotateSpeed: false
     labelText: false
+    lodEnterZoom: false
     mapViewport: false
     markerPrefab: false
     markerScale: false
     markerSurfaceOffset: false
     markers: false
     panSpeed: false
+    positionBias: false
+    rotationBias: false
+    scaleBias: false
     tableObject: false
     tableSizeCm: false
     textureLonOffsetDeg: false
@@ -73,11 +80,18 @@
       labelText: !<reference.Text> 00000000-0000-0000-0000-000000000000
       approachSec: 1.100000
       crossfadeSec: 0.500000
+      positionBias: !<float> 0.000000
+      rotationBias: !<float> 0.000000
+      scaleBias: !<float> 0.000000
+      fadeBias: !<float> 0.000000
+      fadeOutGlobe: true
       gazeHalfAngleDeg: !<float> 12.000000
       tableSizeCm: !<float> 60.000000
       panSpeed: !<float> 1.000000
       zoomSpeed: !<float> 1.000000
+      lodEnterZoom: 0.700000
       handRotateSpeed: 0.030000
+      globeRightingSpeed: !<float> 6.000000
       touchRotateSpeed: !<float> 3.000000
       touchPanGain: 1.200000
       enableLogging: false
@@ -109,11 +123,20 @@
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Tuning</span>"}'
     - '// @input float approachSec = 1.1 {"hint":"Seconds for the OVERVIEW->dock approach tween."}'
     - '// @input float crossfadeSec = 0.5 {"hint":"Seconds for the globe-out / table-in crossfade."}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Dive feel (per-channel bias)</span><br/><span style=\"color: #94A3B8; font-size: 11px;\">One knob per channel, range -1..+1.<br/><b>0</b> = smooth ease-in-out (natural). <b>+1</b> = front-loaded (fast start, gentle finish). <b>-1</b> = back-loaded (slow start, fast finish). Magnitude = strength.</span>"}'
+    - '// @input float positionBias {"hint":"POSITION feel: how the top tip travels to the table. +1 darts over early then eases in; -1 creeps then rushes.", "widget":"slider", "min":-1, "max":1, "step":0.05}'
+    - '// @input float rotationBias {"hint":"ROTATION feel: how the city swings up to the top. +1 snaps the turn early; -1 holds then whips around.", "widget":"slider", "min":-1, "max":1, "step":0.05}'
+    - '// @input float scaleBias {"hint":"SCALE feel: how the zoom-into-the-surface accelerates. +1 grows fast then settles; -1 eases in then surges.", "widget":"slider", "min":-1, "max":1, "step":0.05}'
+    - "// @input float fadeBias {\"hint\":\"FADE feel: the globe's alpha out (on dock) / in (on return).\", \"widget\":\"slider\", \"min\":-1, \"max\":1, \"step\":0.05}"
+    - '// @input bool fadeOutGlobe = true {"hint":"Fade the globe out as it docks (and back in on return). Turn OFF to keep the globe fully visible at the dock pose, so you can verify the selected location ends up on TOP with the correct orientation."}'
     - '// @input float gazeHalfAngleDeg = 12 {"hint":"Cosine-threshold half-angle (degrees) of the gaze cone for marker selection."}'
     - '// @input float tableSizeCm = 60 {"hint":"On-screen table size in cm (matches GlobeView.tableSizeCm). Scales hand drags into UV pan."}'
     - '// @input float panSpeed = 0.3 {"hint":"Pan speed multiplier for one-hand drag -> uvOffset."}'
     - '// @input float zoomSpeed = 1 {"hint":"Two-hand pinch zoom sensitivity (>1 = faster). Applies to both hand and two-finger touch zoom."}'
+    - '// @input float lodEnterZoom = 0.7 {"hint":"uvScale a newly-entered deeper LOD loads at (1 = fully zoomed out/home; lower = more zoomed in). ~0.7 leaves room to pan and zoom right after a step-in, and makes the step happen a bit later/deeper on the previous level."}'
     - '// @input float handRotateSpeed = 0.03 {"hint":"Globe rotation gain for a one-hand pinch-drag in OVERVIEW (radians of spin per cm of smoothed hand movement)."}'
+    - '// @input float globeRightingSpeed = 6 {"hint":"How strongly the globe springs back to upright (poles vertical) after you release a drag in OVERVIEW. Higher = snappier; 0 disables self-righting and lets the globe stay tilted."}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Touch input</span>"}'
     - '// @input float touchRotateSpeed = 3 {"hint":"Globe rotation speed for a one-finger drag in OVERVIEW (radians per full-screen drag)."}'

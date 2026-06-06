@@ -20,7 +20,7 @@ continues beyond the crop).
 | `cityBounds.ts` | In-lens mirror of the JSON (Lens Studio TS can't import `.json`). **Generated/kept in sync** by the Python tool — edit the JSON, not this. |
 | `GeoMath.ts` | Pure math (no engine deps): equirectangular UV, sphere position, aim euler, `boundsToUv`/`uvToBounds`, `clampPan`, `dockScaleForSpan`, easing/lerp. |
 | `CityData.ts` | `@component`: binds the bounds (math) to the imported map **textures** (assigned per city in L0..Ln order) → resolved `City` / `LodLevel` objects. |
-| `GlobeView.ts` | `@component`: the globe sphere. `aimAt` / `zoomTo` / `dockScaleForSpan` / `animate` / `show` / `hide` (fade on a cloned material's `baseColor` alpha). |
+| `GlobeView.ts` | `@component`: the globe sphere. `aimAt` / `zoomTo` / `dockScaleForSpan` / `animate` / `animateToPose` / `setPose` / `show` / `hide` (world-pose dive + fade on a cloned material's `baseColor` alpha). |
 | `MapViewport.ts` | `@component`: the holodeck table. Single fixed mesh; `setLevel` / `pan` / `zoom` / `show` / `hide`, UV math from bounds, LOD dissolve. |
 | `GlobeController.ts` | `@component`: the guided state machine (OVERVIEW → ZOOMING_IN → DOCKED L0..L2 → ZOOMING_OUT). Wires gaze/pinch input to transitions. |
 | `CityMarker.ts` | `@component` (light): a tappable pin per city; holds the city name + a gaze highlight. |
@@ -159,12 +159,36 @@ Two input paths are **always active** — hands (device) and touch (editor + pho
   steps **out** / back.
 
 **Shared flow:**
-- **Approach**: the globe tweens to aim at the city + zoom to
-  `dockScaleForSpan(L0.span)`, then crossfades **globe-out / table-in** at the
-  matched footprint (reads as detail sharpening, not a swap).
-- Crossing the **min** zoom edge steps **in** a LOD (dissolve to the next baked
-  image), crossing the **max** edge while zooming out steps **out** / back.
-- **Back**: zoom out past L0 home → ZOOMING_OUT (table-out / globe-in).
+- **Approach (dive)**: a single world-pose tween makes the globe *become* the map
+  — it rotates the city to its **top**, slides that top onto the **table center**,
+  scales to `dockScaleForSpan(lodEnterZoom * L0.span)`, and **fades out** while the
+  table **fades in** at the matched footprint (it reads as diving into the surface,
+  not a swap to an unrelated place). L0 enters partly zoomed (`lodEnterZoom`) so
+  there's pan room immediately, and the globe footprint is sized to that same span
+  so the handoff lines up by construction.
+- **Top-tip pivot**: position and scale pivot about the globe's **top tip** (its
+  world-up-most surface point, independent of rotation), not its center. The dive
+  animates that tip from the overview globe's top onto the **table center** while
+  the (deep, huge) sphere center is derived from `tip − up·radius·scale`. This is
+  what makes it read as *zooming into the top surface* — and prevents the small
+  globe from being flung underground when channels ease at different rates.
+- **Dive feel (per-channel bias)**: position / rotation / scale / fade each take a
+  single signed knob in **[-1, +1]** (`positionBias` / `rotationBias` /
+  `scaleBias` / `fadeBias` → `biasedEase`): **0** = smooth ease-in-out (natural),
+  **+1** = front-loaded (fast start, gentle finish), **-1** = back-loaded (slow
+  start, fast finish); magnitude is the strength. One intuitive number per channel
+  instead of opaque mode codes.
+- **`fadeOutGlobe`** (debug): turn OFF to keep the globe fully visible at the dock
+  pose (it isn't faded or disabled) so you can verify the location lands on TOP
+  with the correct orientation; turn back ON for the normal crossfade.
+- Crossing the **min** zoom edge steps **in** a LOD (crossfade to the next baked
+  image), crossing the **max** edge while zooming out steps **out** / back. The
+  step-in edge is set so the next level loads partly zoomed (`lodEnterZoom`, ~0.7)
+  instead of at its fully-zoomed-out home, leaving room to pan immediately; the
+  previous level therefore zooms a bit deeper before the (seamless) switch.
+- **Back (reverse dive)**: zoom out past L0 home → ZOOMING_OUT. The globe
+  reappears matching the current table view, then un-dives back to the OVERVIEW
+  pose captured at selection while the table fades out in place.
 
 ---
 
@@ -178,8 +202,9 @@ Two input paths are **always active** — hands (device) and touch (editor + pho
 - **Alignment is mathematical, not hand-authored.** Every `LodLevel` is defined by
   `centerLatLng` + `spanDeg`; that single source drives capture, globe aim +
   `dockScaleForSpan`, the table's initial UV, pan clamping, and LOD continuity.
-- **The globe is HIDDEN while docked.** On dock the globe crossfades OUT as the
-  table crossfades IN; the feathered crop therefore fades to **background**.
+- **The globe is HIDDEN while docked.** It dives in (rotate-to-top + slide-to-table
+  + scale + fade) so its surface patch coincides with the table as it fades OUT and
+  the table fades IN; the feathered crop therefore fades to **background**.
 - **A city's L0 covers a LARGE area** (`spanDeg = 0.45`), so the globe→table
   footprint handoff is forgiving.
 - **Immutability:** `GeoMath` returns new objects; `CityData` copies bounds so the

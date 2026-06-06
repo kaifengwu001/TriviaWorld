@@ -55,7 +55,7 @@ export class MapViewport extends BaseScriptComponent {
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Zoom limits (uvScale within a level)</span>')
   @input
-  @hint("Smallest uvScale allowed while zoomed into a level (shows the least area / most detail). Below this the controller should step to the next LOD.")
+  @hint("Smallest uvScale allowed while zoomed into a level (shows the least area / most detail). The controller lowers this at runtime (via setMinUvScale) so its deeper per-level step-in thresholds are reachable; this inspector value is just the authored default/floor.")
   minUvScale: number = 0.34
 
   @input
@@ -224,6 +224,20 @@ export class MapViewport extends BaseScriptComponent {
     return this.uv.scale.x
   }
 
+  /** Smallest uvScale allowed (deepest zoom within a level). */
+  getMinUvScale(): number {
+    return this.minUvScale
+  }
+
+  /**
+   * Overrides the smallest allowed uvScale at runtime. The controller lowers this
+   * so a deeper LOD step-in threshold (which loads the next level partly zoomed)
+   * is reachable before the zoom clamps.
+   */
+  setMinUvScale(min: number): void {
+    this.minUvScale = clamp(min, 0.01, this.maxUvScale)
+  }
+
   /** The geographic bounds currently shown (for LOD continuity). */
   getViewBounds(): GeoBounds | null {
     if (!this.currentLevel) return null
@@ -235,16 +249,16 @@ export class MapViewport extends BaseScriptComponent {
     return this.currentLevel
   }
 
-  /** Fades the table in (and enables it) over `fadeSec`. */
-  show(onDone?: () => void): void {
+  /** Fades the table in (and enables it). Pass `duration` to override `fadeSec`. */
+  show(onDone?: () => void, duration?: number): void {
     this.getSceneObject().enabled = true
-    this.startAlphaTween(this.currentAlpha, 1, this.fadeSec, onDone ?? null)
+    this.startAlphaTween(this.currentAlpha, 1, duration ?? this.fadeSec, onDone ?? null)
   }
 
-  /** Fades the table out over `fadeSec`, then disables the object. */
-  hide(onDone?: () => void): void {
+  /** Fades the table out, then disables the object. Pass `duration` to override `fadeSec`. */
+  hide(onDone?: () => void, duration?: number): void {
     this.endCrossfade()
-    this.startAlphaTween(this.currentAlpha, 0, this.fadeSec, () => {
+    this.startAlphaTween(this.currentAlpha, 0, duration ?? this.fadeSec, () => {
       this.getSceneObject().enabled = false
       if (onDone) onDone()
     })

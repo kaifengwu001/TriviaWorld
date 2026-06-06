@@ -5,12 +5,16 @@
  * States: OVERVIEW -> ZOOMING_IN -> DOCKED (L0..Ln) -> ZOOMING_OUT -> OVERVIEW.
  *
  *   OVERVIEW    full globe + city markers; gaze a marker, pinch to select.
- *   ZOOMING_IN  tween globe aim to the city + zoom to dockScaleForSpan(L0),
- *               then crossfade globe OUT / table IN at the matched footprint.
+ *   ZOOMING_IN  the globe DIVES into the city: one world-pose tween rotates the
+ *               city to its top, slides that top onto the table center, scales to
+ *               dockScaleForSpan(L0 enter span), and fades OUT while the table
+ *               fades IN at the matched footprint — so the globe "becomes" the map.
  *   DOCKED      globe hidden; the table pans (one-hand drag -> uvOffset) and
  *               zooms (two-hand pinch -> uvScale). Crossing a zoom edge steps
  *               the baked LOD (swap mapTex, recompute UV from bounds).
- *   ZOOMING_OUT table OUT / globe IN, tween the globe back to OVERVIEW.
+ *   ZOOMING_OUT the reverse dive: the globe reappears matching the current table
+ *               view, then un-dives back to the captured OVERVIEW pose as the
+ *               table fades out.
  *
  * Two input paths, both always active:
  *   - SIK hands (device): pinch to select; one-hand drag to pan; two-hand pinch
@@ -27,11 +31,11 @@ import { SIK } from "SpectaclesInteractionKit.lspkg/SIK";
 import { Interactable } from "SpectaclesInteractionKit.lspkg/Components/Interaction/Interactable/Interactable";
 import { Interactor } from "SpectaclesInteractionKit.lspkg/Core/Interactor/Interactor";
 import { InteractorEvent, DragInteractorEvent } from "SpectaclesInteractionKit.lspkg/Core/Interactor/InteractorEvent";
-import { GlobeView } from "./GlobeView";
+import { GlobeView, PoseEasing } from "./GlobeView";
 import { MapViewport } from "./MapViewport";
 import { CityData, City } from "./CityData";
 import { CityMarker } from "./CityMarker";
-import { lonLatToSpherePos, LatLng } from "./GeoMath";
+import { lonLatToSpherePos, LatLng, biasedEase } from "./GeoMath";
 import { PinchDragTracker } from "./PinchDragTracker";
 
 interface Vec2 {
@@ -112,6 +116,32 @@ export class GlobeController extends BaseScriptComponent {
   @hint("Seconds for the globe-out / table-in crossfade.")
   crossfadeSec: number = 0.5
 
+  @ui.separator
+  @ui.label('<span style="color: #60A5FA;">Dive feel (per-channel bias)</span><br/><span style="color: #94A3B8; font-size: 11px;">One knob per channel, range -1..+1.<br/><b>0</b> = smooth ease-in-out (natural). <b>+1</b> = front-loaded (fast start, gentle finish). <b>-1</b> = back-loaded (slow start, fast finish). Magnitude = strength.</span>')
+  @input
+  @widget(new SliderWidget(-1, 1, 0.05))
+  @hint("POSITION feel: how the top tip travels to the table. +1 darts over early then eases in; -1 creeps then rushes.")
+  positionBias: number = 0
+
+  @input
+  @widget(new SliderWidget(-1, 1, 0.05))
+  @hint("ROTATION feel: how the city swings up to the top. +1 snaps the turn early; -1 holds then whips around.")
+  rotationBias: number = 0
+
+  @input
+  @widget(new SliderWidget(-1, 1, 0.05))
+  @hint("SCALE feel: how the zoom-into-the-surface accelerates. +1 grows fast then settles; -1 eases in then surges.")
+  scaleBias: number = 0
+
+  @input
+  @widget(new SliderWidget(-1, 1, 0.05))
+  @hint("FADE feel: the globe's alpha out (on dock) / in (on return).")
+  fadeBias: number = 0
+
+  @input
+  @hint("Fade the globe out as it docks (and back in on return). Turn OFF to keep the globe fully visible at the dock pose, so you can verify the selected location ends up on TOP with the correct orientation.")
+  fadeOutGlobe: boolean = true
+
   @input
   @hint("Cosine-threshold half-angle (degrees) of the gaze cone for marker selection.")
   gazeHalfAngleDeg: number = 12
@@ -129,8 +159,16 @@ export class GlobeController extends BaseScriptComponent {
   zoomSpeed: number = 1.0
 
   @input
+  @hint("uvScale a newly-entered deeper LOD loads at (1 = fully zoomed out/home; lower = more zoomed in). ~0.7 leaves room to pan and zoom right after a step-in, and makes the step happen a bit later/deeper on the previous level.")
+  lodEnterZoom: number = 0.7
+
+  @input
   @hint("Globe rotation gain for a one-hand pinch-drag in OVERVIEW (radians of spin per cm of smoothed hand movement).")
   handRotateSpeed: number = 0.03
+
+  @input
+  @hint("How strongly the globe springs back to upright (poles vertical) after you release a drag in OVERVIEW. Higher = snappier; 0 disables self-righting and lets the globe stay tilted.")
+  globeRightingSpeed: number = 6.0
 
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Touch input</span>')
@@ -171,6 +209,13 @@ export class GlobeController extends BaseScriptComponent {
   private tableTransform: Transform = null
   private gazedMarker: CityMarker | null = null
 
+  // The globe's OVERVIEW pose, captured the instant a city is selected so the
+  // return trip (back) reverses the exact same dive, landing the globe back where
+  // (and how) the user left it — including any overview spin. Position is stored
+  // as the TOP TIP (the dive's pivot), matching GlobeView's pose semantics.
+  private preDockTopPos: vec3 = vec3.zero()
+  private preDockRot: quat = quat.quatIdentity()
+
   // SIK interaction (Interactable + collider) drives the on-surface cursor and
   // jitter-filtered drag, replacing the raw thumbTip bookkeeping. The globe
   // Interactable rotates the globe; the map Interactable pans the table; each
@@ -185,6 +230,10 @@ export class GlobeController extends BaseScriptComponent {
   private globeDragInteractor: Interactor | null = null
   private globeDragAccum: vec3 = vec3.zero()
   private globeDragMoved: boolean = false
+  // True while the user is actively rotating the globe (hand drag or touch drag).
+  // The self-righting spring only runs once this goes false, so a deliberate
+  // pole-tilt holds steady under the finger and only levels out on release.
+  private globeInputActive: boolean = false
 
   // Smoothed map pan drag (DOCKED).
   private mapDragTracker = new PinchDragTracker()
@@ -235,9 +284,26 @@ export class GlobeController extends BaseScriptComponent {
       return
     }
     this.cities = this.cityData.getCities()
+    this.configureZoomLimits()
     this.ensureMarkers()
     this.setupInteractions()
     this.enterOverview()
+  }
+
+  // Lowers the viewport's hard min uvScale below every per-level step-in
+  // threshold so the deeper "switch later" point (where the next LOD loads at
+  // lodEnterZoom) is actually reachable before the zoom clamps.
+  private configureZoomLimits(): void {
+    let smallestEnter = Infinity
+    for (const city of this.cities) {
+      for (let i = 0; i + 1 < city.levels.length; i++) {
+        const ratio = city.levels[i + 1].bounds.spanDeg / Math.max(1e-6, city.levels[i].bounds.spanDeg)
+        smallestEnter = Math.min(smallestEnter, this.lodEnterZoom * ratio)
+      }
+    }
+    if (isFinite(smallestEnter)) {
+      this.mapViewport.setMinUvScale(Math.max(0.05, smallestEnter - 0.03))
+    }
   }
 
   // Adds a collider + SIK Interactable to the globe, the map table, and each
@@ -395,25 +461,132 @@ export class GlobeController extends BaseScriptComponent {
     this.logger.info("State -> ZOOMING_IN (" + city.name + ")")
 
     const l0 = city.levels[0]
-    const dockScale = this.globeView.dockScaleForSpan(l0.bounds.spanDeg)
-    // Tween the globe to aim at the city and zoom to the matched footprint, then
-    // crossfade globe-out / table-in. Aim uses the same texture longitude offset
-    // as the marker so the pin stays under the viewer through the zoom.
-    this.globeView.animate(this.applyTextureLonOffset(city.latLng), dockScale, 1, this.approachSec, () => this.dock())
+    const enterSpan = this.enterFraction() * l0.bounds.spanDeg
+
+    // Remember the overview pose (top tip + rotation) so back() can reverse this
+    // exact dive.
+    const gT = this.globeView.getSceneObject().getTransform()
+    this.preDockTopPos = this.globeView.getTopTip()
+    this.preDockRot = gT.getWorldRotation()
+
+    // Bring the table up at the (partly-zoomed) L0 framing the globe will match,
+    // fading it IN over the same window the globe dives + fades OUT — so the two
+    // crossfade in place rather than the table popping in somewhere unrelated.
+    const enterView = {
+      centerLatLng: { lat: l0.bounds.centerLatLng.lat, lng: l0.bounds.centerLatLng.lng },
+      spanDeg: enterSpan,
+    }
+    this.mapViewport.setLevel(l0, enterView, false)
+    this.mapViewport.show(undefined, this.approachSec)
+
+    // The globe simultaneously rotates the city to its top, slides that top onto
+    // the table center, scales up until the surface patch matches the table
+    // footprint, and (unless the fade-out toggle is off) fades out — visually
+    // "becoming" the map. Each channel runs on its own easing curve.
+    const pose = this.computeDockPose(city.latLng, enterSpan)
+    const targetAlpha = this.fadeOutGlobe ? 0 : 1
+    this.globeView.animateToPose(
+      pose.topPos,
+      pose.rot,
+      pose.scale,
+      targetAlpha,
+      this.approachSec,
+      this.diveEasing(),
+      () => this.dock()
+    )
   }
 
-  // Crossfade: globe fades out while the table fades in at L0 home framing.
+  // The per-channel easing for the dive, built from the inspector bias knobs.
+  // Each bias in [-1, 1] picks a curve via biasedEase (0 = natural ease-in-out,
+  // + = front-loaded, - = back-loaded), so the channels can feel distinct.
+  private diveEasing(): PoseEasing {
+    return {
+      position: (t: number) => biasedEase(t, this.positionBias),
+      rotation: (t: number) => biasedEase(t, this.rotationBias),
+      scale: (t: number) => biasedEase(t, this.scaleBias),
+      alpha: (t: number) => biasedEase(t, this.fadeBias),
+    }
+  }
+
+  // The fraction of a level's home span that a freshly-entered level is framed at
+  // (lodEnterZoom, clamped to a sane 0..1), leaving room to pan immediately.
+  private enterFraction(): number {
+    return Math.max(0.05, Math.min(1, this.lodEnterZoom))
+  }
+
+  // Dive finished: settle into the DOCKED phase (the table is already up from
+  // selectCity). Normally the globe has faded out, so disable it; but when the
+  // fade-out toggle is off we keep it enabled at the dock pose so its orientation
+  // can be inspected against the table.
   private dock(): void {
     if (!this.activeCity) return
     const l0 = this.activeCity.levels[0]
     this.activeLevelIndex = 0
-    this.mapViewport.setLevel(l0)
-    this.mapViewport.show()
-    this.globeView.hide(this.crossfadeSec, () => {
-      this.state = "DOCKED"
-      this.setLabel(l0.label)
-      this.logger.info("State -> DOCKED L0")
-    })
+    if (this.fadeOutGlobe) this.globeView.getSceneObject().enabled = false
+    this.state = "DOCKED"
+    this.setLabel(l0.label)
+    this.logger.info("State -> DOCKED L0")
+  }
+
+  // The dock pose: where the globe's TOP TIP should land (the table center), the
+  // rotation that brings `centerLatLng` to the top with map-north aligned, and the
+  // scale whose surface patch (spanning `spanDeg`) fills the table footprint. The
+  // top tip is GlobeView's scale/position pivot, so returning it (not the center)
+  // keeps the dive framed. Uses the SAME texture-longitude offset as the markers
+  // so the pin we dive into stays put. Pure read — never mutates inputs.
+  private computeDockPose(centerLatLng: LatLng, spanDeg: number): { topPos: vec3; rot: quat; scale: number } {
+    const aimed = this.applyTextureLonOffset(centerLatLng)
+    const scale = this.globeView.dockScaleForSpan(spanDeg)
+
+    const tT = this.tableTransform
+    // Table surface frame in world space. normal = the quad's +Y (its up axis).
+    // map-north = the quad's +Z: its v (texture-south) increases toward -Z, so
+    // geographic NORTH is toward +Z, which is the transform's forward axis.
+    const n = tT.up.normalize()
+    const mapNorth = tT.forward.normalize()
+    // The top tip lands exactly on the table center; GlobeView derives the (deep,
+    // huge) sphere center from this tip and the scale.
+    const topPos = tT.getWorldPosition()
+
+    // Local frame at `aimed`, derived straight from lonLatToSpherePos (the same
+    // function that places the markers) so the location we dive into is EXACTLY a
+    // marker direction — no hand-rolled trig that could miss the texture's
+    // east/west mirror. normalLocal = outward dir; northLocal = finite-difference
+    // toward +lat (orthogonalized against the normal inside frameQuat).
+    const c = lonLatToSpherePos(aimed.lng, aimed.lat, 1)
+    const north = lonLatToSpherePos(aimed.lng, aimed.lat + 0.5, 1)
+    const normalLocal = new vec3(c.x, c.y, c.z)
+    const northLocal = new vec3(north.x - c.x, north.y - c.y, north.z - c.z)
+
+    // Rotation mapping the local (north, normal) frame onto the table (north, up)
+    // frame puts the location on top with north aligned; east follows by construction.
+    const rot = this.frameQuat(mapNorth, n).multiply(this.invertQuat(this.frameQuat(northLocal, normalLocal)))
+    return { topPos, rot, scale }
+  }
+
+  // A right-handed orientation whose +Z is `up` and +Y is `north` (orthogonalized
+  // against up). Building both frames the same way guarantees a proper rotation
+  // (no mirroring) when we compose one with the inverse of the other.
+  private frameQuat(north: vec3, up: vec3): quat {
+    const z = up.normalize()
+    let y = north.sub(z.uniformScale(north.dot(z)))
+    y = y.length < 1e-5 ? this.anyPerpendicular(z) : y.normalize()
+    const x = y.cross(z).normalize()
+    const m = new mat3()
+    m.column0 = x
+    m.column1 = y
+    m.column2 = z
+    return quat.fromRotationMat(m)
+  }
+
+  // Conjugate == inverse for a unit quaternion (avoids relying on quat.invert()).
+  private invertQuat(q: quat): quat {
+    return new quat(q.w, -q.x, -q.y, -q.z)
+  }
+
+  private anyPerpendicular(v: vec3): vec3 {
+    const a = Math.abs(v.x) < 0.9 ? vec3.right() : vec3.up()
+    return a.sub(v.uniformScale(a.dot(v))).normalize()
   }
 
   // Steps to the next/previous baked LOD, keeping the focused coordinate put.
@@ -436,18 +609,33 @@ export class GlobeController extends BaseScriptComponent {
     this.logger.info("DOCKED L" + level.level + " (" + level.label + ")")
   }
 
-  /** Returns to the globe overview from the docked table. */
+  /** Returns to the globe overview from the docked table, reversing the dive. */
   back(): void {
     if (this.state !== "DOCKED") return
     this.state = "ZOOMING_OUT"
-    const city = this.activeCity
     this.logger.info("State -> ZOOMING_OUT")
-    this.mapViewport.hide(() => {
-      this.globeView.getSceneObject().enabled = true
-      // Aim back at the city at overview scale (scale 1), fading in.
-      const aim = city ? this.applyTextureLonOffset(city.latLng) : null
-      this.globeView.animate(aim, 1, 1, this.approachSec, () => this.enterOverview())
-    })
+
+    // Reappear matching whatever the table currently shows (center + span) so the
+    // globe emerges seamlessly from the map, then un-dives back to the overview
+    // pose we captured at selection while the table fades out in place.
+    const view = this.currentViewBounds()
+    const startPose = this.computeDockPose(view.centerLatLng, view.spanDeg)
+    const globe = this.globeView.getSceneObject()
+    globe.enabled = true
+    this.globeView.setPose(startPose.topPos, startPose.rot, startPose.scale)
+    // Start faded out only if we're fading; otherwise the globe stayed visible.
+    this.globeView.setAlpha(this.fadeOutGlobe ? 0 : 1)
+
+    this.mapViewport.hide(undefined, this.approachSec)
+    this.globeView.animateToPose(
+      this.preDockTopPos,
+      this.preDockRot,
+      1,
+      1,
+      this.approachSec,
+      this.diveEasing(),
+      () => this.enterOverview()
+    )
   }
 
   // --- Input (per frame) -----------------------------------------------------
@@ -455,6 +643,10 @@ export class GlobeController extends BaseScriptComponent {
   private update(dt: number): void {
     if (this.state === "OVERVIEW") {
       this.updateGazeHighlight()
+      // Right the globe back to vertical once the user has let go.
+      if (!this.globeInputActive && this.globeView && this.globeRightingSpeed > 0) {
+        this.globeView.rightingStep(dt, this.globeRightingSpeed)
+      }
     } else if (this.state === "DOCKED") {
       this.updateDockedInput()
     }
@@ -527,6 +719,7 @@ export class GlobeController extends BaseScriptComponent {
     this.globeDragInteractor = e.interactor
     this.globeDragAccum = vec3.zero()
     this.globeDragMoved = false
+    this.globeInputActive = true
     this.globeDragTracker.begin(this.globeDragAccum)
   }
 
@@ -550,6 +743,7 @@ export class GlobeController extends BaseScriptComponent {
 
   private endGlobeDrag(): void {
     this.globeDragInteractor = null
+    this.globeInputActive = false
     this.globeDragTracker.end()
   }
 
@@ -628,9 +822,18 @@ export class GlobeController extends BaseScriptComponent {
     }
   }
 
+  // The current level's uvScale at which a zoom-IN should step to the next level.
+  // It is chosen so that, by continuity, the next (deeper) level loads framed at
+  // lodEnterZoom (e.g. 0.7) rather than at its fully-zoomed-out home — leaving
+  // room to pan/zoom. Returns 0 at the deepest level (no further step-in).
   private minScaleEdge(): number {
-    // A small epsilon above the viewport's hard min so we step before clamping.
-    return 0.345
+    if (!this.activeCity) return 0.2
+    const next = this.activeLevelIndex + 1
+    if (next >= this.activeCity.levels.length) return 0
+    const cur = this.activeCity.levels[this.activeLevelIndex]
+    const nxt = this.activeCity.levels[next]
+    const ratio = nxt.bounds.spanDeg / Math.max(1e-6, cur.bounds.spanDeg)
+    return this.lodEnterZoom * ratio
   }
 
   private maxScaleEdge(): number {
@@ -705,6 +908,8 @@ export class GlobeController extends BaseScriptComponent {
       if (Math.abs(dx) + Math.abs(dy) > this.TAP_MOVE_THRESH) this.tapMoved = true
       if (this.state === "OVERVIEW") {
         // Drag the globe to rotate it (yaw with x, pitch with y; y is top-down).
+        // Hold off the self-righting spring while a finger is steering.
+        this.globeInputActive = true
         this.globeView.rotateBy(dx * this.touchRotateSpeed, -dy * this.touchRotateSpeed)
       } else if (this.state === "DOCKED") {
         // Drag the table to pan. Mirrors the hand-drag sign conventions.
@@ -721,6 +926,8 @@ export class GlobeController extends BaseScriptComponent {
     const p = e.getTouchPosition()
     delete this.touches[id]
     if (this.touchCount() < 2) this.touchPinchPrev = -1
+    // Once every finger is up, let the globe spring back upright.
+    if (this.touchCount() === 0) this.globeInputActive = false
     if (wasSingleTap) this.handleTap({ x: p.x, y: p.y })
   }
 
