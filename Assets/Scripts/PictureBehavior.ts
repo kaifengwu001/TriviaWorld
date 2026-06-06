@@ -4,6 +4,7 @@
  */
 import { Logger } from "Utilities.lspkg/Scripts/Utils/Logger";
 import {SIK} from "SpectaclesInteractionKit.lspkg/SIK"
+import { Interactable } from "SpectaclesInteractionKit.lspkg/Components/Interaction/Interactable/Interactable"
 import {CaptionBehavior} from "./CaptionBehavior"
 import {ChatGPT} from "./ChatGPT"
 import {CropRegion} from "./CropRegion"
@@ -83,6 +84,10 @@ export class PictureBehavior extends BaseScriptComponent {
   private rotMat = new mat3()
 
   private updateEvent = null
+
+  // The finished card's caption text, handed to the voice agent on tap.
+  private captionText: string = ""
+  private cardTappable = false
 
   onAwake() {
     this.logger = new Logger("PictureBehavior", this.enableLogging || this.enableLoggingLifecycle, true);
@@ -168,6 +173,60 @@ export class PictureBehavior extends BaseScriptComponent {
       " captionPos=" + captionPos.toString()
     )
     this.caption.openCaption(text, captionPos, captionRot, pictureWidth)
+
+    // The card is now finished: remember its text, make it tappable, and
+    // proactively engage the voice agent so it speaks an opener right away.
+    // (Tapping the card later re-engages it.)
+    this.captionText = text
+    this.makeCardTappable()
+    this.engageAgent()
+  }
+
+  /** Hands this card's caption to the voice agent (global.cardVoiceAgent). */
+  private engageAgent() {
+    const agent = (global as any).cardVoiceAgent
+    if (agent && typeof agent.engageCard === "function") {
+      this.logger.info("Engaging voice agent for card")
+      agent.engageCard(this.captionText)
+    } else {
+      this.logger.warn("No cardVoiceAgent is registered (is the component enabled?).")
+    }
+  }
+
+  /**
+   * Adds an SIK Interactable + collider to the card's image so a pinch/tap hands
+   * the card's caption to the voice agent (global.cardVoiceAgent). Mirrors the
+   * makeInteractable/collider pattern in Globe/GlobeController.ts.
+   */
+  private makeCardTappable() {
+    if (this.cardTappable) return
+    this.cardTappable = true
+
+    // Attach to the actual image-mesh object (the RenderMeshVisual lives on a
+    // CHILD of picAnchorObj with its own transform), and auto-fit the collider to
+    // the rendered image so the tap target matches exactly what the user sees.
+    const obj = this.captureRendMesh.getSceneObject()
+    this.logger.info("Making card tappable on: " + obj.name)
+    if (!obj.getComponent("Physics.ColliderComponent")) {
+      const collider = obj.createComponent("Physics.ColliderComponent") as ColliderComponent
+      const shape = Shape.createBoxShape()
+      collider.shape = shape
+      collider.fitVisual = true
+    }
+
+    let interactable = obj.getComponent(Interactable.getTypeName()) as Interactable
+    if (!interactable) {
+      interactable = obj.createComponent(Interactable.getTypeName()) as Interactable
+    }
+    // Direct (near-field) + Indirect (far-field ray) so it works hand-near and pointed-at.
+    interactable.targetingMode = 3
+    interactable.allowMultipleInteractors = false
+    interactable.onTriggerEnd.add(() => this.onCardTapped())
+  }
+
+  private onCardTapped() {
+    this.logger.info("Card tapped")
+    this.engageAgent()
   }
 
   private processImage() {

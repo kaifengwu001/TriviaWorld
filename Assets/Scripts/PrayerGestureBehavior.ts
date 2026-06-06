@@ -242,6 +242,8 @@ export class PrayerGestureBehavior extends BaseScriptComponent {
   // Single hook fired once when the prayer pose is recognized.
   // Replace/augment with an animation trigger in the future.
   private onPrayerDetected = (): void => {
+    // Mark the world as discovered so the 60s NudgeVoice reminder skips itself.
+    (global as any).worldDiscovered = true
     this.logger.info("Prayer gesture detected")
     this.emitPing()
     // In debug mode the status readout already reflects detection; don't

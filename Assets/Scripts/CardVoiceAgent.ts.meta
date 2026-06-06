@@ -1,0 +1,74 @@
+- !<AssetImportMetadata/d75b420a-b964-4376-9e81-19481294c642>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> f51d6fb4-bf91-4bb4-8bc5-b31b89cc21ac
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> f51d6fb4-bf91-4bb4-8bc5-b31b89cc21ac
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> b04e038e-0721-4ecd-80fa-b26cd92cdf84
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/b04e038e-0721-4ecd-80fa-b26cd92cdf84>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 4dc25d68-bcfd-4723-bffb-99299a01bad8
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    dynamicAudioOutput: false
+    enableLogging: false
+    microphoneRecorder: false
+    model: false
+    persona: false
+    voice: false
+    websocketRequirementsObj: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - websocketRequirementsObj: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      dynamicAudioOutput: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
+      microphoneRecorder: !<MappingBased.AssignableType_1> 00000000-0000-0000-0000-000000000000
+      voice: Leda
+      persona: ""
+      model: gemini-live-2.5-flash
+      enableLogging: true
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Card Voice Agent (Gemini Live, two-way)</span>"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #94A3B8; font-size: 11px;\">Conversational agent with mic input. Tap a card and it speaks an extra fact, then answers spoken follow-ups. Does NOT run in the simulator — test on device with internet.</span>"}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"group_start", "label":"Setup (drag from the RemoteServiceGatewayExamples prefab)"}'
+    - "// @input SceneObject websocketRequirementsObj {\"hint\":\"The 'Websocket requirements' SceneObject. Enabled on launch so the gateway WebSocket can connect.\"}"
+    - "// @input AssignableType dynamicAudioOutput {\"hint\":\"A DynamicAudioOutput that plays the agent's voice. Use a DEDICATED one (not the same instance as WelcomeVoice) so the two sessions don't fight over playback.\"}"
+    - "// @input AssignableType_1 microphoneRecorder {\"hint\":\"The MicrophoneRecorder that captures the user's voice for follow-up questions.\"}"
+    - '// @ui {"widget":"group_end"}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"group_start", "label":"Speech"}'
+    - '// @input string voice = "Leda" {"widget":"combobox", "values":[{"label":"Leda", "value":"Leda"}, {"label":"Puck", "value":"Puck"}, {"label":"Charon", "value":"Charon"}, {"label":"Kore", "value":"Kore"}, {"label":"Fenrir", "value":"Fenrir"}, {"label":"Aoede", "value":"Aoede"}, {"label":"Orus", "value":"Orus"}, {"label":"Zephyr", "value":"Zephyr"}]}'
+    - '// @input string persona {"hint":"System instruction / persona for the conversational agent.", "widget":"text_area"}'
+    - "// @input string model = \"gemini-live-2.5-flash\" {\"hint\":\"Gemini Live model id (no 'models/' prefix — it's added automatically). Supported: gemini-live-2.5-flash, gemini-2.0-flash-live-preview-04-09, gemini-live-2.5-flash-preview-native-audio\"}"
+    - '// @ui {"widget":"group_end"}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"group_start", "label":"Logging"}'
+    - // @input bool enableLogging = true
+    - '// @ui {"widget":"group_end"}'

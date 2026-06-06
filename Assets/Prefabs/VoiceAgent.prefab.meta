@@ -1,0 +1,284 @@
+- !<AssetImportMetadata/500480ca-6900-4191-9dfd-a33a67b0847d>
+  ImportedAssetIds:
+    ObjectPrefab: !<reference> 35ff2be9-901c-4fbe-b34a-80adfc88cde2
+  ImporterName: ObjectPrefabImporter
+  PrimaryAsset: !<reference> 35ff2be9-901c-4fbe-b34a-80adfc88cde2
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    ObjectPrefab: !<own> f6558438-7c1d-4cc4-ae7b-c43380036d6a
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<SceneObject/28e1fa35-f607-4659-4cb3-02f798ff993b>
+  PrefabRemaps:
+    []
+  Name: VoiceAgent
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    - !<own> 9e699c2a-7957-4e80-7e3d-d6c8eccec7dc
+    - !<own> 7a736f99-b065-473c-5312-08353ef669b5
+    - !<own> 533d9034-38cf-4ec5-6c34-565c442d5e62
+    - !<own> dd07fc93-81ae-439d-48db-e00c216a4a53
+  Components:
+    []
+- !<ScriptComponent/435a158d-ddca-4b73-55b3-c177f477f1b5>
+  PrefabRemaps:
+    []
+  Name: MicrophoneRecorder
+  Enabled: true
+  ScriptAsset: !<reference> 600eb5ab-2e7a-4418-b57b-8dea968a0ed6
+  ScriptInputsDefault:
+    enableLogging: true
+    enableLoggingLifecycle: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      micAudioTrack: !<reference.AudioTrackAsset> 368f97e9-75c3-4051-bc58-ec0f162b4f59
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    "":
+      {}
+- !<SceneObject/46f1733b-addc-4546-4fe5-633a678bb449>
+  PrefabRemaps:
+    []
+  Name: MicrophoneRecorder
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> 435a158d-ddca-4b73-55b3-c177f477f1b5
+- !<ScriptComponent/4a093e9a-493e-45a8-43e8-479125837652>
+  PrefabRemaps:
+    []
+  Name: WelcomeVoice
+  Enabled: true
+  ScriptAsset: !<reference> 4ddc9c37-66f8-4dcf-a081-57727d7d76c8
+  ScriptInputsDefault:
+    greetingIntent: true
+    interestsIntentTemplate: true
+    delaySeconds: true
+    persona: true
+    enableLogging: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      websocketRequirementsObj: !<reference.SceneObject> 9e699c2a-7957-4e80-7e3d-d6c8eccec7dc
+      dynamicAudioOutput: !<MappingBased.AssignableType> 4bacfcbc-822f-4c9f-5a6b-440dc7616841
+      voice: Leda
+      greetingIntent: "Warmly welcome the user to TriviaGo. Say you're excited to learn and explore the world together with them. Then invite them to tell you a little about themselves and what they're interested in. Keep it to about two short, natural sentences."
+      interestsIntentTemplate: "The user just chose these interests: {topics}. React thoughtfully (a little \"hmm, I see\"), then say that based on those interests you've found some places they might enjoy, and ask if they'd like to take a look. About two short, natural sentences."
+      delaySeconds: !<float> 5.000000
+      persona: "You are the warm, upbeat first-person voice host of TriviaGo, an AR learning companion. You speak directly to the user. When given an instruction about what to convey, say it in your own words -- one or two short, natural, friendly sentences -- and vary the wording. Never read instructions back, never add stage directions or quotation marks, and don't ask for clarification; just speak naturally to the user."
+      model: gemini-live-2.5-flash
+      enableLogging: true
+  ScriptTypes:
+    "":
+      {}
+- !<ScriptComponent/4bacfcbc-822f-4c9f-5a6b-440dc7616841>
+  PrefabRemaps:
+    []
+  Name: DynamicAudioOutput
+  Enabled: true
+  ScriptAsset: !<reference> a2da8d76-427e-415d-943a-cd5a33591b33
+  ScriptInputsDefault:
+    enableLogging: true
+    enableLoggingLifecycle: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      audioOutputTrack: !<reference.AudioTrackAsset> a811b3a1-c2fe-45ba-8940-b319aef5ac49
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    "":
+      {}
+- !<SceneObject/533d9034-38cf-4ec5-6c34-565c442d5e62>
+  PrefabRemaps:
+    []
+  Name: CardVoiceAgent
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> 77d2c357-de28-4edf-7820-fe5195f9879f
+- !<AudioComponent/66c91b6d-6de1-4ce0-41ce-1100946a9d28>
+  PrefabRemaps:
+    []
+  Name: Audio
+  Enabled: true
+  AudioTrack: !<reference> 00000000-0000-0000-0000-000000000000
+  EnableAutoplayLoop: false
+  Volume: 1.000000
+  EnableMixToSnap: false
+  RecordVolume: 1.000000
+  EnableSpatialAudio: false
+  EnableDistanceEffect: false
+  CurveType: Logarithm
+  MinDistance: 0.000000
+  MaxDistance: 100.000000
+  EnableDirectivityEffect: false
+  EnablePositionEffect: false
+- !<ScriptComponent/77d2c357-de28-4edf-7820-fe5195f9879f>
+  PrefabRemaps:
+    []
+  Name: CardVoiceAgent
+  Enabled: true
+  ScriptAsset: !<reference> f51d6fb4-bf91-4bb4-8bc5-b31b89cc21ac
+  ScriptInputsDefault:
+    voice: true
+    model: true
+    enableLogging: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      websocketRequirementsObj: !<reference.SceneObject> 9e699c2a-7957-4e80-7e3d-d6c8eccec7dc
+      dynamicAudioOutput: !<MappingBased.AssignableType> 4bacfcbc-822f-4c9f-5a6b-440dc7616841
+      microphoneRecorder: !<MappingBased.AssignableType_1> 435a158d-ddca-4b73-55b3-c177f477f1b5
+      voice: Leda
+      persona: |
+        You are a warm, patient, encouraging teacher/mentor/museum-guide voice for an AR trivia lens. The user explores cards, each showing an interesting fact. When given a card's context, add ONE extra specific,accurate detail related to it (never just repeat the caption), then invite them to ask anything. Answer follow-up questions conversationally in one to three sentences, staying on that card's subject unless theuser changes topic. Stay accurate; if you are unsure, say so briefly.
+
+      model: gemini-live-2.5-flash
+      enableLogging: true
+  ScriptTypes:
+    "":
+      {}
+- !<SceneObject/7a736f99-b065-473c-5312-08353ef669b5>
+  PrefabRemaps:
+    []
+  Name: WelcomeVoice
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 40.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> cc2f7ac7-ccf4-464c-6463-98e4d16a9665
+    - !<own> 4a093e9a-493e-45a8-43e8-479125837652
+- !<SceneObject/9e699c2a-7957-4e80-7e3d-d6c8eccec7dc>
+  PrefabRemaps:
+    []
+  Name: Websocket requirements
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 40.000000, z: -180.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    - !<own> 46f1733b-addc-4546-4fe5-633a678bb449
+    - !<own> d5e3c257-62ae-40b0-7674-50666ccc1510
+  Components:
+    []
+- !<PostEffectVisual/cc2f7ac7-ccf4-464c-6463-98e4d16a9665>
+  PrefabRemaps:
+    []
+  Name: Post Effect
+  Enabled: true
+  RenderOrder: 0
+  StretchMode: Stretch
+  VerticalAlignment: Center
+  HorizontalAlignment: Center
+  MeshShadowMode: None
+  ShadowColor: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+  ShadowDensity: 1.000000
+  Materials:
+    - !<reference> b3b43e0f-7633-4a0d-9c1a-fa80bd8feeae
+- !<SceneObject/d5e3c257-62ae-40b0-7674-50666ccc1510>
+  PrefabRemaps:
+    []
+  Name: DynamicAudioOutput
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> 4bacfcbc-822f-4c9f-5a6b-440dc7616841
+    - !<own> 66c91b6d-6de1-4ce0-41ce-1100946a9d28
+- !<SceneObject/dd07fc93-81ae-439d-48db-e00c216a4a53>
+  PrefabRemaps:
+    []
+  Name: NudgeVoice
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> f58dd695-41dc-42ca-678a-8579ba30a431
+- !<ScriptComponent/f58dd695-41dc-42ca-678a-8579ba30a431>
+  PrefabRemaps:
+    []
+  Name: NudgeVoice
+  Enabled: true
+  ScriptAsset: !<reference> f5076452-c196-4279-829f-afd16148ed33
+  ScriptInputsDefault:
+    voice: true
+    delaySeconds: true
+    connectLeadSec: true
+    persona: true
+    model: true
+    enableLogging: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      websocketRequirementsObj: !<reference.SceneObject> 9e699c2a-7957-4e80-7e3d-d6c8eccec7dc
+      dynamicAudioOutput: !<MappingBased.AssignableType> 4bacfcbc-822f-4c9f-5a6b-440dc7616841
+      voice: Leda
+      nudgeIntent: "Tell the user, in a friendly, slightly excited tone, that you've found some interesting things nearby, and remind them about the \"prayer\" gesture they can use to discover the world. Keep it to one or two short, natural sentences."
+      delaySeconds: !<float> 60.000000
+      connectLeadSec: !<float> 5.000000
+      persona: "You are the warm, upbeat first-person voice host of TriviaGo, an AR learning companion. You speak directly to the user. When given an instruction about what to convey, say it in your own words -- one or two short, natural, friendly sentences -- and vary the wording. Never read instructions back, never add stage directions or quotation marks, and don't ask for clarification; just speak naturally to the user."
+      model: gemini-live-2.5-flash
+      enableLogging: true
+  ScriptTypes:
+    "":
+      {}
+- !<ObjectPrefabAssetData/f6558438-7c1d-4cc4-ae7b-c43380036d6a>
+  Prototype: !<ObjectOwner/fa03ec20-f37d-4d2f-a313-61511254429f>
+    PackagePath: ""
+    objects:
+      - !<own> 28e1fa35-f607-4659-4cb3-02f798ff993b

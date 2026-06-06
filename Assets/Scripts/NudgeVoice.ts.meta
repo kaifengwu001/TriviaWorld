@@ -1,20 +1,20 @@
-- !<AssetImportMetadata/acd3b474-a788-4136-93c8-7f8baedd7cf5>
+- !<AssetImportMetadata/a3076191-9680-4f5e-a47a-a8abbcbcb114>
   ImportedAssetIds:
-    TypeScriptAsset: !<reference> 4ddc9c37-66f8-4dcf-a081-57727d7d76c8
+    TypeScriptAsset: !<reference> f5076452-c196-4279-829f-afd16148ed33
   ImporterName: TypeScriptAssetImporter
-  PrimaryAsset: !<reference> 4ddc9c37-66f8-4dcf-a081-57727d7d76c8
+  PrimaryAsset: !<reference> f5076452-c196-4279-829f-afd16148ed33
   PackageType: NotAPackage
   LegacyPackagePolicy: ~
   ExtraData:
     {}
   AssetDataMap:
-    TypeScriptAsset: !<own> bc9b9389-de3b-4bb9-8a4d-fd9cccf15597
+    TypeScriptAsset: !<own> a24c921a-bc68-487e-bc6a-d15d8a181654
   DependentFiles:
     []
   ImporterSettings: !<AssetImporterSettings>
     {}
   CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
-- !<TypeScriptAssetData/bc9b9389-de3b-4bb9-8a4d-fd9cccf15597>
+- !<TypeScriptAssetData/a24c921a-bc68-487e-bc6a-d15d8a181654>
   SvgIcon: ""
   SetupScript:
     code: ""
@@ -22,16 +22,16 @@
   VersionMajor: 0
   VersionMinor: 0
   VersionPatch: 0
-  ComponentUid: 45b8cff7-b530-45c8-839d-063ba87dc2e2
+  ComponentUid: dc73292a-ddf9-458b-bf39-ba61c16b4d36
   ExportUid: 00000000-0000-0000-0000-000000000000
   PackagePolicy: CanBeUnpacked
   ScriptInputsHidden:
+    connectLeadSec: false
     delaySeconds: false
     dynamicAudioOutput: false
     enableLogging: false
-    greetingIntent: false
-    interestsIntentTemplate: false
     model: false
+    nudgeIntent: false
     persona: false
     voice: false
     websocketRequirementsObj: false
@@ -46,31 +46,31 @@
   DefaultScriptInputs:
     - websocketRequirementsObj: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
       dynamicAudioOutput: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
-      voice: nova
-      greetingIntent: "Warmly welcome the user to TriviaGo. Say you're excited to learn and explore the world together with them. Then invite them to tell you a little about themselves and what they're interested in. Keep it to about two short, natural sentences."
-      interestsIntentTemplate: "The user just chose these interests: {topics}. React thoughtfully (a little \"hmm, I see\"), then say that based on those interests you've found some places they might enjoy, and ask if they'd like to take a look. About two short, natural sentences."
-      delaySeconds: !<float> 5.000000
+      voice: Leda
+      nudgeIntent: "Tell the user, in a friendly, slightly excited tone, that you've found some interesting things nearby, and remind them about the gesture they can use to discover the world. Keep it to one or two short, natural sentences."
+      delaySeconds: !<float> 60.000000
+      connectLeadSec: !<float> 5.000000
       persona: "You are the warm, upbeat first-person voice host of TriviaGo, an AR learning companion. You speak directly to the user. When given an instruction about what to convey, say it in your own words -- one or two short, natural, friendly sentences -- and vary the wording. Never read instructions back, never add stage directions or quotation marks, and don't ask for clarification; just speak naturally to the user."
-      model: gpt-4o-mini-tts
+      model: gemini-live-2.5-flash
       enableLogging: true
   ScriptTypes:
     -
       {}
   InputLines:
     - '// @ui {"widget":"separator"}'
-    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Agent Voice (Gemini Live)</span>"}'
-    - '// @ui {"widget":"label", "label":"<span style=\"color: #94A3B8; font-size: 11px;\">Generative host voice (Gemini Live via the Remote Service Gateway). Speaks a varied welcome greeting a few seconds after launch; announceInterests(topics) speaks the follow-up after the user picks topics. Does NOT run in the simulator — test on device with internet.</span>"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Nudge Voice (Gemini Live)</span>"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #94A3B8; font-size: 11px;\">Audio-only reminder voice. ~60s after launch it speaks one generated line nudging the user to perform the prayer gesture that discovers the world. Connects lazily and skips itself if the world was already discovered. Does NOT run in the simulator — test on device with internet.</span>"}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"group_start", "label":"Setup (drag from the RemoteServiceGatewayExamples prefab)"}'
     - "// @input SceneObject websocketRequirementsObj {\"hint\":\"The 'Websocket requirements' SceneObject from the RemoteServiceGatewayExamples prefab. Enabled on launch so the gateway WebSocket can connect.\"}"
-    - "// @input AssignableType dynamicAudioOutput {\"hint\":\"The 'DynamicAudioOutput' object from the RemoteServiceGatewayExamples prefab (it carries the AudioComponent + audio-output track that plays the voice).\"}"
+    - "// @input AssignableType dynamicAudioOutput {\"hint\":\"A DynamicAudioOutput object that plays the voice. Give this its OWN (separate from the host voice) to avoid audio conflicts — duplicate the prefab's DynamicAudioOutput.\"}"
     - '// @ui {"widget":"group_end"}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"group_start", "label":"Speech"}'
     - '// @input string voice = "Leda" {"widget":"combobox", "values":[{"label":"Leda", "value":"Leda"}, {"label":"Puck", "value":"Puck"}, {"label":"Charon", "value":"Charon"}, {"label":"Kore", "value":"Kore"}, {"label":"Fenrir", "value":"Fenrir"}, {"label":"Aoede", "value":"Aoede"}, {"label":"Orus", "value":"Orus"}, {"label":"Zephyr", "value":"Zephyr"}]}'
-    - "// @input string greetingIntent = \"Warmly welcome the user to TriviaGo. Say you're excited to learn and explore the world together with them. Then invite them to tell you a little about themselves and what they're interested in. Keep it to about two short, natural sentences.\" {\"hint\":\"What the launch greeting should convey (the model says it in its own words, so wording varies).\", \"widget\":\"text_area\"}"
-    - "// @input string interestsIntentTemplate = \"The user just chose these interests: {topics}. React thoughtfully (a little \\\"hmm, I see\\\"), then say that based on those interests you've found some places they might enjoy, and ask if they'd like to take a look. About two short, natural sentences.\" {\"hint\":\"What to say after the user picks topics. Use {topics} where the chosen interests should be mentioned.\", \"widget\":\"text_area\"}"
-    - '// @input float delaySeconds = 5 {"hint":"Seconds after launch before the welcome greeting"}'
+    - "// @input string nudgeIntent = \"Tell the user, in a friendly, slightly excited tone, that you've found some interesting things nearby, and remind them about the gesture they can use to discover the world. Keep it to one or two short, natural sentences.\" {\"hint\":\"What the reminder should convey (the model says it in its own words, so wording varies).\", \"widget\":\"text_area\"}"
+    - '// @input float delaySeconds = 60 {"hint":"Seconds after launch before the reminder is spoken"}'
+    - '// @input float connectLeadSec = 5 {"hint":"How many seconds before the reminder to open the Gemini Live connection (lazy connect). Clamped to delaySeconds."}'
     - "// @input string persona = \"You are the warm, upbeat first-person voice host of TriviaGo, an AR learning companion. You speak directly to the user. When given an instruction about what to convey, say it in your own words -- one or two short, natural, friendly sentences -- and vary the wording. Never read instructions back, never add stage directions or quotation marks, and don't ask for clarification; just speak naturally to the user.\" {\"hint\":\"Host persona / system instruction. The model speaks the requested intent in its own words.\", \"widget\":\"text_area\"}"
     - "// @input string model = \"gemini-live-2.5-flash\" {\"hint\":\"Gemini Live model id (no 'models/' prefix — it's added automatically). Supported: gemini-live-2.5-flash, gemini-2.0-flash-live-preview-04-09, gemini-live-2.5-flash-preview-native-audio\"}"
     - '// @ui {"widget":"group_end"}'

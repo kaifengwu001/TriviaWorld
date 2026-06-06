@@ -319,6 +319,12 @@ export class TopicSelectionPanel extends BaseScriptComponent {
 
     this.logger.info("Selected topics: " + (selected.length > 0 ? selected.join(", ") : "(none)"))
 
+    // Have the host voice acknowledge the picks and tease recommended places.
+    const hostVoice = (global as any).hostVoice
+    if (hostVoice && typeof hostVoice.announceInterests === "function") {
+      hostVoice.announceInterests(selected)
+    }
+
     const frame = this.resolveFrame()
     if (frame) {
       frame.getSceneObject().enabled = false

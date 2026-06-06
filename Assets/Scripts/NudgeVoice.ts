@@ -1,20 +1,24 @@
 /**
  * Specs Inc. 2026
- * WelcomeVoice / Agent voice foundation.
+ * NudgeVoice — the "discover the world" reminder voice.
  *
- * Connects to the Gemini Live API through the Remote Service Gateway (so NO
- * Internet Access capability and NO on-device key are needed) and speaks with a
- * chosen voice (default "Leda"). It is the warm "host" voice of TriviaGo:
- * ~5 seconds after launch it GENERATES a welcome greeting from greetingIntent,
- * and announceInterests(topics) speaks a follow-up once the user picks their
- * topics. Lines are generated (so the wording varies run-to-run), not read
- * verbatim. Registered at global.hostVoice so other scripts (e.g. the topic
- * panel) can drive it. Audio-output only — no microphone, so it is safe to run
- * at launch (the mic-bearing CardVoiceAgent stays lazy).
+ * A separate, audio-output-only Gemini Live narrator (same plumbing as
+ * WelcomeVoice) whose single job is to gently remind the user about the prayer
+ * gesture that discovers the world. ~60 seconds after launch it speaks one
+ * generated line conveying nudgeIntent (e.g. "Hey, I found some interesting
+ * stuff nearby! Remember the gesture to discover the world?").
  *
- * Audio is streamed back as PCM (24 kHz) and played through the shared
- * DynamicAudioOutput helper that ships in the RemoteServiceGateway package
- * (it lives on the RemoteServiceGatewayExamples "DynamicAudioOutput" object).
+ * To avoid holding a second always-on gateway WebSocket for the whole session,
+ * it connects LAZILY: it opens the connection only ~connectLeadSec seconds
+ * before it needs to speak, then speaks once.
+ *
+ * It is suppressed if the world was already discovered: PrayerGestureBehavior
+ * sets global.worldDiscovered = true on detection, and this script skips both
+ * connecting and speaking when that flag is set. Plays once.
+ *
+ * Audio is streamed back as PCM (24 kHz) and played through a DynamicAudioOutput
+ * helper. Give this its own DynamicAudioOutput object (separate from the host
+ * voice) to avoid audio conflicts.
  *
  * NOTE: Gemini Live runs over a WebSocket on the gateway — it does NOT work in
  * the Lens Studio simulator. Test on device (or Preview with Device Type
@@ -26,10 +30,10 @@ import { GeminiTypes } from "RemoteServiceGateway.lspkg/HostedExternal/GoogleGen
 import { DynamicAudioOutput } from "RemoteServiceGateway.lspkg/Helpers/DynamicAudioOutput";
 
 @component
-export class WelcomeVoice extends BaseScriptComponent {
+export class NudgeVoice extends BaseScriptComponent {
   @ui.separator
-  @ui.label('<span style="color: #60A5FA;">Agent Voice (Gemini Live)</span>')
-  @ui.label('<span style="color: #94A3B8; font-size: 11px;">Generative host voice (Gemini Live via the Remote Service Gateway). Speaks a varied welcome greeting a few seconds after launch; announceInterests(topics) speaks the follow-up after the user picks topics. Does NOT run in the simulator — test on device with internet.</span>')
+  @ui.label('<span style="color: #60A5FA;">Nudge Voice (Gemini Live)</span>')
+  @ui.label('<span style="color: #94A3B8; font-size: 11px;">Audio-only reminder voice. ~60s after launch it speaks one generated line nudging the user to perform the prayer gesture that discovers the world. Connects lazily and skips itself if the world was already discovered. Does NOT run in the simulator — test on device with internet.</span>')
   @ui.separator
 
   @ui.group_start("Setup (drag from the RemoteServiceGatewayExamples prefab)")
@@ -38,7 +42,7 @@ export class WelcomeVoice extends BaseScriptComponent {
   private websocketRequirementsObj: SceneObject;
 
   @input
-  @hint("The 'DynamicAudioOutput' object from the RemoteServiceGatewayExamples prefab (it carries the AudioComponent + audio-output track that plays the voice).")
+  @hint("A DynamicAudioOutput object that plays the voice. Give this its OWN (separate from the host voice) to avoid audio conflicts — duplicate the prefab's DynamicAudioOutput.")
   private dynamicAudioOutput: DynamicAudioOutput;
   @ui.group_end
 
@@ -61,19 +65,17 @@ export class WelcomeVoice extends BaseScriptComponent {
 
   @input
   @widget(new TextAreaWidget())
-  @hint("What the launch greeting should convey (the model says it in its own words, so wording varies).")
-  private greetingIntent: string =
-    "Warmly welcome the user to TriviaGo. Say you're excited to learn and explore the world together with them. Then invite them to tell you a little about themselves and what they're interested in. Keep it to about two short, natural sentences.";
+  @hint("What the reminder should convey (the model says it in its own words, so wording varies).")
+  private nudgeIntent: string =
+    "Tell the user, in a friendly, slightly excited tone, that you've found some interesting things nearby, and remind them about the gesture they can use to discover the world. Keep it to one or two short, natural sentences.";
 
   @input
-  @widget(new TextAreaWidget())
-  @hint("What to say after the user picks topics. Use {topics} where the chosen interests should be mentioned.")
-  private interestsIntentTemplate: string =
-    "The user just chose these interests: {topics}. React thoughtfully (a little \"hmm, I see\"), then say that based on those interests you've found some places they might enjoy, and ask if they'd like to take a look. About two short, natural sentences.";
+  @hint("Seconds after launch before the reminder is spoken")
+  private delaySeconds: number = 60;
 
   @input
-  @hint("Seconds after launch before the welcome greeting")
-  private delaySeconds: number = 5;
+  @hint("How many seconds before the reminder to open the Gemini Live connection (lazy connect). Clamped to delaySeconds.")
+  private connectLeadSec: number = 5;
 
   @input
   @widget(new TextAreaWidget())
@@ -98,12 +100,13 @@ export class WelcomeVoice extends BaseScriptComponent {
   private pendingIntents: string[] = [];
 
   onAwake(): void {
-    this.logger = new Logger("WelcomeVoice", this.enableLogging, true);
+    this.logger = new Logger("NudgeVoice", this.enableLogging, true);
 
-    // Let other scripts (e.g. the topic panel) drive the host voice.
-    (global as any).hostVoice = this;
+    // Let other scripts drive the nudge voice if they ever need to.
+    (global as any).nudgeVoice = this;
 
     if (this.websocketRequirementsObj) {
+      // Harmless if WelcomeVoice already enabled the shared requirements object.
       this.websocketRequirementsObj.enabled = true;
     } else {
       this.logger.error("websocketRequirementsObj not assigned — gateway WebSocket may fail.");
@@ -114,7 +117,25 @@ export class WelcomeVoice extends BaseScriptComponent {
 
   private onStart(): void {
     if (!this.dynamicAudioOutput) {
-      this.logger.error("dynamicAudioOutput not assigned — assign the prefab's DynamicAudioOutput.");
+      this.logger.error("dynamicAudioOutput not assigned — assign a (separate) DynamicAudioOutput.");
+      return;
+    }
+
+    // Schedule the lazy-connect moment: open the connection connectLeadSec
+    // seconds before we need to speak. The actual speak is scheduled from there.
+    const lead = Math.min(Math.max(0, this.connectLeadSec), Math.max(0, this.delaySeconds));
+    const connectAt = Math.max(0, this.delaySeconds) - lead;
+    this.logger.info(`Nudge scheduled at ${this.delaySeconds}s (connecting at ${connectAt}s)`);
+
+    const connectEvent = this.createEvent("DelayedCallbackEvent");
+    connectEvent.bind(() => this.onConnectTime(lead));
+    connectEvent.reset(connectAt);
+  }
+
+  /** Lazy-connect: open the session now, then schedule the spoken line. */
+  private onConnectTime(lead: number): void {
+    if ((global as any).worldDiscovered) {
+      this.logger.info("World already discovered — skipping nudge (no connect).");
       return;
     }
 
@@ -122,13 +143,17 @@ export class WelcomeVoice extends BaseScriptComponent {
     this.dynamicAudioOutput.initialize(24000);
     this.connect();
 
-    // Fire the welcome greeting at the chosen delay. If the session isn't ready
-    // yet (usually ready within ~1s), speakIntent() queues it for setupComplete.
-    const delay = Math.max(0, this.delaySeconds);
-    this.logger.info(`Welcome greeting scheduled in ${delay}s`);
-    const delayed = this.createEvent("DelayedCallbackEvent");
-    delayed.bind(() => this.speakIntent(this.greetingIntent));
-    delayed.reset(delay);
+    const speakEvent = this.createEvent("DelayedCallbackEvent");
+    speakEvent.bind(() => this.onSpeakTime());
+    speakEvent.reset(lead);
+  }
+
+  private onSpeakTime(): void {
+    if ((global as any).worldDiscovered) {
+      this.logger.info("World discovered during lead window — skipping nudge.");
+      return;
+    }
+    this.speakIntent(this.nudgeIntent);
   }
 
   /** Connect to Gemini Live and configure audio output with the chosen voice. */
@@ -204,7 +229,7 @@ export class WelcomeVoice extends BaseScriptComponent {
   /**
    * Speak an intent: the model generates a short, natural line conveying it (so
    * the wording varies). If the session isn't ready yet, the intent is queued and
-   * sent on setupComplete. This is the reusable host hook.
+   * sent on setupComplete.
    */
   speakIntent(intent: string): void {
     if (!intent || intent.trim().length === 0) return;
@@ -213,18 +238,6 @@ export class WelcomeVoice extends BaseScriptComponent {
       return;
     }
     this.sendIntentTurn(intent);
-  }
-
-  /**
-   * Speak the post-topic-selection line, weaving in the chosen interests via the
-   * {topics} token in interestsIntentTemplate. Called by the topic panel through
-   * global.hostVoice once the user confirms their selection.
-   */
-  announceInterests(topics: string[]): void {
-    const cleaned = (topics ?? []).filter((t) => typeof t === "string" && t.trim().length > 0);
-    const topicsText = cleaned.length > 0 ? cleaned.join(", ") : "whatever catches their eye";
-    const intent = this.interestsIntentTemplate.split("{topics}").join(topicsText);
-    this.speakIntent(intent);
   }
 
   private sendIntentTurn(intent: string): void {
