@@ -35,6 +35,7 @@
     enableLoggingLifecycle: false
     fadeBias: false
     fadeOutGlobe: false
+    fadeSpeed: false
     gazeHalfAngleDeg: false
     globeRightingSpeed: false
     globeView: false
@@ -48,8 +49,11 @@
     markers: false
     panSpeed: false
     positionBias: false
+    positionSpeed: false
     rotationBias: false
+    rotationSpeed: false
     scaleBias: false
+    scaleSpeed: false
     tableObject: false
     tableSizeCm: false
     textureLonOffsetDeg: false
@@ -84,6 +88,10 @@
       rotationBias: !<float> 0.000000
       scaleBias: !<float> 0.000000
       fadeBias: !<float> 0.000000
+      positionSpeed: !<float> 1.000000
+      rotationSpeed: !<float> 2.000000
+      scaleSpeed: !<float> 1.000000
+      fadeSpeed: !<float> 1.000000
       fadeOutGlobe: true
       gazeHalfAngleDeg: !<float> 12.000000
       tableSizeCm: !<float> 60.000000
@@ -129,6 +137,11 @@
     - '// @input float rotationBias {"hint":"ROTATION feel: how the city swings up to the top. +1 snaps the turn early; -1 holds then whips around.", "widget":"slider", "min":-1, "max":1, "step":0.05}'
     - '// @input float scaleBias {"hint":"SCALE feel: how the zoom-into-the-surface accelerates. +1 grows fast then settles; -1 eases in then surges.", "widget":"slider", "min":-1, "max":1, "step":0.05}'
     - "// @input float fadeBias {\"hint\":\"FADE feel: the globe's alpha out (on dock) / in (on return).\", \"widget\":\"slider\", \"min\":-1, \"max\":1, \"step\":0.05}"
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #94A3B8; font-size: 11px;\">Speed = how fast a channel finishes RELATIVE to the dive time. 1 = uses the full dive; 2 = done in half the time (then holds); &lt;1 = slower. Bias only reshapes a channel; speed is what makes it finish sooner.</span>"}'
+    - '// @input float positionSpeed = 1 {"hint":"POSITION speed multiplier (1 = full dive duration, higher = arrives sooner).", "widget":"slider", "min":0.25, "max":5, "step":0.05}'
+    - '// @input float rotationSpeed = 2 {"hint":"ROTATION speed multiplier (1 = full dive duration, higher = swings up sooner). Raise this if the turn feels too slow even at max bias.", "widget":"slider", "min":0.25, "max":5, "step":0.05}'
+    - '// @input float scaleSpeed = 1 {"hint":"SCALE speed multiplier (1 = full dive duration, higher = zooms in sooner).", "widget":"slider", "min":0.25, "max":5, "step":0.05}'
+    - '// @input float fadeSpeed = 1 {"hint":"FADE speed multiplier (1 = full dive duration, higher = fades sooner).", "widget":"slider", "min":0.25, "max":5, "step":0.05}'
     - '// @input bool fadeOutGlobe = true {"hint":"Fade the globe out as it docks (and back in on return). Turn OFF to keep the globe fully visible at the dock pose, so you can verify the selected location ends up on TOP with the correct orientation."}'
     - '// @input float gazeHalfAngleDeg = 12 {"hint":"Cosine-threshold half-angle (degrees) of the gaze cone for marker selection."}'
     - '// @input float tableSizeCm = 60 {"hint":"On-screen table size in cm (matches GlobeView.tableSizeCm). Scales hand drags into UV pan."}'

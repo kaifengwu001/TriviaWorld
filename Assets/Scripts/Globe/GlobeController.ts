@@ -138,6 +138,27 @@ export class GlobeController extends BaseScriptComponent {
   @hint("FADE feel: the globe's alpha out (on dock) / in (on return).")
   fadeBias: number = 0
 
+  @ui.label('<span style="color: #94A3B8; font-size: 11px;">Speed = how fast a channel finishes RELATIVE to the dive time. 1 = uses the full dive; 2 = done in half the time (then holds); &lt;1 = slower. Bias only reshapes a channel; speed is what makes it finish sooner.</span>')
+  @input
+  @widget(new SliderWidget(0.25, 5, 0.05))
+  @hint("POSITION speed multiplier (1 = full dive duration, higher = arrives sooner).")
+  positionSpeed: number = 1
+
+  @input
+  @widget(new SliderWidget(0.25, 5, 0.05))
+  @hint("ROTATION speed multiplier (1 = full dive duration, higher = swings up sooner). Raise this if the turn feels too slow even at max bias.")
+  rotationSpeed: number = 2
+
+  @input
+  @widget(new SliderWidget(0.25, 5, 0.05))
+  @hint("SCALE speed multiplier (1 = full dive duration, higher = zooms in sooner).")
+  scaleSpeed: number = 1
+
+  @input
+  @widget(new SliderWidget(0.25, 5, 0.05))
+  @hint("FADE speed multiplier (1 = full dive duration, higher = fades sooner).")
+  fadeSpeed: number = 1
+
   @input
   @hint("Fade the globe out as it docks (and back in on return). Turn OFF to keep the globe fully visible at the dock pose, so you can verify the selected location ends up on TOP with the correct orientation.")
   fadeOutGlobe: boolean = true
@@ -496,15 +517,32 @@ export class GlobeController extends BaseScriptComponent {
     )
   }
 
-  // The per-channel easing for the dive, built from the inspector bias knobs.
-  // Each bias in [-1, 1] picks a curve via biasedEase (0 = natural ease-in-out,
-  // + = front-loaded, - = back-loaded), so the channels can feel distinct.
+  // The per-channel easing for the dive, built from the inspector bias + speed
+  // knobs. Bias in [-1, 1] picks the curve shape via biasedEase (0 = natural
+  // ease-in-out, + = front-loaded, - = back-loaded); speed scales the channel's
+  // clock so it finishes in 1/speed of the dive (biasedEase clamps the overshoot,
+  // so the channel simply holds at its target once done).
   private diveEasing(): PoseEasing {
     return {
-      position: (t: number) => biasedEase(t, this.positionBias),
-      rotation: (t: number) => biasedEase(t, this.rotationBias),
-      scale: (t: number) => biasedEase(t, this.scaleBias),
-      alpha: (t: number) => biasedEase(t, this.fadeBias),
+      position: (t: number) => biasedEase(t * this.positionSpeed, this.positionBias),
+      rotation: (t: number) => biasedEase(t * this.rotationSpeed, this.rotationBias),
+      scale: (t: number) => biasedEase(t * this.scaleSpeed, this.scaleBias),
+      alpha: (t: number) => biasedEase(t * this.fadeSpeed, this.fadeBias),
+    }
+  }
+
+  // The dive easing played in REVERSE (a film run backwards): for each channel
+  // `f`, the return uses `1 - f(1 - t)`. Because the back() tween already goes
+  // dock -> overview (the reverse endpoints), this retraces the exact forward
+  // path with the same curves AND timing mirrored — so a channel that finished
+  // early on the way in now departs late (and holds at the dock pose until then)
+  // on the way out.
+  private reversedDiveEasing(): PoseEasing {
+    return {
+      position: (t: number) => 1 - biasedEase((1 - t) * this.positionSpeed, this.positionBias),
+      rotation: (t: number) => 1 - biasedEase((1 - t) * this.rotationSpeed, this.rotationBias),
+      scale: (t: number) => 1 - biasedEase((1 - t) * this.scaleSpeed, this.scaleBias),
+      alpha: (t: number) => 1 - biasedEase((1 - t) * this.fadeSpeed, this.fadeBias),
     }
   }
 
@@ -540,10 +578,11 @@ export class GlobeController extends BaseScriptComponent {
 
     const tT = this.tableTransform
     // Table surface frame in world space. normal = the quad's +Y (its up axis).
-    // map-north = the quad's +Z: its v (texture-south) increases toward -Z, so
-    // geographic NORTH is toward +Z, which is the transform's forward axis.
+    // Geographic NORTH on the table is the quad's -Z (Lens Studio's `forward` is
+    // the +Z axis, so map-north = -forward). Negating fixes the otherwise-flipped
+    // north in the dive so the globe's orientation matches the map.
     const n = tT.up.normalize()
-    const mapNorth = tT.forward.normalize()
+    const mapNorth = tT.forward.uniformScale(-1).normalize()
     // The top tip lands exactly on the table center; GlobeView derives the (deep,
     // huge) sphere center from this tip and the scale.
     const topPos = tT.getWorldPosition()
@@ -633,7 +672,7 @@ export class GlobeController extends BaseScriptComponent {
       1,
       1,
       this.approachSec,
-      this.diveEasing(),
+      this.reversedDiveEasing(),
       () => this.enterOverview()
     )
   }

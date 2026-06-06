@@ -178,6 +178,11 @@ Two input paths are **always active** — hands (device) and touch (editor + pho
   **+1** = front-loaded (fast start, gentle finish), **-1** = back-loaded (slow
   start, fast finish); magnitude is the strength. One intuitive number per channel
   instead of opaque mode codes.
+- **Dive speed (per-channel)**: `positionSpeed` / `rotationSpeed` / `scaleSpeed` /
+  `fadeSpeed` scale each channel's clock — `1` uses the full dive duration, `2`
+  finishes in half the time (then holds at target), `<1` is slower. Bias only
+  reshapes a channel; **speed** is what makes it actually finish sooner (e.g. raise
+  `rotationSpeed` to snap the city to the top quickly while the zoom keeps gliding).
 - **`fadeOutGlobe`** (debug): turn OFF to keep the globe fully visible at the dock
   pose (it isn't faded or disabled) so you can verify the location lands on TOP
   with the correct orientation; turn back ON for the normal crossfade.
@@ -188,7 +193,10 @@ Two input paths are **always active** — hands (device) and touch (editor + pho
   previous level therefore zooms a bit deeper before the (seamless) switch.
 - **Back (reverse dive)**: zoom out past L0 home → ZOOMING_OUT. The globe
   reappears matching the current table view, then un-dives back to the OVERVIEW
-  pose captured at selection while the table fades out in place.
+  pose captured at selection while the table fades out in place. This is a true
+  **film-reverse** of the dive — each channel uses `1 - f(1 - t)`, so curves AND
+  per-channel timing mirror the entry (a channel that finished early on the way in
+  departs late, holding at the dock pose until then, on the way out).
 
 ---
 

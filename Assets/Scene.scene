@@ -390,7 +390,9 @@
     markerSurfaceOffset: true
     tableObject: true
     labelText: true
-    fadeOutGlobe: true
+    rotationSpeed: true
+    scaleSpeed: true
+    fadeSpeed: true
     gazeHalfAngleDeg: true
     tableSizeCm: true
     zoomSpeed: true
@@ -414,7 +416,7 @@
       markerPrefab: !<reference.ObjectPrefab> 5944fc67-e5d2-469e-9886-2a3a91e1c40b
       markerSurfaceOffset: 1.040000
       markerScale: 0.100000
-      textureLonOffsetDeg: !<float> 113.000000
+      textureLonOffsetDeg: 111.599998
       cameraObject: !<reference.SceneObject> 00000000-0000-0065-0000-000000000064
       tableObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
       labelText: !<reference.Text> 00000000-0000-0000-0000-000000000000
@@ -423,8 +425,12 @@
       positionBias: !<float> 1.000000
       rotationBias: !<float> 1.000000
       scaleBias: !<float> -1.000000
-      fadeBias: -0.350000
-      fadeOutGlobe: true
+      fadeBias: -0.550000
+      positionSpeed: !<float> 2.000000
+      rotationSpeed: !<float> 2.000000
+      scaleSpeed: !<float> 1.000000
+      fadeSpeed: !<float> 1.000000
+      fadeOutGlobe: false
       gazeHalfAngleDeg: !<float> 12.000000
       tableSizeCm: !<float> 60.000000
       panSpeed: 0.300000
