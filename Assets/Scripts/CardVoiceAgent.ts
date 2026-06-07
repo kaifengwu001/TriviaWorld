@@ -203,6 +203,7 @@ export class CardVoiceAgent extends BaseScriptComponent {
       if (part?.inlineData?.mimeType?.startsWith("audio/pcm")) {
         const audio = Base64.decode(part.inlineData.data);
         this.dynamicAudioOutput.addAudioFrame(audio);
+        (global as any).agentSphere?.noteAudioFrame?.();
         return;
       }
 

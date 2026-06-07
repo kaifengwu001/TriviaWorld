@@ -191,6 +191,29 @@ export class PictureBehavior extends BaseScriptComponent {
     } else {
       this.logger.warn("No cardVoiceAgent is registered (is the component enabled?).")
     }
+
+    // Send the agent's visual presence (the orb) to this card's peripheral area.
+    const sphere = (global as any).agentSphere
+    if (sphere && typeof sphere.perchOnCard === "function") {
+      sphere.perchOnCard(this)
+    }
+  }
+
+  /**
+   * Returns this card's top-right corner and basis vectors so the AgentSphere can
+   * perch on its periphery. The crop corners (circleTrans) hold the captured
+   * rectangle and stop updating once processImage() removes the update loop, so
+   * they remain stable for the life of the card. Corners: [0]=TL [1]=TR [2]=BR [3]=BL.
+   */
+  getCardFrame() {
+    const tr = this.circleTrans[1].getWorldPosition()
+    const tl = this.circleTrans[0].getWorldPosition()
+    const br = this.circleTrans[2].getWorldPosition()
+    const right = tr.sub(tl).normalize()
+    const up = tr.sub(br).normalize()
+    // right x up points toward the camera (matches picAnchor's forward column).
+    const normal = right.cross(up).normalize()
+    return {corner: tr, right, up, normal}
   }
 
   /**

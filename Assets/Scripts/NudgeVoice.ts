@@ -162,6 +162,10 @@ export class NudgeVoice extends BaseScriptComponent {
       this.logger.info("World discovered during lead window — skipping nudge.");
       return;
     }
+    // While the nudge speaks, the agent's orb returns to its home corner (whether
+    // the line plays from our own session or is delegated to the card agent).
+    const sphere = (global as any).agentSphere;
+    if (sphere && typeof sphere.goHome === "function") sphere.goHome();
     // Prefer delegating to the card agent's session. This also covers the case
     // where a card was captured during our lead window and evicted our own socket.
     if (this.cardSessionActive()) {
@@ -234,6 +238,7 @@ export class NudgeVoice extends BaseScriptComponent {
       if (part?.inlineData?.mimeType?.startsWith("audio/pcm")) {
         const audio = Base64.decode(part.inlineData.data);
         this.dynamicAudioOutput.addAudioFrame(audio);
+        (global as any).agentSphere?.noteAudioFrame?.();
       } else if (message?.serverContent?.outputTranscription?.text) {
         this.logger.info("Spoke: " + message.serverContent.outputTranscription.text);
       }

@@ -93,10 +93,15 @@ export class TopicSelectionPanel extends BaseScriptComponent {
 
   private logger: Logger;
   private topicButtons: TopicButton[] = []
+  // True once the panel has been built and positioned, so getPanelFrame() is valid.
+  private built = false
 
   onAwake() {
     this.logger = new Logger("TopicSelectionPanel", this.enableLogging || this.enableLoggingLifecycle, true);
     if (this.enableLoggingLifecycle) this.logger.debug("LIFECYCLE: onAwake()");
+    // Let the agent's orb perch on this panel (same global-singleton pattern as
+    // cropInterestStore / cardVoiceAgent).
+    (global as any).topicPanel = this
     // Build after OnStart so the scene, SIK, and Frame components are ready.
     this.createEvent("OnStartEvent").bind(() => this.build())
   }
@@ -124,7 +129,29 @@ export class TopicSelectionPanel extends BaseScriptComponent {
 
     frame.showVisual()
     this.positionPanel(frame)
+    this.built = true
     this.logger.info("Topic panel built with " + topics.length + " topics.")
+  }
+
+  /**
+   * Top-right corner + basis of the panel in world space, so the AgentSphere can
+   * perch on its periphery (mirrors PictureBehavior.getCardFrame). Returns null
+   * until the panel is built/positioned or once it has been hidden on Start.
+   */
+  getPanelFrame() {
+    const frame = this.resolveFrame()
+    if (!frame || !this.built) return null
+    const fobj = frame.getSceneObject()
+    if (!fobj.enabled) return null
+    const t = fobj.getTransform()
+    const center = t.getWorldPosition()
+    const right = t.right
+    const up = t.up
+    const scale = t.getWorldScale()
+    const halfW = frame.innerSize.x * 0.5 * scale.x
+    const halfH = frame.innerSize.y * 0.5 * scale.y
+    const corner = center.add(right.uniformScale(halfW)).add(up.uniformScale(halfH))
+    return {corner, right, up}
   }
 
   private buildButtons(frame: Frame, parent: SceneObject, topics: string[]) {
@@ -328,6 +355,12 @@ export class TopicSelectionPanel extends BaseScriptComponent {
     const frame = this.resolveFrame()
     if (frame) {
       frame.getSceneObject().enabled = false
+    }
+
+    // The agent's orb leaves the panel and glides to its home corner of the FOV.
+    const sphere = (global as any).agentSphere
+    if (sphere && typeof sphere.goHome === "function") {
+      sphere.goHome()
     }
   }
 

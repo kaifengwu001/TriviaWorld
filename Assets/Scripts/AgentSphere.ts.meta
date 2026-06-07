@@ -1,0 +1,94 @@
+- !<AssetImportMetadata/495b18b3-44b3-4bc9-8586-f83d1d59f458>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> b6b8eac8-26b0-4688-8f43-998ae508f1e8
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> b6b8eac8-26b0-4688-8f43-998ae508f1e8
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> aa62a2e1-0a1b-47de-8a5e-c909311c3353
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/aa62a2e1-0a1b-47de-8a5e-c909311c3353>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 7cb61f15-a62e-4f59-b3c6-13b7e096e116
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    cameraObj: false
+    cardPadRight: false
+    cardPadUp: false
+    cardPopOut: false
+    enableLogging: false
+    homeDepth: false
+    homeScreenPos: false
+    idleBob: false
+    moveSpeed: false
+    panelDepth: false
+    panelScreenPos: false
+    rotateSpeed: false
+    speakPulse: false
+    sphereObj: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - cameraObj: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      sphereObj: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      panelScreenPos: !<Vec2> {x: -0.500000, y: 0.500000}
+      panelDepth: !<float> 120.000000
+      homeScreenPos: !<Vec2> {x: 0.550000, y: -0.550000}
+      homeDepth: !<float> 55.000000
+      cardPadRight: !<float> 3.000000
+      cardPadUp: !<float> 3.000000
+      cardPopOut: !<float> 2.000000
+      moveSpeed: !<float> 4.000000
+      rotateSpeed: !<float> 4.000000
+      idleBob: 0.400000
+      speakPulse: 0.180000
+      enableLogging: false
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - "// @ui {\"widget\":\"label\", \"label\":\"<span style=\\\"color: #60A5FA;\\\">AgentSphere – the voice agent's visual presence</span><br/><span style=\\\"color: #94A3B8; font-size: 11px;\\\">A small orb that head-follows the user and travels between the panel, a home corner of the FOV, and the active card. Driven by the voice scripts via global.agentSphere.</span>\"}"
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Scene References</span>"}'
+    - "// @input SceneObject cameraObj {\"hint\":\"Head camera object (wire the 'Camera Object'). Used as the frame for FOV-relative positions.\"}"
+    - '// @input SceneObject sphereObj {"hint":"The orb whose world transform is driven (a small sphere visual)."}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Placement (fraction of half-FOV: x -1=left..+1=right, y -1=bottom..+1=top)</span>"}'
+    - '// @input vec2 panelScreenPos = {0.5,0.5} {"hint":"Panel state: top-right of the FOV (in front of the panel), matching the card-perch corner. Lower magnitudes pull it toward center if the device crops it."}'
+    - '// @input float panelDepth = 120 {"hint":"Distance (cm) for the panel state. The interest panel sits ~140cm out; keep this a bit in front of it."}'
+    - '// @input vec2 homeScreenPos = {0.55,-0.55} {"hint":"Home state: bottom-right of the FOV. Lower magnitudes keep it more centered / safely on-screen."}'
+    - '// @input float homeDepth = 55 {"hint":"Distance (cm) for the home state."}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Perch offsets (cm — shared by the card and panel top-right corner)</span>"}'
+    - '// @input float cardPadRight = 3 {"hint":"How far past the right edge to sit."}'
+    - '// @input float cardPadUp = 3 {"hint":"How far above the top edge to sit."}'
+    - '// @input float cardPopOut = 3 {"hint":"How far to pop out toward the viewer off the surface plane (keeps the orb in front of the card / panel)."}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Motion</span>"}'
+    - '// @input float moveSpeed = 4 {"hint":"Position follow speed (lerp factor = moveSpeed * dt). Lower = lazier, laggier follow."}'
+    - '// @input float rotateSpeed = 4 {"hint":"Rotation follow speed for the yaw-only billboard (slerp factor = rotateSpeed * dt)."}'
+    - '// @input float idleBob = 0.5 {"hint":"Amplitude (cm) of the subtle idle bob (folded into the target so it stays smooth)."}'
+    - '// @input float speakPulse = 0.18 {"hint":"Extra scale fraction applied while the agent is speaking."}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Logging</span>"}'
+    - '// @input bool enableLogging {"hint":"Enable general logging"}'

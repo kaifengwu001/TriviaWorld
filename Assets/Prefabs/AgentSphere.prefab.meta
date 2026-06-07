@@ -1,0 +1,111 @@
+- !<AssetImportMetadata/79c10f37-d5ad-4525-b212-f892d3b9823b>
+  ImportedAssetIds:
+    ObjectPrefab: !<reference> aafa8f2c-f7ff-4af3-a808-72a781b3e2c1
+  ImporterName: ObjectPrefabImporter
+  PrimaryAsset: !<reference> aafa8f2c-f7ff-4af3-a808-72a781b3e2c1
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    ObjectPrefab: !<own> 7adfaed3-02ad-4602-9f32-4151cb7b772f
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<SceneObject/2b684c58-b01a-4097-5172-03bd3baa3c74>
+  PrefabRemaps:
+    []
+  Name: AgentSphere
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    - !<own> b698a2ce-e5fd-41b4-6669-6f03a021b3a8
+  Components:
+    - !<own> 9b8749b4-2eb5-42f5-53ee-6da35d05f7aa
+- !<RenderMeshVisual/6033befd-6af7-4735-5219-f03175a9ead3>
+  PrefabRemaps:
+    []
+  Name: Render Mesh Visual
+  Enabled: true
+  RenderOrder: 0
+  StretchMode: Stretch
+  VerticalAlignment: Center
+  HorizontalAlignment: Center
+  MeshShadowMode: None
+  ShadowColor: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+  ShadowDensity: 1.000000
+  Materials:
+    - !<reference> 39c41230-4848-4655-99be-2f7445ed42b5
+  Mesh: !<reference> 89e3db36-d63f-43ce-957b-77db81b0a792
+  Skin: !<reference> 00000000-0000-0000-0000-000000000000
+  BlendShapesEnabled: true
+  BlendNormals: false
+  BlendShapes:
+    {}
+- !<ObjectPrefabAssetData/7adfaed3-02ad-4602-9f32-4151cb7b772f>
+  Prototype: !<ObjectOwner/0ed3ecce-fb22-4693-8bd0-4345b95bc25e>
+    PackagePath: ""
+    objects:
+      - !<own> 2b684c58-b01a-4097-5172-03bd3baa3c74
+- !<ScriptComponent/9b8749b4-2eb5-42f5-53ee-6da35d05f7aa>
+  PrefabRemaps:
+    []
+  Name: AgentSphere
+  Enabled: true
+  ScriptAsset: !<reference> b6b8eac8-26b0-4688-8f43-998ae508f1e8
+  ScriptInputsDefault:
+    panelScreenPos: true
+    panelDepth: true
+    homeScreenPos: true
+    homeDepth: true
+    cardPadRight: true
+    cardPadUp: true
+    cardPopOut: true
+    moveSpeed: true
+    rotateSpeed: true
+    idleBob: true
+    speakPulse: true
+    enableLogging: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      cameraObj: !<reference.SceneObject> 00000000-0000-0065-0000-000000000064
+      sphereObj: !<reference.SceneObject> b698a2ce-e5fd-41b4-6669-6f03a021b3a8
+      panelScreenPos: !<Vec2> {x: -0.500000, y: 0.500000}
+      panelDepth: !<float> 120.000000
+      homeScreenPos: !<Vec2> {x: 0.550000, y: -0.550000}
+      homeDepth: !<float> 55.000000
+      cardPadRight: !<float> 3.000000
+      cardPadUp: !<float> 3.000000
+      cardPopOut: !<float> 2.000000
+      moveSpeed: !<float> 4.000000
+      rotateSpeed: !<float> 4.000000
+      idleBob: 0.400000
+      speakPulse: 0.180000
+      enableLogging: false
+  ScriptTypes:
+    "":
+      {}
+- !<SceneObject/b698a2ce-e5fd-41b4-6669-6f03a021b3a8>
+  PrefabRemaps:
+    []
+  Name: SphereVisual
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> 6033befd-6af7-4735-5219-f03175a9ead3
