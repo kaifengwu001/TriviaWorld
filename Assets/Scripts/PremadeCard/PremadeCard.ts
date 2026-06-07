@@ -31,6 +31,10 @@ import { measureLocalRect } from "./CardLayout"
 // has a chance to lay out before its bounds are read.
 const MEASURE_DELAY_FRAMES = 2
 
+// Render order applied to a card's visuals while it is pulled to the front as a
+// query result (cosmos cards keep the default order 0), so results draw on top.
+const RESULT_RENDER_ORDER = 100
+
 @component
 export class PremadeCard extends BaseScriptComponent {
   @ui.label('<span style="color: #60A5FA;">PremadeCard – a manually-populated card that morphs to/from a bubble</span><br/><span style="color: #94A3B8; font-size: 11px;">Reuses the CaptureVisual material and the BubbleMesh border. Assign image / text / border color via the inspector or the public API.</span>')
@@ -236,6 +240,39 @@ export class PremadeCard extends BaseScriptComponent {
 
   setExpanded(expanded: boolean): void {
     if (this.morph) this.morph.setExpanded(expanded)
+  }
+
+  /** True once the card has morphed open enough to be showing its content. */
+  isExpanded(): boolean {
+    return !!this.morph && this.morph.contentVisible
+  }
+
+  /**
+   * (Re)assigns the camera used for billboarding + gaze. Useful for cards
+   * instantiated from a prefab at runtime, whose baked camera reference may not
+   * resolve; the controller can pass the live camera in after instantiate.
+   */
+  setCamera(camera: SceneObject): void {
+    this.cameraObject = camera
+    this.camTrans = camera ? camera.getTransform() : null
+  }
+
+  /**
+   * Forces this whole card (picture + border + caption) to draw on top of the
+   * rest of the scene (depthTest off + raised render order) when `enabled`, and
+   * restores normal depth sorting when off. The CardDeckController turns this on
+   * for query-result cards so they stay readable in front of the drifting cosmos,
+   * and off again when they return to the shell.
+   */
+  setRenderInFront(enabled: boolean): void {
+    const order = enabled ? RESULT_RENDER_ORDER : 0
+    if (this.pictureVisual) {
+      ;(this.pictureVisual as any).renderOrder = order
+      ;(this.pictureVisual.mainPass as any).depthTest = !enabled
+    }
+    if (this.borderBubble) this.borderBubble.setRenderInFront(enabled, order)
+    const textVisual = this.caption ? this.caption.getTextVisual() : null
+    if (textVisual) (textVisual as any).renderOrder = order
   }
 
   /** Jump to the card/bubble end state with no animation. */

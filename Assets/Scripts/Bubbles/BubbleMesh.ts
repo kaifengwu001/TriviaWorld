@@ -267,6 +267,16 @@ export class BubbleMesh extends BaseScriptComponent {
     }
   }
 
+  /**
+   * Draws this border on top of everything else (depthTest off + raised render
+   * order) when `enabled`, restoring normal depth-sorted drawing when off. Used
+   * to keep query-result cards in front of the still-drifting cosmos.
+   */
+  setRenderInFront(enabled: boolean, order: number = 100): void {
+    if (this.rmv) (this.rmv as any).renderOrder = enabled ? order : 0
+    if (this.material) (this.material.mainPass as any).depthTest = !enabled
+  }
+
   // The ring fill carries the bubble color with the fill-opacity multiplier
   // folded into its alpha.
   private fillColor(): vec4 {

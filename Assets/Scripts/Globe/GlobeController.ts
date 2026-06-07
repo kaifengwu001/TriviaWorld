@@ -289,6 +289,10 @@ export class GlobeController extends BaseScriptComponent {
     this.logger = new Logger("GlobeController", this.enableLogging || this.enableLoggingLifecycle, true)
     if (this.enableLoggingLifecycle) this.logger.debug("LIFECYCLE: onAwake()")
 
+    // Reachable across prefab boundaries (the CardQueryVoiceAgent drives the
+    // zoom from a query result), mirroring global.cropCardStore / cropInterestStore.
+    ;(global as any).globeController = this
+
     if (this.cameraObject) {
       this.camTransform = this.cameraObject.getTransform()
       this.camComponent = this.cameraObject.getComponent("Component.Camera")
@@ -840,6 +844,48 @@ export class GlobeController extends BaseScriptComponent {
       this.diveEasing(true, fromScale, 1),
       () => this.enterOverview()
     )
+  }
+
+  // --- External drive (CardQueryVoiceAgent) ----------------------------------
+
+  /**
+   * Zooms to a city by (case-insensitive) name, e.g. a card's `location`. Only
+   * starts the dive from OVERVIEW (selectCity's own guard); returns false when the
+   * name has no resolved city or the globe isn't in OVERVIEW so the caller can
+   * retry next frame. Used by the query agent to land the globe on the place a
+   * result set was captured.
+   */
+  focusCityByName(name: string): boolean {
+    const city = this.cityData ? this.cityData.getCity(name) : null
+    if (!city) return false
+    if (this.state !== "OVERVIEW") return false
+    this.selectCity(city)
+    return true
+  }
+
+  /** True when `name` resolves to a known city (so a zoom is possible at all). */
+  hasCity(name: string): boolean {
+    return !!(this.cityData && this.cityData.getCity(name))
+  }
+
+  /** Reverses the dive back to the globe overview. Only runs from DOCKED. */
+  resetToGlobe(): boolean {
+    if (this.state !== "DOCKED") return false
+    this.back()
+    return true
+  }
+
+  isOverview(): boolean {
+    return this.state === "OVERVIEW"
+  }
+
+  isDocked(): boolean {
+    return this.state === "DOCKED"
+  }
+
+  /** True while a zoom transition is in flight (selectCity/back can't be issued). */
+  isAnimating(): boolean {
+    return this.state === "ZOOMING_IN" || this.state === "ZOOMING_OUT"
   }
 
   // --- Input (per frame) -----------------------------------------------------

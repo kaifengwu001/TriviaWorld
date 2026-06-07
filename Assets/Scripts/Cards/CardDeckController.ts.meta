@@ -1,0 +1,130 @@
+- !<AssetImportMetadata/527519af-3322-45ca-92ee-a6a29249a5ba>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> 6c013ed9-5070-426e-96d9-7da4cc246ac0
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> 6c013ed9-5070-426e-96d9-7da4cc246ac0
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> f8f432c4-aa4b-4f90-96b9-c234e3063e51
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/f8f432c4-aa4b-4f90-96b9-c234e3063e51>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: ca9c86b3-4f52-4a88-9e9a-f5bf9aca594b
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    bobAmplitude: false
+    bobFreqMax: false
+    bobFreqMin: false
+    cameraObject: false
+    cardPrefab: false
+    centerObject: false
+    enableLogging: false
+    enableLoggingLifecycle: false
+    enterConeAngleDeg: false
+    expandDwellSec: false
+    flipSpeedMax: false
+    flipSpeedMin: false
+    globeView: false
+    heightAboveGlobe: false
+    heightSpread: false
+    horizontalRadius: false
+    keepConeAngleDeg: false
+    orbitSpeedMax: false
+    orbitSpeedMin: false
+    pauseDriftWhenExpanded: false
+    placeholderImages: false
+    resultRowDepthCm: false
+    resultRowRiseCm: false
+    resultRowSpacingCm: false
+    searchSpinMultiplier: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - cardPrefab: !<reference.ObjectPrefab> 00000000-0000-0000-0000-000000000000
+      placeholderImages: !<reference.Texture[]>
+        []
+      cameraObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      globeView: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
+      centerObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      heightAboveGlobe: !<float> 8.000000
+      heightSpread: !<float> 6.000000
+      horizontalRadius: !<float> 22.000000
+      orbitSpeedMin: 0.040000
+      orbitSpeedMax: 0.160000
+      bobAmplitude: 1.500000
+      bobFreqMin: 0.300000
+      bobFreqMax: 0.800000
+      flipSpeedMin: 0.100000
+      flipSpeedMax: 0.350000
+      pauseDriftWhenExpanded: true
+      enterConeAngleDeg: !<float> 10.000000
+      keepConeAngleDeg: !<float> 16.000000
+      expandDwellSec: 0.600000
+      searchSpinMultiplier: 3.500000
+      resultRowSpacingCm: !<float> 16.000000
+      resultRowDepthCm: !<float> 45.000000
+      resultRowRiseCm: !<float> 0.000000
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">CardDeckController – the floating premade-card cosmos</span><br/><span style=\"color: #94A3B8; font-size: 11px;\">Spawns the PremadeCard prefab per cardDeckData entry, registers each in global.cropCardStore, and drifts them above the globe top.</span>"}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">References</span>"}'
+    - '// @input Asset.ObjectPrefab cardPrefab {"hint":"The PremadeCard prefab, instantiated once per deck entry as a child of this object."}'
+    - '// @input Asset.Texture[] placeholderImages {"hint":"Placeholder image textures, assigned to the cards in order (cycled if fewer than the deck size). Fill the real images in later."}'
+    - '// @input SceneObject cameraObject {"hint":"Camera the cards billboard toward + use for gaze. Forwarded to each spawned card."}'
+    - '// @input AssignableType globeView {"hint":"GlobeView whose top surface point is the centre of the cosmos shell. If unset, Center Object (or this object) is used."}'
+    - '// @input SceneObject centerObject {"hint":"Fallback centre for the cosmos shell when no GlobeView is set."}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Cosmos shape</span>"}'
+    - '// @input float heightAboveGlobe = 8 {"hint":"Height (cm) the cards float ABOVE the top of the globe — the vertical (Y) distance. LOWER = closer to the globe. This is the main knob."}'
+    - '// @input float heightSpread = 6 {"hint":"Random +/- vertical variation (cm) so the cards sit at slightly different heights instead of one flat layer."}'
+    - "// @input float horizontalRadius = 22 {\"hint\":\"How far (cm) the cloud spreads out horizontally around the point above the globe's top.\"}"
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Cosmos motion</span>"}'
+    - '// @input float orbitSpeedMin = 0.04 {"hint":"Slowest azimuthal orbit speed (radians/sec)."}'
+    - '// @input float orbitSpeedMax = 0.16 {"hint":"Fastest azimuthal orbit speed (radians/sec)."}'
+    - '// @input float bobAmplitude = 1.5 {"hint":"Vertical bob amplitude (cm)."}'
+    - '// @input float bobFreqMin = 0.3 {"hint":"Slowest bob frequency (radians/sec)."}'
+    - '// @input float bobFreqMax = 0.8 {"hint":"Fastest bob frequency (radians/sec)."}'
+    - '// @input float flipSpeedMin = 0.1 {"hint":"Slowest tumble speed (radians/sec)."}'
+    - '// @input float flipSpeedMax = 0.35 {"hint":"Fastest tumble speed (radians/sec)."}'
+    - "// @input bool pauseDriftWhenExpanded = true {\"hint\":\"Pause a card's drift and billboard it toward the camera while it is expanded by gaze.\"}"
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Gaze (at most one card expands)</span>"}'
+    - '// @input float enterConeAngleDeg = 10 {"hint":"Half-angle (degrees) of the cone around the gaze centre a card must enter to become the expand candidate. Smaller = must look more directly at a card."}'
+    - '// @input float keepConeAngleDeg = 16 {"hint":"Wider half-angle (degrees) the expanded card may stay within before it collapses (hysteresis against flicker). Should be >= Enter Cone Angle."}'
+    - '// @input float expandDwellSec = 0.6 {"hint":"Seconds the most-centred card must stay the best candidate before it expands."}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Query results (driven by CardQueryVoiceAgent)</span>"}'
+    - '// @input float searchSpinMultiplier = 3.5 {"hint":"While the agent is searching, the cosmos orbit speed is multiplied by this so the cards visibly spin faster."}'
+    - '// @input float resultRowSpacingCm = 16 {"hint":"Horizontal gap (cm) between adjacent cards in the result row laid out in front of the user."}'
+    - '// @input float resultRowDepthCm = 45 {"hint":"Distance (cm) in front of the camera the result row is placed. Keep this CLOSER than the cosmos so results read in front."}'
+    - "// @input float resultRowRiseCm {\"hint\":\"Vertical offset (cm) of the result row relative to the camera's eye line (positive = up).\"}"
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Logging</span>"}'
+    - // @input bool enableLogging
+    - // @input bool enableLoggingLifecycle
