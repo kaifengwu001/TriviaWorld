@@ -22,6 +22,8 @@
     - !<own> df855af7-a6b5-4363-866f-c0bb6422fc98
     - !<own> 5b25ffe0-9056-4935-b820-88a78173efbb
     - !<own> 6ae221a8-a00c-49e5-b8ca-5412d07449ad
+    - !<own> 7511d3e4-7670-4071-b569-467225cd4df0
+    - !<own> cb4fbe84-dded-4fbc-8e0f-1b0d681d0d3d
   layers: !<Layers/267ee9a7-aff2-4f9d-9a49-f71214747d03>
     userLayers:
       []
@@ -725,6 +727,8 @@
     - !<own> 800a463c-050f-4573-a947-255c97c1c13f
     - !<own> 6c3a3259-f262-4fce-bf96-730ac5776c0b
     - !<own> c08e4315-dc45-4651-a92c-0f9163dee80d
+    - !<own> 34449955-604d-4bdc-ae62-7c9addcd2171
+    - !<own> 3a4edacd-6231-4d02-93bd-c65abfbb48e6
   Components:
     []
 - !<SceneObject/11cd23a5-35d1-4a9a-b7f1-65f288875669>
@@ -1050,6 +1054,42 @@
     []
   Components:
     - !<own> e7ae79e5-4ae2-4f94-8b7b-97ca811b6863
+- !<AudioComponent/216bcce4-99eb-4cdd-9a87-eff42292d03b>
+  PrefabRemaps:
+    []
+  Name: Audio
+  Enabled: true
+  AudioTrack: !<reference> 00000000-0000-0000-0000-000000000000
+  EnableAutoplayLoop: false
+  Volume: 1.000000
+  EnableMixToSnap: false
+  RecordVolume: 1.000000
+  EnableSpatialAudio: false
+  EnableDistanceEffect: false
+  CurveType: Logarithm
+  MinDistance: 0.000000
+  MaxDistance: 100.000000
+  EnableDirectivityEffect: false
+  EnablePositionEffect: false
+- !<ScriptComponent/2233c94e-ea2f-4926-977e-b0100c676fac>
+  PrefabRemaps:
+    []
+  Name: MicrophoneRecorder
+  Enabled: true
+  ScriptAsset: !<reference> 600eb5ab-2e7a-4418-b57b-8dea968a0ed6
+  ScriptInputsDefault:
+    enableLogging: true
+    enableLoggingLifecycle: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      micAudioTrack: !<reference.AudioTrackAsset> 368f97e9-75c3-4051-bc58-ec0f162b4f59
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    "":
+      {}
 - !<SceneObject/224c339b-5033-470b-9197-088f46597772>
   PrefabRemaps:
     []
@@ -1390,6 +1430,22 @@
     - !<own> 795797b3-f9fa-4b89-9dc6-d9c1e1aaee08
   Components:
     []
+- !<SceneObject/34449955-604d-4bdc-ae62-7c9addcd2171>
+  PrefabRemaps:
+    []
+  Name: QueryVoiceDynamicAudioOutput
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> f53fb092-b740-4038-84d4-0c8f01e84a1e
+    - !<own> 216bcce4-99eb-4cdd-9a87-eff42292d03b
 - !<SceneObject/345d84e1-8607-4c26-a2d2-50318e8ab4b8>
   PrefabRemaps:
     []
@@ -1480,6 +1536,21 @@
     []
   Components:
     - !<own> c7eb7de5-8058-479a-8813-bc835a108f4a
+- !<SceneObject/3a4edacd-6231-4d02-93bd-c65abfbb48e6>
+  PrefabRemaps:
+    []
+  Name: QueryMicrophoneRecorder
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> 2233c94e-ea2f-4926-977e-b0100c676fac
 - !<RenderMeshVisual/3abf69c4-1cba-4f84-b294-d978c8728c91>
   PrefabRemaps:
     []
@@ -1636,7 +1707,7 @@
   PrefabRemaps:
     []
   Name: PictureController
-  Enabled: true
+  Enabled: false
   Layers: 1
   LocalTransform: !<TransformEntity>
     Position: {x: 0.000000, y: 0.000000, z: -10.000000}
@@ -2404,7 +2475,7 @@
     - b8d46438-f4ba-4d72-b179-795282d0ddc2: febf81d8-7250-48a6-7754-87f3662ab742
     - d9793929-0832-4b77-89ca-1e4e58cf7d47: cef1c2aa-9255-4827-4f29-f4fcac58e0ca
   Name: PremadeCard
-  Enabled: true
+  Enabled: false
   Layers: 1
   LocalTransform: !<TransformEntity>
     Position: {x: 0.000000, y: 28.822433, z: -82.457962}
@@ -2491,6 +2562,7 @@
     verticalGap: true
     buttonDepthOffset: true
     labelSize: true
+    queryListenDelaySec: true
     enableLogging: true
     enableLoggingLifecycle: true
   ScriptTypesDefault:
@@ -2510,6 +2582,7 @@
       startLabel: Start
       distanceFromCamera: !<float> 140.000000
       panelOffset: !<Vec3> {x: 0.000000, y: -2.000000, z: 0.000000}
+      queryListenDelaySec: !<float> 8.000000
       enableLogging: false
       enableLoggingLifecycle: false
   ScriptTypes:
@@ -2566,7 +2639,7 @@
   PrefabRemaps:
     []
   Name: TopicPanel
-  Enabled: true
+  Enabled: false
   Layers: 1
   LocalTransform: !<TransformEntity>
     Position: {x: 0.000000, y: 0.000000, z: 0.000000}
@@ -2593,6 +2666,21 @@
     []
   Components:
     - !<own> f527e3f3-060b-465b-900d-e93fe3d4a6c5
+- !<SceneObject/7511d3e4-7670-4071-b569-467225cd4df0>
+  PrefabRemaps:
+    []
+  Name: CardStore
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> 7de2bdf7-a45f-4832-9337-4eb00337525d
 - !<SceneObject/76d6b3e6-2bda-471a-9434-678d1ce86d92>
   PrefabRemaps:
     []
@@ -2640,6 +2728,24 @@
     - !<own> 823a9f8f-1b84-4eb9-87af-3f4d98d82bd8
   Components:
     []
+- !<ScriptComponent/7de2bdf7-a45f-4832-9337-4eb00337525d>
+  PrefabRemaps:
+    []
+  Name: CardStore
+  Enabled: true
+  ScriptAsset: !<reference> 54f83df6-78f1-4b84-8e01-ea949375fab2
+  ScriptInputsDefault:
+    enableLogging: true
+    enableLoggingLifecycle: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    "":
+      {}
 - !<SceneObject/7e83b54b-f746-4415-991a-d3ed7c7bd09d>
   PrefabRemaps:
     []
@@ -3013,7 +3119,7 @@
   PrefabRemaps:
     []
   Name: GlobeAndMap
-  Enabled: false
+  Enabled: true
   Layers: 1
   LocalTransform: !<TransformEntity>
     Position: {x: 0.000000, y: 0.000000, z: 0.000000}
@@ -3734,6 +3840,21 @@
     - !<own> 31c16ed2-fac0-4022-b4fc-4d3ae4d9bd69
   Components:
     []
+- !<SceneObject/b16b7dc3-834c-4c9e-b650-04767518f774>
+  PrefabRemaps:
+    []
+  Name: QueryVoiceAgent
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> ddc4f975-fa22-4409-8001-7cfa360e683b
 - !<SceneObject/b29b4476-9e6e-4c36-9e49-e79a76d9a9c2>
   PrefabRemaps:
     []
@@ -4352,6 +4473,67 @@
     - !<own> f99a0488-c0c1-4f3e-aba3-2db67caf3338
   Components:
     []
+- !<ScriptComponent/c99be548-d91a-4909-b4fb-8e0e02d53858>
+  PrefabRemaps:
+    []
+  Name: CardDeckController
+  Enabled: true
+  ScriptAsset: !<reference> 6c013ed9-5070-426e-96d9-7da4cc246ac0
+  ScriptInputsDefault:
+    placeholderImages: true
+    centerObject: true
+    heightAboveGlobe: true
+    heightSpread: true
+    orbitSpeedMin: true
+    orbitSpeedMax: true
+    bobAmplitude: true
+    bobFreqMin: true
+    bobFreqMax: true
+    flipSpeedMin: true
+    flipSpeedMax: true
+    pauseDriftWhenExpanded: true
+    enterConeAngleDeg: true
+    keepConeAngleDeg: true
+    expandDwellSec: true
+    searchSpinMultiplier: true
+    resultRowSpacingCm: true
+    resultRowDepthCm: true
+    resultRowRiseCm: true
+    enableLogging: true
+    enableLoggingLifecycle: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      cardPrefab: !<reference.ObjectPrefab> 02b4824a-47d6-4142-adfd-202c4493d953
+      placeholderImages: !<reference.Texture[]>
+        []
+      cameraObject: !<reference.SceneObject> 00000000-0000-0065-0000-000000000064
+      globeView: !<MappingBased.AssignableType> 1537e6de-5cfe-42ea-873c-8c8719a6f4a4
+      centerObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      heightAboveGlobe: !<float> 8.000000
+      heightSpread: !<float> 6.000000
+      horizontalRadius: !<float> 40.000000
+      orbitSpeedMin: 0.040000
+      orbitSpeedMax: 0.160000
+      bobAmplitude: 1.500000
+      bobFreqMin: 0.300000
+      bobFreqMax: 0.800000
+      flipSpeedMin: 0.100000
+      flipSpeedMax: 0.350000
+      pauseDriftWhenExpanded: true
+      enterConeAngleDeg: !<float> 10.000000
+      keepConeAngleDeg: !<float> 16.000000
+      expandDwellSec: 0.600000
+      searchSpinMultiplier: 3.500000
+      resultRowSpacingCm: !<float> 16.000000
+      resultRowDepthCm: !<float> 45.000000
+      resultRowRiseCm: !<float> 0.000000
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    "":
+      {}
 - !<SceneObject/ca317462-cdcf-48c3-bec3-957345c57d06>
   PrefabRemaps:
     []
@@ -4382,6 +4564,21 @@
     - !<own> c4fa0867-ed05-401c-88a1-5f12c53ded3d
   Components:
     []
+- !<SceneObject/cb4fbe84-dded-4fbc-8e0f-1b0d681d0d3d>
+  PrefabRemaps:
+    []
+  Name: CardDeck
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> c99be548-d91a-4909-b4fb-8e0e02d53858
 - !<ScriptComponent/cbb15420-16bb-403a-a7c3-d3af3f9d1b55>
   PrefabRemaps:
     []
@@ -4767,6 +4964,37 @@
     - !<own> abada728-40c2-4e4c-8516-ea9a2d31a962
   Components:
     []
+- !<ScriptComponent/ddc4f975-fa22-4409-8001-7cfa360e683b>
+  PrefabRemaps:
+    []
+  Name: CardQueryVoiceAgent
+  Enabled: true
+  ScriptAsset: !<reference> 5238106c-5e3e-4b44-9b5e-27195870dc2b
+  ScriptInputsDefault:
+    autoStart: true
+    startGraceSec: true
+    model: true
+    enableLogging: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      websocketRequirementsObj: !<reference.SceneObject> 0fc53fdb-e0c9-4876-9997-27447c597c4f
+      dynamicAudioOutput: !<MappingBased.AssignableType> f53fb092-b740-4038-84d4-0c8f01e84a1e
+      microphoneRecorder: !<MappingBased.AssignableType_1> 2233c94e-ea2f-4926-977e-b0100c676fac
+      cardDeck: !<MappingBased.AssignableType_2> c99be548-d91a-4909-b4fb-8e0e02d53858
+      globeController: !<MappingBased.AssignableType_3> 05388fb0-0dde-44c7-a8c9-1f6a6bb35ced
+      autoStart: true
+      startGraceSec: !<float> 6.000000
+      voice: Leda
+      persona: |-
+        You help the user find AR trivia cards floating in a deck above a globe. When they describe what they want, call query_cards with the location, topic, date range, and/or keyword you extract, and say a short warm line like 'Gotcha — finding those now!'. If query_cards returns zero cards, ask ONE short clarifying question; if the next try still finds nothing,
+          DROP your least-certain keyword and query again, briefly narrating each step so the user follows along. When it returns cards, summarize how many and where (e.g. 'I found 3 cards captured in Tokyo!'). If some matches can't be shown (unshown > 0), mention that. After results, the user may ask about the card they're looking at — I will tell you which card thatis; do NOT bring it up or speak about it until they actually ask. Keep replies to one to three warm sentences. To start over or undo, call clear_query.
+      model: gemini-live-2.5-flash
+      enableLogging: true
+  ScriptTypes:
+    "":
+      {}
 - !<ScriptComponent/de193d8a-4469-437c-9731-b1ebbba3002a>
   PrefabRemaps:
     []
@@ -4824,6 +5052,7 @@
     - !<own> f5d1055c-1532-4a7f-b1cc-c4a5683b42a0
     - !<own> f5ab05ba-81c9-4165-998d-9e5302ec6424
     - !<own> 20e7349d-8dd9-4741-b3f6-93b3ce13c8cd
+    - !<own> b16b7dc3-834c-4c9e-b650-04767518f774
   Components:
     []
 - !<SceneObject/e05c734e-e8cb-44ec-a60c-ec7b366eebdc>
@@ -5236,6 +5465,25 @@
   BlendNormals: false
   BlendShapes:
     {}
+- !<ScriptComponent/f53fb092-b740-4038-84d4-0c8f01e84a1e>
+  PrefabRemaps:
+    []
+  Name: DynamicAudioOutput
+  Enabled: true
+  ScriptAsset: !<reference> a2da8d76-427e-415d-943a-cd5a33591b33
+  ScriptInputsDefault:
+    enableLogging: true
+    enableLoggingLifecycle: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      audioOutputTrack: !<reference.AudioTrackAsset> a811b3a1-c2fe-45ba-8940-b319aef5ac49
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    "":
+      {}
 - !<RenderMeshVisual/f57efa55-ee0a-46d2-9cca-f46a9ef0deef>
   PrefabRemaps:
     []

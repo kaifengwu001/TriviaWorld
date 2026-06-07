@@ -180,6 +180,26 @@ export class PictureBehavior extends BaseScriptComponent {
     this.captionText = text
     this.makeCardTappable()
     this.engageAgent()
+    this.storeCard(text)
+  }
+
+  /** Adds the finished card to the session CardStore (global.cropCardStore). */
+  private storeCard(text: string) {
+    const cardStore = (global as any).cropCardStore
+    if (!cardStore || typeof cardStore.addCard !== "function") return
+    const interestStore = (global as any).cropInterestStore
+    const topics: string[] =
+      interestStore && typeof interestStore.getInterests === "function"
+        ? interestStore.getInterests()
+        : []
+    cardStore.addCard({
+      image: this.captureRendMesh.mainPass.captureImage as Texture,
+      text: text,
+      hashtags: cardStore.parseHashtags(text),
+      topics: topics,
+      location: "Long Beach, California",
+      // captureDate omitted -> CardStore stamps today's date.
+    })
   }
 
   /** Hands this card's caption to the voice agent (global.cardVoiceAgent). */
