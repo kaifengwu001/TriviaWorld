@@ -2037,7 +2037,10 @@
     - !<own> 925aabf8-4148-4021-a636-53857bf010cb
 - !<SceneObject/5b25ffe0-9056-4935-b820-88a78173efbb>
   PrefabRemaps:
-    []
+    - 1eb376a6-a469-43c9-b736-2b6274ae8da3: 6033befd-6af7-4735-5219-f03175a9ead3
+    - 3e3d8e2c-bd87-4ba3-b84f-4290d8bdeb22: 9b8749b4-2eb5-42f5-53ee-6da35d05f7aa
+    - 5b25ffe0-9056-4935-b820-88a78173efbb: 2b684c58-b01a-4097-5172-03bd3baa3c74
+    - e8513ef2-35ed-4238-bc44-1ddf3ab38052: b698a2ce-e5fd-41b4-6669-6f03a021b3a8
   Name: AgentSphere
   Enabled: true
   Layers: 1
