@@ -65,7 +65,14 @@ export class CardBackdrop {
 
   destroy(): void {
     if (this.backdropObj) {
-      this.backdropObj.destroy()
+      // The backdrop is parented to the scanner root, so when the scanner is
+      // destroyed this child dies with it. In that case its native handle is
+      // already gone and destroy() throws "Object is null" — guard against it.
+      try {
+        this.backdropObj.destroy()
+      } catch (e) {
+        // Already destroyed alongside its parent scanner; nothing to do.
+      }
       this.backdropObj = null
       this.bubble = null
     }
