@@ -1,0 +1,119 @@
+- !<AssetImportMetadata/a9cd8bbd-3887-4b07-b48e-c5c4bb6636d4>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> 1de1415b-85a8-4ab1-b980-bfd198a3f5b2
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> 1de1415b-85a8-4ab1-b980-bfd198a3f5b2
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> 489db95c-dfb8-463d-a216-cd2cc19771a8
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/489db95c-dfb8-463d-a216-cd2cc19771a8>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 6f5bd2ff-eff6-4663-ab7b-5a5a591947a0
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    autoFitBorder: false
+    backOffset: false
+    billboard: false
+    borderBubble: false
+    borderColor: false
+    borderPadding: false
+    cameraObject: false
+    caption: false
+    collapseWhenGazeLost: false
+    defaultImage: false
+    defaultText: false
+    enableLogging: false
+    enableLoggingLifecycle: false
+    gazeConeAngleDeg: false
+    gazeDwell: false
+    gazeToExpand: false
+    imageWidth: false
+    morphDuration: false
+    pictureVisual: false
+    showThreshold: false
+    startExpanded: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - borderBubble: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
+      pictureVisual: !<reference.RenderMeshVisual> 00000000-0000-0000-0000-000000000000
+      caption: !<MappingBased.AssignableType_1> 00000000-0000-0000-0000-000000000000
+      cameraObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      defaultImage: !<reference.Texture> 00000000-0000-0000-0000-000000000000
+      imageWidth: 13.300000
+      defaultText: Premade card caption.
+      borderColor: !<Vec4> {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+      autoFitBorder: true
+      borderPadding: 1.500000
+      backOffset: 0.300000
+      startExpanded: true
+      morphDuration: 0.500000
+      showThreshold: 0.900000
+      gazeToExpand: true
+      gazeDwell: !<float> 1.000000
+      gazeConeAngleDeg: !<float> 12.000000
+      collapseWhenGazeLost: false
+      billboard: true
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">PremadeCard – a manually-populated card that morphs to/from a bubble</span><br/><span style=\"color: #94A3B8; font-size: 11px;\">Reuses the CaptureVisual material and the BubbleMesh border. Assign image / text / border color via the inspector or the public API.</span>"}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">References</span>"}'
+    - '// @input AssignableType borderBubble {"hint":"The BubbleMesh that draws the border. Must be a DIRECT child of this card root. Its blob <-> rect morph is what becomes the bubble/card."}'
+    - '// @input Component.RenderMeshVisual pictureVisual {"hint":"Picture quad RenderMeshVisual using the CaptureVisual material. Its material is cloned per card so each shows its own image."}'
+    - '// @input AssignableType_1 caption {"hint":"CardCaption that wraps and positions the caption text under the picture."}'
+    - '// @input SceneObject cameraObject {"hint":"Camera the card billboards toward and uses for gaze detection. If unset, billboarding and gaze are disabled."}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Content (defaults)</span>"}'
+    - "// @input Asset.Texture defaultImage {\"hint\":\"Image shown on the picture quad (assigned to the cloned material's captureImage). Displayed at its true aspect ratio.\"}"
+    - "// @input float imageWidth = 13.3 {\"hint\":\"Displayed image width in cm. Height follows from the image's aspect ratio. Settable at runtime with setImageWidth().\"}"
+    - '// @input string defaultText = "Premade card caption." {"hint":"Caption text shown under the picture."}'
+    - '// @input vec4 borderColor = {1,1,1,1} {"hint":"Border color (RGBA) applied to the BubbleMesh border."}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Border Fit</span>"}'
+    - '// @input bool autoFitBorder = true {"hint":"Size the border to wrap the picture + text automatically. Turn off to use the size authored on the BubbleMesh component."}'
+    - '// @input float borderPadding = 1.5 {"hint":"Padding (cm) added around the picture + text when Auto Fit Border is on."}'
+    - '// @input float backOffset = 0.3 {"hint":"Distance (cm) to push the border behind the content so it never z-fights the picture or text."}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Morph</span>"}'
+    - '// @input bool startExpanded = true {"hint":"Start as an open card (true) or a collapsed bubble (false). Forced to bubble when Gaze To Expand is on."}'
+    - '// @input float morphDuration = 0.5 {"hint":"Seconds for a full bubble <-> card morph."}'
+    - '// @input float showThreshold = 0.9 {"hint":"Morph value (0..1) at/above which the picture and text are shown."}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Gaze To Expand</span>"}'
+    - '// @input bool gazeToExpand = true {"hint":"Start as a bubble and expand into a card after the player gazes at it for the dwell time."}'
+    - '// @input float gazeDwell = 1 {"hint":"Seconds the player must gaze at the bubble before it expands."}'
+    - "// @input float gazeConeAngleDeg = 12 {\"hint\":\"Half-angle (degrees) of the gaze cone around the camera's view centre that counts as 'looking at' the card.\"}"
+    - '// @input bool collapseWhenGazeLost {"hint":"Collapse back into a bubble when the player looks away."}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Billboard</span>"}'
+    - '// @input bool billboard = true {"hint":"Rotate the card to face the camera every frame."}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Logging</span>"}'
+    - '// @input bool enableLogging {"hint":"Enable general logging"}'
+    - '// @input bool enableLoggingLifecycle {"hint":"Enable lifecycle logging (onAwake, onStart, onUpdate, onDestroy)"}'
