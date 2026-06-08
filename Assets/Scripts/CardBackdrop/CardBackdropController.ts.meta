@@ -35,7 +35,10 @@
     fillOpacity: false
     numPoints: false
     padding: false
+    rainbowFlowSpeed: false
     rectLineWidth: false
+    revealParam: false
+    topicRevealSeconds: false
   ScriptTypesHidden:
     {}
   ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
@@ -47,6 +50,9 @@
   DefaultScriptInputs:
     - baseMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
       color: !<Vec4> {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+      rainbowFlowSpeed: 0.250000
+      topicRevealSeconds: 0.800000
+      revealParam: reveal
       padding: 1.500000
       cornerRadius: !<float> 2.000000
       rectLineWidth: 0.400000
@@ -62,8 +68,11 @@
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">CardBackdropController – wraps each spawned scanner card in a rounded rect</span><br/><span style=\"color: #94A3B8; font-size: 11px;\">Watches for Scanner prefab children and spawns a full-morph BubbleMesh sized to enclose the picture and caption.</span>"}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Material & Color</span>"}'
-    - '// @input Asset.Material baseMaterial {"hint":"Base material cloned onto the backdrop rect. Use an unlit, two-sided material (translucent if you want fill opacity to show)."}'
-    - "// @input vec4 color = {1,1,1,1} {\"hint\":\"Backdrop color (RGBA) applied to the cloned material's baseColor.\"}"
+    - "// @input Asset.Material baseMaterial {\"hint\":\"Base material cloned onto the backdrop rect. For the flowing-rainbow border, assign the rainbow shader-graph material (see this folder's README) — it should expose a float reveal param and read baseColor as the topic color. A plain unlit two-sided material also works (the script then cycles the rainbow as a flat hue).\"}"
+    - '// @input vec4 color = {1,1,1,1} {"hint":"Backdrop color (RGBA). Only its ALPHA is used at runtime — the RGB is driven by the rainbow (while the topic is unknown) then the topic color (TopicColors) once the caption resolves."}'
+    - '// @input float rainbowFlowSpeed = 0.25 {"hint":"Rainbow flow speed (hue cycles per second) while the topic is unknown."}'
+    - '// @input float topicRevealSeconds = 0.8 {"hint":"Seconds to cross-fade the border from the rainbow to the resolved topic color."}'
+    - "// @input string revealParam = \"reveal\" {\"hint\":\"Name of the rainbow shader graph's reveal float parameter (0 = rainbow, 1 = solid topic color). Leave blank if your material has no such parameter.\"}"
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Rect Shape</span>"}'
     - '// @input float padding = 1.5 {"hint":"Padding (cm) added on every side around the measured picture + caption extents."}'

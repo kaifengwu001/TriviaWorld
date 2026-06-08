@@ -4695,6 +4695,8 @@
   ScriptAsset: !<reference> a3038d54-99fd-486f-93be-8b43c7fb1c10
   ScriptInputsDefault:
     color: true
+    topicRevealSeconds: true
+    revealParam: true
     cornerRadius: true
     rectLineWidth: true
     fillOpacity: true
@@ -4704,8 +4706,11 @@
     {}
   ScriptInputs:
     "":
-      baseMaterial: !<reference.Material> 539454c8-637b-438a-9281-722f5ace94c8
+      baseMaterial: !<reference.Material> be7c4139-e488-48bb-9764-af76fdcc5c27
       color: !<Vec4> {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+      rainbowFlowSpeed: 0.150000
+      topicRevealSeconds: 0.800000
+      revealParam: reveal
       padding: !<float> 1.000000
       cornerRadius: !<float> 2.000000
       rectLineWidth: 0.400000

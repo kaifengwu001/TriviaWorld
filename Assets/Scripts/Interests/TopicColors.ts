@@ -83,6 +83,24 @@ export function colorForTopics(topics: string[], alpha: number = 1): vec4 {
   return new vec4(DEFAULT_RGB[0], DEFAULT_RGB[1], DEFAULT_RGB[2], alpha)
 }
 
+/**
+ * A point on a smooth, looping rainbow, used as the "topic is still unknown"
+ * placeholder color (e.g. the card border while the AI caption is in flight).
+ * `phase` is any continuously-increasing value (typically seconds * speed); the
+ * hue wraps every 1.0 of phase, so the color flows endlessly without a seam.
+ *
+ * This is a SINGLE color for the whole shape. A spatially-flowing rainbow (a
+ * different hue at each point around the border at the same instant) needs a
+ * shader graph — see Assets/Scripts/CardBackdrop for the graph recipe — but the
+ * script still drives that graph's reveal/topic uniforms through this module so
+ * "what color is rainbow vs. topic?" stays answered in one place.
+ */
+export function rainbowColor(phase: number, alpha: number = 1): vec4 {
+  const hue = ((phase % 1) + 1) % 1 // wrap into [0,1)
+  const c = hsvToRgb(hue * 360, 0.85, 1.0)
+  return new vec4(c[0], c[1], c[2], alpha)
+}
+
 // --- internal ---------------------------------------------------------------
 
 function normalizeKey(topic: string): string {

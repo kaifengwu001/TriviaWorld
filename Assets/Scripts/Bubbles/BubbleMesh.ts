@@ -268,6 +268,16 @@ export class BubbleMesh extends BaseScriptComponent {
   }
 
   /**
+   * This bubble's per-instance cloned material (null until initialize() runs).
+   * Exposed so callers can drive extra shader-graph parameters this component
+   * doesn't model itself (e.g. a card border's rainbow "reveal" uniform). The
+   * material is a clone, so writing to it never touches the shared base asset.
+   */
+  getMaterial(): Material {
+    return this.material
+  }
+
+  /**
    * Draws this border on top of everything else (depthTest off + raised render
    * order) when `enabled`, restoring normal depth-sorted drawing when off. Used
    * to keep query-result cards in front of the still-drifting cosmos.

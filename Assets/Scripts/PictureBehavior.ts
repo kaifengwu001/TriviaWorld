@@ -8,6 +8,7 @@ import { Interactable } from "SpectaclesInteractionKit.lspkg/Components/Interact
 import {CaptionBehavior} from "./CaptionBehavior"
 import {ChatGPT} from "./ChatGPT"
 import {CropRegion} from "./CropRegion"
+import {topicsFromHashtags} from "./Interests/TopicFromText"
 
 const BOX_MIN_SIZE = 8 //min size in cm for image capture
 
@@ -88,6 +89,11 @@ export class PictureBehavior extends BaseScriptComponent {
   // The finished card's caption text, handed to the voice agent on tap.
   private captionText: string = ""
   private cardTappable = false
+
+  // The card's topics, derived from the caption's hashtags once the AI response
+  // arrives. null until then — the CardBackdrop reads this (getResolvedTopics)
+  // to know when to stop the rainbow border and settle on the topic color.
+  private resolvedTopics: string[] = null
 
   onAwake() {
     this.logger = new Logger("PictureBehavior", this.enableLogging || this.enableLoggingLifecycle, true);
@@ -174,32 +180,67 @@ export class PictureBehavior extends BaseScriptComponent {
     )
     this.caption.openCaption(text, captionPos, captionRot, pictureWidth)
 
-    // The card is now finished: remember its text, make it tappable, and
-    // proactively engage the voice agent so it speaks an opener right away.
-    // (Tapping the card later re-engages it.)
+    // The card is now finished: remember its text + topics, make it tappable,
+    // and proactively engage the voice agent so it speaks an opener right away.
+    // (Tapping the card later re-engages it.) Topics are resolved here so the
+    // backdrop's rainbow border can settle onto the card's topic color.
     this.captionText = text
+    // ONLY the topics we can actually decide from the caption's hashtags. Stays
+    // empty (not null) when nothing maps to a preset topic, so the backdrop
+    // shows plain white instead of the rainbow (rainbow is reserved for capture,
+    // i.e. while this is still null). The interest fallback is for STORAGE only.
+    this.resolvedTopics = topicsFromHashtags(this.parseHashtags(text))
     this.makeCardTappable()
     this.engageAgent()
     this.storeCard(text)
+  }
+
+  /**
+   * The topics decided from the AI caption, or null until the caption arrives.
+   * Read by the CardBackdrop to drive its border:
+   *   - null  -> still capturing            -> rainbow
+   *   - []    -> caption in, no topic found -> plain white
+   *   - [..]  -> caption in, topic decided  -> that topic's color
+   */
+  getResolvedTopics(): string[] | null {
+    return this.resolvedTopics ? this.resolvedTopics.slice() : null
+  }
+
+  /** Extracts every "#Tag" from text, returning the tags without the '#'. */
+  private parseHashtags(text: string): string[] {
+    const out: string[] = []
+    const re = /#(\w+)/g
+    let m: RegExpExecArray | null
+    while ((m = re.exec(text ?? "")) !== null) out.push(m[1])
+    return out
   }
 
   /** Adds the finished card to the session CardStore (global.cropCardStore). */
   private storeCard(text: string) {
     const cardStore = (global as any).cropCardStore
     if (!cardStore || typeof cardStore.addCard !== "function") return
-    const interestStore = (global as any).cropInterestStore
-    const topics: string[] =
-      interestStore && typeof interestStore.getInterests === "function"
-        ? interestStore.getInterests()
-        : []
     cardStore.addCard({
       image: this.captureRendMesh.mainPass.captureImage as Texture,
       text: text,
       hashtags: cardStore.parseHashtags(text),
-      topics: topics,
+      topics: this.topicsForStorage(),
       location: "Long Beach, California",
       // captureDate omitted -> CardStore stamps today's date.
     })
+  }
+
+  /**
+   * Topics to FILE the card under. Prefers the caption-decided topics; when none
+   * were decidable, falls back to the user's selected interests so the card is
+   * still queryable. This fallback intentionally does NOT affect the border color
+   * (the border uses resolvedTopics directly, so an undecidable card stays white).
+   */
+  private topicsForStorage(): string[] {
+    if (this.resolvedTopics && this.resolvedTopics.length > 0) return this.resolvedTopics
+    const interestStore = (global as any).cropInterestStore
+    return interestStore && typeof interestStore.getInterests === "function"
+      ? interestStore.getInterests()
+      : []
   }
 
   /** Hands this card's caption to the voice agent (global.cardVoiceAgent). */

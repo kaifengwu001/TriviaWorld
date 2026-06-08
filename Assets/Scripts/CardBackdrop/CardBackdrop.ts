@@ -15,6 +15,8 @@
  */
 import { Logger } from "Utilities.lspkg/Scripts/Utils/Logger"
 import { BubbleMesh } from "../Bubbles/BubbleMesh"
+import { easeInOutQuad } from "../Bubbles/ShapeGeometry"
+import { colorForTopics, rainbowColor } from "../Interests/TopicColors"
 import { PlaneBasis, PlaneRect, unionVisualBounds, boundsToRect } from "./PlaneRect"
 
 export interface CardBackdropConfig {
@@ -34,6 +36,17 @@ export interface CardBackdropConfig {
   rectLineWidth: number
   innerFraction: number
   fillOpacity: number
+  // Returns the card's topics once the AI caption has resolved them, or null
+  // while the topic is still unknown. Drives the border color (see updateColor).
+  topicsProvider: () => string[] | null
+  // Hue cycles per second for the rainbow (and the script-only fallback color).
+  rainbowFlowSpeed: number
+  // Seconds to cross-fade the border from rainbow to the resolved topic color.
+  topicRevealSeconds: number
+  // Name of the shader-graph float parameter (0 = rainbow, 1 = solid topic
+  // color) on the rainbow material. Empty disables the uniform (script color
+  // cycling still drives a plain material). See the graph recipe in this folder.
+  revealParam: string
   logger: Logger
 }
 
@@ -49,6 +62,13 @@ export class CardBackdrop {
   private lastWidth = 0
   private lastHeight = 0
 
+  // Border color state machine: flow a rainbow while the topic is unknown, then
+  // cross-fade once to the resolved topic color and stop.
+  private rainbowPhase = 0
+  private lastColor: vec4 = null   // most recent color pushed (seeds the fade)
+  private transitionT = -1         // <0 = not started; ramps 0->1 during the fade
+  private topicColorApplied = false
+
   constructor(private config: CardBackdropConfig) {}
 
   /** Returns false when the card is gone and this backdrop should be pruned. */
@@ -60,6 +80,7 @@ export class CardBackdrop {
 
     this.ensureBubble(rect.width, rect.height)
     this.applyRect(basis, rect)
+    this.updateColor(getDeltaTime())
     return true
   }
 
@@ -168,5 +189,87 @@ export class CardBackdrop {
     this.bubble.advance(0)
     this.bubble.setProgress(1)
     this.bubble.advance(0)
+  }
+
+  // Border color, per frame. The signal is whether the AI caption has arrived
+  // yet (topicsProvider returns null until it does):
+  //   - caption NOT arrived (null) -> flow a rainbow. This is RESERVED for the
+  //     capture phase. The script cycles the fill color and, on the rainbow
+  //     shader graph, drives reveal=0 so the graph paints a spatially-flowing
+  //     rainbow instead of a flat hue.
+  //   - caption arrived with a topic -> cross-fade once to the topic color.
+  //   - caption arrived but NO topic could be decided ([]) -> cross-fade once to
+  //     plain white (never rainbow — rainbow means "still capturing").
+  // The fade ramps reveal 0->1 so the graph dissolves the rainbow into the solid
+  // final color, then we stop touching the color.
+  private updateColor(dt: number): void {
+    if (!this.bubble || this.topicColorApplied) return
+    const topics = this.config.topicsProvider ? this.config.topicsProvider() : null
+
+    // null = caption still in flight (capturing) -> rainbow is allowed here only.
+    if (topics === null) {
+      this.rainbowPhase += dt * this.config.rainbowFlowSpeed
+      const c = rainbowColor(this.rainbowPhase, this.config.color.a)
+      this.lastColor = c
+      this.bubble.setColor(c)
+      this.setReveal(0)
+      return
+    }
+
+    // Caption resolved: settle on the topic color, or plain white if no topic.
+    this.advanceFinalFade(dt, topics)
+  }
+
+  private advanceFinalFade(dt: number, topics: string[]): void {
+    const hasTopic = topics.length > 0
+    const target = hasTopic
+      ? colorForTopics(topics, this.config.color.a)
+      : new vec4(1, 1, 1, this.config.color.a) // undecided -> plain white
+    if (this.transitionT < 0) {
+      // Seed the fade from whatever color we last showed (rainbow during capture,
+      // or the target itself if the caption was already present on first frame).
+      this.lastColor = this.lastColor ?? target
+      this.transitionT = 0
+      this.config.logger.info(
+        hasTopic
+          ? "Card topic resolved: " + topics[0] + " — fading border to topic color."
+          : "Card caption arrived with no decidable topic — fading border to white."
+      )
+    }
+
+    const dur = Math.max(0.0001, this.config.topicRevealSeconds)
+    this.transitionT = Math.min(1, this.transitionT + dt / dur)
+    const k = easeInOutQuad(this.transitionT)
+    this.bubble.setColor(this.lerpColor(this.lastColor, target, k))
+    this.setReveal(k)
+
+    if (this.transitionT >= 1) {
+      this.bubble.setColor(target)
+      this.setReveal(1)
+      this.topicColorApplied = true
+    }
+  }
+
+  // Drives the rainbow material's reveal parameter when present. A plain
+  // (non-graph) material has no such parameter; writing it is then a harmless
+  // no-op, so the script-side color cycling above still themes the border.
+  private setReveal(value: number): void {
+    if (!this.config.revealParam) return
+    const mat = this.bubble.getMaterial()
+    if (!mat) return
+    try {
+      ;(mat.mainPass as any)[this.config.revealParam] = value
+    } catch (e) {
+      // Material isn't the rainbow graph (parameter absent); ignore.
+    }
+  }
+
+  private lerpColor(a: vec4, b: vec4, t: number): vec4 {
+    return new vec4(
+      a.r + (b.r - a.r) * t,
+      a.g + (b.g - a.g) * t,
+      a.b + (b.b - a.b) * t,
+      a.a + (b.a - a.a) * t
+    )
   }
 }

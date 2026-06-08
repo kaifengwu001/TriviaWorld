@@ -23,13 +23,25 @@ export class CardBackdropController extends BaseScriptComponent {
 
   @ui.label('<span style="color: #60A5FA;">Material & Color</span>')
   @input
-  @hint("Base material cloned onto the backdrop rect. Use an unlit, two-sided material (translucent if you want fill opacity to show).")
+  @hint("Base material cloned onto the backdrop rect. For the flowing-rainbow border, assign the rainbow shader-graph material (see this folder's README) — it should expose a float reveal param and read baseColor as the topic color. A plain unlit two-sided material also works (the script then cycles the rainbow as a flat hue).")
   @allowUndefined
   baseMaterial: Material
 
   @input
-  @hint("Backdrop color (RGBA) applied to the cloned material's baseColor.")
+  @hint("Backdrop color (RGBA). Only its ALPHA is used at runtime — the RGB is driven by the rainbow (while the topic is unknown) then the topic color (TopicColors) once the caption resolves.")
   color: vec4 = new vec4(1.0, 1.0, 1.0, 1.0)
+
+  @input
+  @hint("Rainbow flow speed (hue cycles per second) while the topic is unknown.")
+  rainbowFlowSpeed: number = 0.25
+
+  @input
+  @hint("Seconds to cross-fade the border from the rainbow to the resolved topic color.")
+  topicRevealSeconds: number = 0.8
+
+  @input
+  @hint("Name of the rainbow shader graph's reveal float parameter (0 = rainbow, 1 = solid topic color). Leave blank if your material has no such parameter.")
+  revealParam: string = "reveal"
 
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Rect Shape</span>')
@@ -157,6 +169,12 @@ export class CardBackdropController extends BaseScriptComponent {
       rectLineWidth: this.rectLineWidth,
       innerFraction: this.innerFraction,
       fillOpacity: this.fillOpacity,
+      // The card's topics resolve once the AI caption arrives; until then this
+      // returns null and the border flows a rainbow.
+      topicsProvider: () => pb.getResolvedTopics(),
+      rainbowFlowSpeed: this.rainbowFlowSpeed,
+      topicRevealSeconds: this.topicRevealSeconds,
+      revealParam: this.revealParam,
       logger: this.logger,
     })
   }
