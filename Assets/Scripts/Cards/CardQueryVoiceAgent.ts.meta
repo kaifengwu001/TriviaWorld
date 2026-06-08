@@ -34,7 +34,6 @@
     microphoneRecorder: false
     model: false
     persona: false
-    startGraceSec: false
     voice: false
     websocketRequirementsObj: false
   ScriptTypesHidden:
@@ -52,7 +51,6 @@
       cardDeck: !<MappingBased.AssignableType_2> 00000000-0000-0000-0000-000000000000
       globeController: !<MappingBased.AssignableType_3> 00000000-0000-0000-0000-000000000000
       autoStart: true
-      startGraceSec: !<float> 6.000000
       voice: Aoede
       persona: ""
       model: gemini-live-2.5-flash
@@ -77,8 +75,7 @@
     - '// @ui {"widget":"group_end"}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"group_start", "label":"Activation"}'
-    - '// @input bool autoStart = true {"hint":"Automatically open the mic startGraceSec after launch (always-on in the cosmos view). Turn off to start it only via beginListening()."}'
-    - "// @input float startGraceSec = 6 {\"hint\":\"Seconds after launch before the agent auto-starts, so it doesn't fire while the welcome voice is still talking (avoids two live sessions at once).\"}"
+    - '// @input bool autoStart = true {"hint":"Automatically arm the mic when the user gazes at the deck (and the deck is in the scene). Off = start only via beginListening()."}'
     - '// @ui {"widget":"group_end"}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"group_start", "label":"Speech"}'

@@ -37,7 +37,6 @@
     labelSize: false
     ovalAspect: false
     panelOffset: false
-    queryListenDelaySec: false
     startLabel: false
     topics: false
     verticalGap: false
@@ -63,7 +62,6 @@
       startLabel: Start exploring
       distanceFromCamera: !<float> 60.000000
       panelOffset: !<Vec3> {x: 0.000000, y: 0.000000, z: 0.000000}
-      queryListenDelaySec: !<float> 8.000000
       enableLogging: false
       enableLoggingLifecycle: false
   ScriptTypes:
@@ -87,7 +85,6 @@
     - '// @input string startLabel = "Start exploring" {"hint":"Label of the confirm button"}'
     - '// @input float distanceFromCamera = 60 {"hint":"Distance in cm to place the panel in front of the camera at launch"}'
     - '// @input vec3 panelOffset {"hint":"Offset (cm) of the buttons relative to the background frame: x=right, y=up, z=depth"}'
-    - "// @input float queryListenDelaySec = 8 {\"hint\":\"Seconds after 'Start exploring' before the card-query voice agent opens its mic. Long enough for the host's interest announcement to finish so two live sessions don't overlap.\"}"
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Logging</span>"}'
     - '// @input bool enableLogging {"hint":"Enable general logging"}'

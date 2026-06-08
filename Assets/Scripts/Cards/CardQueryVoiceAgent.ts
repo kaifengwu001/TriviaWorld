@@ -33,9 +33,10 @@ import { CardDeckController } from "./CardDeckController";
 import { GlobeController } from "../Globe/GlobeController";
 import { QueryOrchestrator, QUERY_TOOL_DECLARATIONS, ToolCall } from "./QueryOrchestrator";
 
-// Seconds the user must look back at the cosmos before the query agent re-arms
-// itself after a captured-card chat handed the live session to CardVoiceAgent.
-const REARM_DWELL_SEC = 1.5;
+// Seconds the user must look at the deck before the query agent arms itself.
+// Covers the first arm and every re-arm (e.g. after a captured-card chat handed
+// the live session to CardVoiceAgent).
+const GAZE_ACTIVATE_DWELL_SEC = 1.5;
 
 @component
 export class CardQueryVoiceAgent extends BaseScriptComponent {
@@ -73,12 +74,8 @@ export class CardQueryVoiceAgent extends BaseScriptComponent {
   @ui.separator
   @ui.group_start("Activation")
   @input
-  @hint("Automatically open the mic startGraceSec after launch (always-on in the cosmos view). Turn off to start it only via beginListening().")
+  @hint("Automatically arm the mic when the user gazes at the deck (and the deck is in the scene). Off = start only via beginListening().")
   private autoStart: boolean = true;
-
-  @input
-  @hint("Seconds after launch before the agent auto-starts, so it doesn't fire while the welcome voice is still talking (avoids two live sessions at once).")
-  private startGraceSec: number = 6;
   @ui.group_end
 
   @ui.separator
@@ -108,8 +105,10 @@ export class CardQueryVoiceAgent extends BaseScriptComponent {
     "short clarifying question; if the next try still finds nothing, DROP your least-certain keyword and " +
     "query again, briefly narrating each step so the user follows along. When it returns cards, summarize " +
     "how many and where (e.g. 'I found 3 cards captured in Tokyo!'). If some matches can't be shown " +
-    "(unshown > 0), mention that. After results, the user may ask about the card they're looking at — I " +
-    "will tell you which card that is; do NOT bring it up or speak about it until they actually ask. Keep " +
+    "(unshown > 0), mention that. After you summarize the results, STOP and wait silently — do NOT ask the " +
+    "user what they want to know and do NOT invite follow-up questions; only speak again when the user " +
+    "speaks first. The user may then ask about the card they're looking at — I will tell you which card " +
+    "that is; do NOT bring it up or speak about it until they actually ask. Keep " +
     "replies to one to three warm sentences. To start over or undo, call clear_query.";
 
   @input
@@ -133,11 +132,7 @@ export class CardQueryVoiceAgent extends BaseScriptComponent {
   private listening = false;
   // The result card the user is currently looking at; pushed as context on change.
   private focusedId: string | null = null;
-  // Seconds since onAwake, so auto-start waits out the launch grace window.
-  private sinceAwake = 0;
-  // True once we've started at least once (first start is time-based; re-arms are gaze-based).
-  private everStarted = false;
-  // How long the user has been looking back at the cosmos this dwell (for re-arm).
+  // How long the user has been looking at the deck this dwell (for gaze-arm).
   private gazeDwell = 0;
 
   onAwake(): void {
@@ -155,7 +150,6 @@ export class CardQueryVoiceAgent extends BaseScriptComponent {
    * Safe to call repeatedly.
    */
   beginListening(): void {
-    this.everStarted = true;
     this.gazeDwell = 0;
     this.ensureStarted();
   }
@@ -364,35 +358,59 @@ export class CardQueryVoiceAgent extends BaseScriptComponent {
   // --- per-frame: globe reconcile + focus context ----------------------------
 
   private update(dt: number): void {
-    this.sinceAwake += dt;
     if (this.orchestrator) this.orchestrator.reconcileGlobe();
 
-    // First start is time-based (always-on once in the cosmos view, after a launch
-    // grace so the welcome voice isn't clobbered). Later re-arms — after a captured
-    // card handed the session to CardVoiceAgent — wait until the user looks back at
-    // the cosmos, so we don't immediately steal it back.
-    if (this.autoStart && !this.sessionReady && !this.connecting && this.sinceAwake >= this.startGraceSec) {
-      if (!this.everStarted) {
-        this.logger.info("Auto-starting the query agent.");
-        this.beginListening();
-      } else if (this.cardDeck && this.cardDeck.isUserGazingAtCosmos()) {
-        this.gazeDwell += dt;
-        if (this.gazeDwell >= REARM_DWELL_SEC) {
-          this.logger.info("User looked back at the cosmos — re-arming the query agent.");
-          this.beginListening();
-        }
-      } else {
-        this.gazeDwell = 0;
-      }
+    // The query agent is tied to the deck's presence in the scene: when the deck
+    // is gone (e.g. a future menu disables it) the agent must be dormant, so
+    // release the mic if it still holds one.
+    if (!this.isDeckPresent()) {
+      if (this.sessionReady || this.connecting) this.suspend();
+      this.gazeDwell = 0;
+      return;
     }
 
-    if (!this.sessionReady || !this.cardDeck) return;
+    // Gaze-driven activation: arm when the user looks at the deck for the dwell.
+    // Once active it stays active (no look-away suspend); CardVoiceAgent.suspend()
+    // hands the mic off on a card tap, and looking back at the deck re-arms here.
+    // BUT never open a session while WelcomeVoice still holds one — the gateway
+    // keeps only the newest live session alive, and a second session at launch
+    // blanks the lens on-device. The host's session closes after it announces the
+    // user's interests, then gaze arms us normally.
+    if (this.autoStart && !this.sessionReady && !this.connecting &&
+        !this.isHostVoiceActive() && this.cardDeck.isUserGazingAtCosmos()) {
+      this.gazeDwell += dt;
+      if (this.gazeDwell >= GAZE_ACTIVATE_DWELL_SEC) {
+        this.logger.info("User is looking at the deck — arming the query agent.");
+        this.beginListening();
+      }
+    } else {
+      // Reset the dwell while the host holds the slot / we're not gazing, so a
+      // fresh look is required once the welcome session frees the slot.
+      this.gazeDwell = 0;
+    }
+
+    if (!this.sessionReady) return;
 
     const id = this.cardDeck.getFocusedResultId();
     if (id !== this.focusedId) {
       this.focusedId = id;
       if (id) this.pushFocusContext(id);
     }
+  }
+
+  // True only while the deck is actually present and active in the scene
+  // hierarchy. isUserGazingAtCosmos() is pure geometry and would pass even for a
+  // disabled deck, so this gate is required before arming on gaze.
+  private isDeckPresent(): boolean {
+    return !!this.cardDeck && this.cardDeck.getSceneObject().isEnabledInHierarchy;
+  }
+
+  // True while the WelcomeVoice still holds the single live session (from launch
+  // until it closes after announcing interests). We wait it out rather than evict
+  // it — opening a second session at launch blanks the lens on-device.
+  private isHostVoiceActive(): boolean {
+    const host = (global as any).hostVoice;
+    return !!host && typeof host.isActive === "function" && host.isActive();
   }
 
   /**
@@ -411,10 +429,15 @@ export class CardQueryVoiceAgent extends BaseScriptComponent {
       "\n(captured in " + record.location + " on " + record.captureDate + "). " +
       "If they ask about it, answer from this.";
 
+    // turn_complete:false — append this card to the session context WITHOUT
+    // forcing a model turn. Gaze moves across the result row fire this on every
+    // change; with turn_complete:true the model spoke ("what do you want to know?")
+    // each time. The card text stays in context, so when the user actually speaks
+    // (their realtime audio completes a turn) the model can answer from it.
     const turn: GeminiTypes.Live.ClientContent = {
       client_content: {
         turns: [{ role: "user", parts: [{ text }] }],
-        turn_complete: true,
+        turn_complete: false,
       },
     };
     this.liveSession.send(turn);

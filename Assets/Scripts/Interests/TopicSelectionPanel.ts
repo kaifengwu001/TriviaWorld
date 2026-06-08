@@ -81,10 +81,6 @@ export class TopicSelectionPanel extends BaseScriptComponent {
   @hint("Offset (cm) of the buttons relative to the background frame: x=right, y=up, z=depth")
   panelOffset: vec3 = vec3.zero()
 
-  @input
-  @hint("Seconds after 'Start exploring' before the card-query voice agent opens its mic. Long enough for the host's interest announcement to finish so two live sessions don't overlap.")
-  queryListenDelaySec: number = 8
-
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Logging</span>')
   @input
@@ -367,18 +363,8 @@ export class TopicSelectionPanel extends BaseScriptComponent {
       sphere.goHome()
     }
 
-    // Open the card-query agent's mic so the user can just speak a search once
-    // they're in the cosmos view. Delayed so the host's interest announcement
-    // (its own short-lived live session) finishes first — two live sessions at
-    // once would zombify one and can blank the lens on-device.
-    const beginQuery = this.createEvent("DelayedCallbackEvent")
-    beginQuery.bind(() => {
-      const queryAgent = (global as any).cardQueryVoiceAgent
-      if (queryAgent && typeof queryAgent.beginListening === "function") {
-        queryAgent.beginListening()
-      }
-    })
-    beginQuery.reset(this.queryListenDelaySec)
+    // The card-query agent now arms itself purely on gaze — it opens its mic when
+    // the user looks at the card deck — so the panel no longer force-starts it.
   }
 
   private resolveFrame(): Frame | null {

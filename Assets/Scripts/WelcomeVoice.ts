@@ -95,6 +95,11 @@ export class WelcomeVoice extends BaseScriptComponent {
   private logger: Logger;
   private liveSession: ReturnType<typeof Gemini.liveConnect>;
   private sessionReady = false;
+  // True from the instant we start connecting until the session closes — covers
+  // the ~1s setup window before sessionReady flips, which is exactly when other
+  // agents must NOT open a competing session (a 2nd session at launch blanks the
+  // lens on-device). isActive() reports this, not sessionReady.
+  private sessionLive = false;
   // Set true when the next completed turn should close the session (the host is a
   // one-shot narrator; releasing the slot keeps CardVoiceAgent's session alive).
   private closeAfterTurn = false;
@@ -137,6 +142,7 @@ export class WelcomeVoice extends BaseScriptComponent {
 
   /** Connect to Gemini Live and configure audio output with the chosen voice. */
   private connect(): void {
+    this.sessionLive = true; // hold the slot from the moment we start connecting
     this.liveSession = Gemini.liveConnect();
 
     this.liveSession.onOpen.add(() => {
@@ -215,8 +221,19 @@ export class WelcomeVoice extends BaseScriptComponent {
 
     this.liveSession.onClose.add((event) => {
       this.sessionReady = false;
+      this.sessionLive = false;
       this.logger.warn("Gemini Live closed: " + JSON.stringify(event));
     });
+  }
+
+  /**
+   * True while the host holds a live Gemini session (from launch until it closes
+   * after the interest announcement). Other agents poll this so they don't open a
+   * second live session at once — the gateway keeps only the newest alive, and a
+   * second session at launch blanks the lens on-device.
+   */
+  isActive(): boolean {
+    return this.sessionLive;
   }
 
   /**
@@ -268,5 +285,6 @@ export class WelcomeVoice extends BaseScriptComponent {
       }
     }
     this.sessionReady = false;
+    this.sessionLive = false;
   }
 }
