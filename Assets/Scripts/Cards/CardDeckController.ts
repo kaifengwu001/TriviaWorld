@@ -17,16 +17,23 @@
  * card billboards individually to face the user and sways gently; nothing orbits.
  *
  * QUERY MODE (driven by QueryOrchestrator / CardQueryVoiceAgent): the matching
- * cards fly out to a readable row in front of the user (showQueryResults); the
- * rest of the plane holds still. clearQueryResults eases them back to their
- * plane spot. The cards stay expanded throughout — they never collapse.
+ * cards fly out into an iPod-style CoverFlow deck in front of the user
+ * (showQueryResults): one card is centred and faces the user ("in selection"),
+ * while the rest fold toward centre, shrink, and recede with distance. The user
+ * pinch-drags to scrub through them (snap-to-nearest on release); getFocusedResultId
+ * reports the centred card so the agent's context follows the selection. The deck is
+ * snapshot onto a frozen world frame so it stays put when the head turns. The rest of
+ * the plane holds still; clearQueryResults eases them back to their plane spot. Cards
+ * stay expanded throughout — they never collapse.
  *
  * Prefab instantiation + getComponent(getTypeName()) mirror GlobeController's
  * ensureMarkers(); the global-store lookup mirrors InterestStore's pattern.
  */
 import { Logger } from "Utilities.lspkg/Scripts/Utils/Logger";
+import { SIK } from "SpectaclesInteractionKit.lspkg/SIK";
 import { PremadeCard } from "../PremadeCard/PremadeCard";
 import { GlobeView } from "../Globe/GlobeView";
+import { PinchDragTracker } from "../Globe/PinchDragTracker";
 import { CARD_DECK_DATA, SEED_CARDS, CardDeckEntry } from "./cardDeckData";
 
 const DEG2RAD = Math.PI / 180
@@ -52,6 +59,9 @@ interface DeckSlot {
   swayAmp: number
   // True while this card is pulled out as a query result (front row, in front).
   isResult: boolean
+  // Last render order pushed to the card while it's a CoverFlow result (-1 = unset),
+  // so we only re-push on change instead of every frame.
+  renderOrder: number
 }
 
 @component
@@ -100,7 +110,7 @@ export class CardDeckController extends BaseScriptComponent {
   canvasHeightCm: number = 20
 
   @input
-  @hint("Minimum gap (cm) kept between cards. A little touching is fine; this prevents heavy overlap.")
+  @hint("Extra spacing (cm) kept between cards on top of each card's REAL measured footprint. THE spacing knob now — raise it to spread cards apart, 0 = cards packed just shy of touching.")
   cardGapCm: number = 0
 
   @ui.label('<span style="color: #94A3B8; font-size: 11px;">Card size = uniform WORLD SCALE of the whole card (predictable; bypasses the prefab x10 ImageAnchor + parent scale).</span>')
@@ -117,11 +127,11 @@ export class CardDeckController extends BaseScriptComponent {
   cardSizeMaxScale: number = 1.0
 
   @input
-  @hint("Card footprint WIDTH (cm) — the real card width used for the non-overlap packing.")
+  @hint("FALLBACK card footprint WIDTH (cm), used only for a card that hasn't measured its real size (e.g. border auto-fit off). Measured cards ignore this.")
   cardWidthCm: number = 10
 
   @input
-  @hint("Card footprint HEIGHT (cm) — the real card height used for the non-overlap packing.")
+  @hint("FALLBACK card footprint HEIGHT (cm), used only for a card that hasn't measured its real size. Measured cards ignore this.")
   cardHeightCm: number = 15
 
   @ui.separator
@@ -163,16 +173,61 @@ export class CardDeckController extends BaseScriptComponent {
   searchSpinMultiplier: number = 3.5
 
   @input
-  @hint("Horizontal gap (cm) between adjacent cards in the result row laid out in front of the user.")
-  resultRowSpacingCm: number = 16
-
-  @input
-  @hint("Distance (cm) in front of the camera the result row is placed. Keep this CLOSER than the plane so results read in front.")
+  @hint("Distance (cm) in front of the camera the result deck is placed. Keep this CLOSER than the plane so results read in front.")
   resultRowDepthCm: number = 45
 
   @input
   @hint("Vertical offset (cm) of the result row relative to the camera's eye line (positive = up).")
   resultRowRiseCm: number = 0
+
+  @input
+  @hint("Uniform WORLD SCALE the CENTRED result card renders at; side cards shrink from this. (Overrides each card's varied deck size; restored when it returns to the cosmos.)")
+  resultCardSize: number = 0.5
+
+  @ui.separator
+  @ui.label('<span style="color: #60A5FA;">CoverFlow (result navigation)</span>')
+  @input
+  @hint("Horizontal gap (cm) from the centred card to the FIRST card on each side.")
+  coverCenterGapCm: number = 14
+  @input
+  @hint("Horizontal spacing (cm) between successive side cards as they stack outward.")
+  coverSideSpacingCm: number = 6
+  @input
+  @hint("How far back (cm) each step from centre recedes — gives the side cards parallax depth.")
+  coverDepthStepCm: number = 6
+  @input
+  @hint("Fold angle (deg) of the FIRST card on each side, turned toward the centre.")
+  coverFoldStartDeg: number = 45
+  @input
+  @hint("Extra fold (deg) added per further step away from centre.")
+  coverFoldStepDeg: number = 12
+  @input
+  @hint("Maximum fold angle (deg) any side card reaches.")
+  coverMaxFoldDeg: number = 75
+  @input
+  @hint("Per-step scale falloff for side cards (0..1): each step from centre multiplies size by this.")
+  coverSideScaleFalloff: number = 0.82
+  @input
+  @hint("Smallest scale fraction a far side card shrinks to (× the centred size).")
+  coverMinScaleFrac: number = 0.4
+  @input
+  @hint("Cards farther than this many steps from centre stack at the edge instead of spreading further.")
+  coverMaxVisiblePerSide: number = 6
+  @input
+  @hint("Hand travel (cm) along the row required to scrub one card while pinch-dragging.")
+  coverScrubStepCm: number = 12
+  @input
+  @hint("How crisply the deck settles to the centred card after release (higher = snappier).")
+  coverSnapRate: number = 12
+  @input
+  @hint("Release hand speed (cm/s) above which a quick flick advances one extra card in that direction.")
+  coverFlickThreshold: number = 25
+  @input
+  @hint("Invert the pinch-drag direction (which way you move your hand for next vs. previous).")
+  coverInvertScrub: boolean = false
+  @input
+  @hint("Invert the side-card fold direction (which way left/right cards tilt).")
+  coverInvertFold: boolean = false
 
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Logging</span>')
@@ -185,8 +240,13 @@ export class CardDeckController extends BaseScriptComponent {
   private slots: DeckSlot[] = []
   private camTrans: Transform = null
 
-  // Cylinder layout, built once on the first frame the camera is available.
+  // Cylinder layout, built once the camera is available AND every card has
+  // measured its real footprint (or the wait below times out).
   private layoutBuilt: boolean = false
+  private layoutWaitFrames: number = 0
+  // Frames to wait for cards to auto-fit before packing with fallback sizes
+  // (covers cards whose border auto-fit is off and never measures).
+  private static readonly MAX_LAYOUT_WAIT_FRAMES = 60
   private anchor: vec3 = vec3.zero()       // field-centre point (for gaze aim)
   private rightW: vec3 = new vec3(1, 0, 0) // basis for the gentle in-place sway
   private upW: vec3 = vec3.up()
@@ -197,12 +257,29 @@ export class CardDeckController extends BaseScriptComponent {
   private searchActive: boolean = false   // sway faster while the agent searches
   private resultsActive: boolean = false  // a result row is laid out in front
   private resultIndices: number[] = []    // slot indices currently in the row (row order)
+  // Frozen world-space frame the CoverFlow deck is laid out on, snapshot once when
+  // the row appears (so the cards stay put in the world instead of following the head).
+  private resultRowAnchor: vec3 = vec3.zero()
+  private resultRowRight: vec3 = new vec3(1, 0, 0)
+  private resultRowFaceForward: vec3 = new vec3(0, 0, -1) // away-from-user, side cards recede along this
+  private resultRowFaceRot: quat = quat.quatIdentity()    // stable facing of the centred card
   private driftFrozen: boolean = false    // plane cards hold still while showing results
-  // Which result the user is gazing at, with a short dwell so it doesn't flicker.
-  private focusCandidate: number = -1
-  private focusDwell: number = 0
-  private focusedResultIndex: number = -1
-  private static readonly FOCUS_DWELL_SEC = 0.4
+  // CoverFlow selection: which card (index WITHIN resultIndices) is centred. scrubPos
+  // is the same value when idle, but slides as a float during a pinch-drag.
+  private selectedPos: number = 0
+  private scrubPos: number = 0
+  // Pinch-drag scrub state (SIK hand input).
+  private rightHand = SIK.HandInputData.getHand("right")
+  private leftHand = SIK.HandInputData.getHand("left")
+  private pinching: boolean = false
+  private pinchIsRight: boolean = false
+  private dragTracker = new PinchDragTracker()
+  private dragAccumCm: number = 0
+  private scrubStartPos: number = 0
+  private scrubVelCmPerSec: number = 0 // smoothed hand speed along the row, for flick
+  // Base render order for the centred result card; side cards step down from here.
+  // Stays well above the cosmos plane (order 0) for any sane maxVisiblePerSide.
+  private static readonly COVER_BASE_ORDER = 100
 
   onAwake() {
     this.logger = new Logger("CardDeckController", this.enableLogging || this.enableLoggingLifecycle, true)
@@ -214,6 +291,13 @@ export class CardDeckController extends BaseScriptComponent {
   private onStart(): void {
     if (this.cameraObject) this.camTrans = this.cameraObject.getTransform()
     const store = (global as any).cropCardStore
+
+    // CoverFlow navigation: pinch-drag scrubs through the result deck. Either hand
+    // works; the handlers no-op unless a result deck is currently showing.
+    this.rightHand.onPinchDown.add(() => this.onPinchDown(true))
+    this.rightHand.onPinchUp.add(() => this.onPinchUp(true))
+    this.leftHand.onPinchDown.add(() => this.onPinchDown(false))
+    this.leftHand.onPinchUp.add(() => this.onPinchUp(false))
 
     this.spawnDeck(store)
     this.registerSeeds(store)
@@ -307,6 +391,7 @@ export class CardDeckController extends BaseScriptComponent {
       swayFreq: this.rand(this.swayFreqMin, this.swayFreqMax),
       swayAmp: this.swayAmplitudeCm * this.rand(0.6, 1),
       isResult: false,
+      renderOrder: -1,
     }
   }
 
@@ -316,10 +401,16 @@ export class CardDeckController extends BaseScriptComponent {
     if (this.slots.length === 0) return
     if (!this.layoutBuilt) {
       if (!this.camTrans) return // need the camera to orient + anchor the cylinder
+      // Hold off until every card has measured its real footprint, so the packing
+      // uses true sizes. Fall back to authored sizes if it takes too long.
+      if (!this.allCardsMeasured() && this.layoutWaitFrames++ < CardDeckController.MAX_LAYOUT_WAIT_FRAMES) return
       this.buildWrappedLayout()
       if (!this.layoutBuilt) return
     }
-    if (this.resultsActive) this.updateResultFocus(dt)
+    if (this.resultsActive) {
+      if (this.pinching) this.updateScrub()
+      else this.settleScrub(dt) // ease to the snapped card after release
+    }
 
     const swaySpeed = this.searchActive ? this.searchSpinMultiplier : 1
     for (let i = 0; i < this.slots.length; i++) {
@@ -344,6 +435,16 @@ export class CardDeckController extends BaseScriptComponent {
       slot.trans.setWorldPosition(vec3.lerp(cur, target, Math.min(1, 5 * dt)))
       this.billboardSlot(slot)
     }
+  }
+
+  // True once every spawned card has auto-fit its border, so getContentLocalSize()
+  // returns each card's real footprint for the packing.
+  private allCardsMeasured(): boolean {
+    for (let i = 0; i < this.slots.length; i++) {
+      const card = this.slots[i].card
+      if (!card || !card.isContentMeasured()) return false
+    }
+    return true
   }
 
   // --- cylinder (head-wrapped) layout -----------------------------------------
@@ -376,13 +477,25 @@ export class CardDeckController extends BaseScriptComponent {
     // scale by dividing it out (this is the hidden multiplier that blew cards up).
     const parentScale = this.getSceneObject().getTransform().getWorldScale()
 
-    // Per-card footprint radius (cm) from the REAL card size; band half-height (cm).
+    // Per-card footprint radius (cm) from each card's REAL measured size; band
+    // half-height (cm). The world footprint is the card's measured root-local
+    // size times the world scale we apply below (cardSizeBase * sizeScale).
+    // Cards that haven't measured fall back to the authored cardWidth/HeightCm.
     const radius: number[] = []
     let sumR = 0
     for (let i = 0; i < n; i++) {
-      const s = this.slots[i].sizeScale
-      const w = this.cardWidthCm * s
-      const h = this.cardHeightCm * s
+      const slot = this.slots[i]
+      const s = slot.sizeScale
+      const worldScale = this.cardSizeBase * s
+      let w: number, h: number
+      if (slot.card && slot.card.isContentMeasured()) {
+        const ls = slot.card.getContentLocalSize()
+        w = ls.x * worldScale
+        h = ls.y * worldScale
+      } else {
+        w = this.cardWidthCm * s
+        h = this.cardHeightCm * s
+      }
       const r = 0.5 * Math.sqrt(w * w + h * h) + this.cardGapCm * 0.5
       radius.push(r); sumR += r
     }
@@ -574,15 +687,39 @@ export class CardDeckController extends BaseScriptComponent {
     this.resultsActive = indices.length > 0
     this.searchActive = false
     this.driftFrozen = true
-    this.focusCandidate = -1
-    this.focusDwell = 0
-    this.focusedResultIndex = -1
+    // Start centred on the MIDDLE of the result array (not an end card).
+    this.selectedPos = Math.floor(indices.length / 2)
+    this.scrubPos = this.selectedPos
+    this.pinching = false
+
+    // Snapshot the deck's world frame ONCE from the camera's current pose so it stays
+    // put in the world (it must not follow the head). Flatten the look dir to keep the
+    // row level, mirroring buildWrappedLayout's Fh/rightN basis.
+    if (this.resultsActive && this.camTrans) {
+      const camPos = this.camTrans.getWorldPosition()
+      const look = this.camTrans.forward.uniformScale(-1) // camera looks along -forward
+      const fFlat = new vec3(look.x, 0, look.z)
+      const f = fFlat.length > 1e-3 ? fFlat.normalize() : new vec3(0, 0, -1)
+      this.resultRowRight = vec3.up().cross(f).normalize()
+      this.resultRowAnchor = camPos
+        .add(f.uniformScale(this.resultRowDepthCm))
+        .add(vec3.up().uniformScale(this.resultRowRiseCm))
+      // Side cards recede along f (away from the user); the centred card faces back
+      // toward the user along -f. Freeze that facing so the deck stays world-stable.
+      this.resultRowFaceForward = f
+      this.resultRowFaceRot = quat.lookAt(f.uniformScale(-1), vec3.up())
+    }
 
     for (const idx of indices) {
       const slot = this.slots[idx]
       slot.isResult = true
-      if (slot.card) slot.card.setRenderInFront(true) // already expanded
+      slot.renderOrder = -1 // force the first layout frame to push the distance-based order
+      if (slot.card) slot.card.setRenderInFront(true) // already expanded; scale eased per-frame
     }
+    this.logger.info(
+      "[coverflow] frozen anchor=" + this.resultRowAnchor +
+      " depth=" + this.resultRowDepthCm + "cm n=" + indices.length
+    )
     this.logger.info("Showing " + indices.length + " result card(s) of " + (ids ? ids.length : 0) + " requested.")
     return indices.length
   }
@@ -597,18 +734,21 @@ export class CardDeckController extends BaseScriptComponent {
     this.resultsActive = false
     this.driftFrozen = false
     this.searchActive = false
-    this.focusCandidate = -1
-    this.focusDwell = 0
-    this.focusedResultIndex = -1
+    this.selectedPos = 0
+    this.scrubPos = 0
+    this.pinching = false
   }
 
   /**
-   * The store id of the result card the user is currently looking at (after a
-   * short dwell), or null when none / no results shown.
+   * The store id of the result card currently CENTRED in the CoverFlow deck (the
+   * one "in selection"), or null when none / no results shown. The query agent
+   * polls this so its context follows whichever card the user has scrubbed to.
    */
   getFocusedResultId(): string | null {
-    if (!this.resultsActive || this.focusedResultIndex < 0) return null
-    return this.slotIds[this.focusedResultIndex] ?? null
+    if (!this.resultsActive || this.resultIndices.length === 0) return null
+    const pos = Math.round(this.scrubPos)
+    const idx = this.resultIndices[pos]
+    return idx === undefined ? null : (this.slotIds[idx] ?? null)
   }
 
   /**
@@ -627,63 +767,178 @@ export class CardDeckController extends BaseScriptComponent {
     return cos >= Math.cos(Math.max(1, coneDeg) * DEG2RAD)
   }
 
-  // Un-fronts every current result card and clears its flag (stays expanded).
+  // Un-fronts every current result card, restores its varied deck size, and clears
+  // its flag (stays expanded).
   private clearResultSlots(): void {
     for (const idx of this.resultIndices) {
       const slot = this.slots[idx]
       if (!slot) continue
       slot.isResult = false
+      this.applyWorldScale(slot, this.cardSizeBase * slot.sizeScale) // back to deck size
       if (slot.card) slot.card.setRenderInFront(false)
     }
   }
 
-  // Eases a result card toward its slot in the front row and faces the user.
+  // Eases a result card toward its CoverFlow pose, computed against the frozen deck
+  // frame (so the whole deck stays put in the world). The centred card faces the user
+  // full size; side cards fold toward centre, shrink, and recede with distance from
+  // the current scrub position.
   private layoutResultSlot(slot: DeckSlot, dt: number): void {
-    if (!this.camTrans) return
-    const n = this.resultIndices.length
     const k = this.resultIndices.indexOf(this.slots.indexOf(slot))
-    const camPos = this.camTrans.getWorldPosition()
-    const viewDir = this.camTrans.forward.uniformScale(-1) // camera looks along -forward
-    const right = this.camTrans.right
-    const up = this.camTrans.up
+    if (k < 0) return
 
-    const offsetIndex = k - (n - 1) / 2
-    const target = camPos
-      .add(viewDir.uniformScale(this.resultRowDepthCm))
-      .add(right.uniformScale(offsetIndex * this.resultRowSpacingCm))
-      .add(up.uniformScale(this.resultRowRiseCm))
+    // Defensive @input fallbacks: a component placed before these fields existed reads
+    // them as 0/undefined, which would collapse the layout. Fall back to the defaults.
+    const centerGap = this.num(this.coverCenterGapCm, 14)
+    const sideSpacing = this.num(this.coverSideSpacingCm, 6)
+    const depthStep = this.num(this.coverDepthStepCm, 6)
+    const foldStart = this.num(this.coverFoldStartDeg, 45)
+    const foldStep = this.num(this.coverFoldStepDeg, 12)
+    const maxFold = this.num(this.coverMaxFoldDeg, 75)
+    const falloff = this.num(this.coverSideScaleFalloff, 0.82)
+    const minFrac = this.num(this.coverMinScaleFrac, 0.4)
+    const maxVis = this.num(this.coverMaxVisiblePerSide, 6)
+    const centerSize = this.num(this.resultCardSize, this.cardSizeBase)
+
+    const r = k - this.scrubPos          // signed offset from centre (<0 left, >0 right)
+    const a = Math.abs(r)
+    const sgn = r === 0 ? 0 : (r > 0 ? 1 : -1)
+    const aC = Math.min(a, maxVis)        // distant cards stack at the edge
+
+    // Everything below is CONTINUOUS and ODD in r, so a card eases smoothly through
+    // the centre as scrubPos moves (no jump / 90° flip at the crossover).
+    // Horizontal: 0 at centre -> centerGap at |r|=1 -> +sideSpacing per further step.
+    const xMag = aC <= 1 ? centerGap * aC : centerGap + (aC - 1) * sideSpacing
+    const x = sgn * xMag
+    // Depth: recede along faceForward (away from the user) for parallax; 0 at centre.
+    const target = this.resultRowAnchor
+      .add(this.resultRowRight.uniformScale(x))
+      .add(this.resultRowFaceForward.uniformScale(aC * depthStep))
+
+    // Fold about world up: 0 at centre -> foldStart at |r|=1 -> +foldStep per step,
+    // capped. Odd in r so the outgoing card turns aside while the incoming one turns
+    // to face the user, both landing exactly on their pose when scrubPos settles.
+    const foldSign = this.coverInvertFold ? 1 : -1
+    const foldMag = a <= 1 ? foldStart * a : Math.min(maxFold, foldStart + (a - 1) * foldStep)
+    const targetRot = quat.angleAxis(-sgn * foldSign * foldMag * DEG2RAD, vec3.up())
+      .multiply(this.resultRowFaceRot)
+
+    // Scale: centre full size, sides shrink geometrically toward minFrac.
+    const worldScale = centerSize * Math.max(minFrac, Math.pow(falloff, a))
 
     const cur = slot.trans.getWorldPosition()
-    slot.trans.setWorldPosition(vec3.lerp(cur, target, Math.min(1, 6 * dt)))
-    slot.trans.setWorldRotation(quat.lookAt(this.camTrans.forward, vec3.up()))
+    slot.trans.setWorldPosition(vec3.lerp(cur, target, Math.min(1, 8 * dt)))
+    slot.trans.setWorldRotation(quat.slerp(slot.trans.getWorldRotation(), targetRot, Math.min(1, 12 * dt)))
+    this.easeWorldScale(slot, worldScale, Math.min(1, 10 * dt))
+
+    // Layer by distance from centre: nearer cards draw in front (higher order). These
+    // are unlit billboards with depthTest off, so render order — not Z — decides
+    // overlap. Re-push only on change to avoid per-frame material writes.
+    const order = Math.round(CardDeckController.COVER_BASE_ORDER - aC)
+    if (slot.card && order !== slot.renderOrder) {
+      slot.card.setRenderOrder(order)
+      slot.renderOrder = order
+    }
   }
 
-  // Tracks which result card is most centred in the gaze, with a dwell.
-  private updateResultFocus(dt: number): void {
-    if (!this.camTrans || this.resultIndices.length === 0) return
-    const camPos = this.camTrans.getWorldPosition()
-    const viewDir = this.camTrans.forward.uniformScale(-1)
+  // Converts a target WORLD scale to a local scale by dividing out the parent's
+  // world scale (mirrors buildWrappedLayout's per-card sizing).
+  private applyWorldScale(slot: DeckSlot, worldScale: number): void {
+    if (!(worldScale > 0) || !isFinite(worldScale)) return // never NaN-corrupt the transform
+    const p = this.getSceneObject().getTransform().getWorldScale()
+    slot.trans.setLocalScale(new vec3(
+      p.x > 1e-4 ? worldScale / p.x : worldScale,
+      p.y > 1e-4 ? worldScale / p.y : worldScale,
+      p.z > 1e-4 ? worldScale / p.z : worldScale,
+    ))
+  }
 
-    let best = -1
-    let bestScore = -2
-    for (const idx of this.resultIndices) {
-      const toCard = this.slots[idx].trans.getWorldPosition().sub(camPos)
-      const dist = toCard.length
-      if (dist < 1e-3) continue
-      const cos = toCard.dot(viewDir) / dist
-      if (cos > bestScore) {
-        bestScore = cos
-        best = idx
-      }
-    }
+  // --- CoverFlow pinch-drag scrub ---------------------------------------------
 
-    if (best === this.focusCandidate) {
-      this.focusDwell += dt
-      if (this.focusDwell >= CardDeckController.FOCUS_DWELL_SEC) this.focusedResultIndex = best
+  private onPinchDown(isRight: boolean): void {
+    if (!this.resultsActive || this.pinching) return // only scrub while a deck is up
+    const point = this.handPoint(isRight)
+    if (!point) return
+    this.pinching = true
+    this.pinchIsRight = isRight
+    this.scrubStartPos = this.scrubPos // resume from where it currently rests
+    this.dragAccumCm = 0
+    this.scrubVelCmPerSec = 0
+    this.dragTracker.begin(point)
+  }
+
+  private onPinchUp(isRight: boolean): void {
+    if (!this.pinching || isRight !== this.pinchIsRight) return
+    this.pinching = false
+    this.dragTracker.end()
+    // Pick the card to settle on. A slow release snaps to the nearest; a quick flick
+    // advances one card in the flick direction. scrubPos is NOT set here — settleScrub
+    // eases it to selectedPos so the motion reads as one crisp settle.
+    const n = this.resultIndices.length
+    const flick = this.num(this.coverFlickThreshold, 25)
+    let target: number
+    if (Math.abs(this.scrubVelCmPerSec) > flick) {
+      target = this.scrubVelCmPerSec > 0 ? Math.floor(this.scrubPos) + 1 : Math.ceil(this.scrubPos) - 1
     } else {
-      this.focusCandidate = best
-      this.focusDwell = 0
+      target = Math.round(this.scrubPos)
     }
+    this.selectedPos = Math.max(0, Math.min(n - 1, target))
+  }
+
+  // Maps smoothed horizontal hand travel to a fractional scrub position so the deck
+  // slides continuously under the pinch, and tracks hand speed for the flick test.
+  private updateScrub(): void {
+    const point = this.handPoint(this.pinchIsRight)
+    if (!point) return
+    const dCm = this.dragTracker.update(point).dot(this.resultRowRight)
+    this.dragAccumCm += dCm
+    const step = this.num(this.coverScrubStepCm, 12)
+    const dir = this.coverInvertScrub ? 1 : -1
+    const n = this.resultIndices.length
+    this.scrubPos = Math.max(0, Math.min(n - 1, this.scrubStartPos + dir * this.dragAccumCm / step))
+
+    // Smoothed scrub-direction speed (cm/s); +ve means scrubPos is increasing.
+    const dt = getDeltaTime()
+    const inst = dt > 1e-4 ? (dir * dCm) / dt : 0
+    this.scrubVelCmPerSec = this.scrubVelCmPerSec * 0.7 + inst * 0.3
+  }
+
+  // After release, eases scrubPos to the chosen card with an ease-out, snapping
+  // exactly when close so it lands precisely on the integer pose.
+  private settleScrub(dt: number): void {
+    const diff = this.selectedPos - this.scrubPos
+    if (Math.abs(diff) < 0.01) {
+      this.scrubPos = this.selectedPos
+      return
+    }
+    const rate = this.num(this.coverSnapRate, 12)
+    this.scrubPos += diff * Math.min(1, rate * dt)
+  }
+
+  // World position of the pinching hand (thumb tip), or null if not tracked.
+  private handPoint(isRight: boolean): vec3 | null {
+    const hand = isRight ? this.rightHand : this.leftHand
+    const tip = hand && hand.thumbTip ? hand.thumbTip.position : null
+    return tip ?? null
+  }
+
+  // Eases the slot's LOCAL scale toward the target WORLD scale (dividing out the
+  // parent's world scale, mirroring applyWorldScale) so size animates on navigation.
+  private easeWorldScale(slot: DeckSlot, worldScale: number, t: number): void {
+    if (!(worldScale > 0) || !isFinite(worldScale)) return
+    const p = this.getSceneObject().getTransform().getWorldScale()
+    const target = new vec3(
+      p.x > 1e-4 ? worldScale / p.x : worldScale,
+      p.y > 1e-4 ? worldScale / p.y : worldScale,
+      p.z > 1e-4 ? worldScale / p.z : worldScale,
+    )
+    slot.trans.setLocalScale(vec3.lerp(slot.trans.getLocalScale(), target, t))
+  }
+
+  // Resolves an @input number, falling back when a stale scene component reads it
+  // as 0/undefined (a field added after the component was placed).
+  private num(v: number, fallback: number): number {
+    return (v !== undefined && v !== null && isFinite(v) && v > 0) ? v : fallback
   }
 
   private billboardSlot(slot: DeckSlot): void {

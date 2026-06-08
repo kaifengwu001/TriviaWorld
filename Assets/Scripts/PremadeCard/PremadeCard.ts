@@ -155,6 +155,13 @@ export class PremadeCard extends BaseScriptComponent {
   private currentImage: Texture = null
   private currentText: string = ""
 
+  // True card footprint in root-local cm (border width/height from the last
+  // auto-fit). Scale-invariant: multiply by the card's world scale to get the
+  // real world size. The CardDeckController reads these for accurate packing.
+  private contentLocalW = 0
+  private contentLocalH = 0
+  private contentMeasured = false
+
   onAwake() {
     this.logger = new Logger("PremadeCard", this.enableLogging || this.enableLoggingLifecycle, true)
     if (this.enableLoggingLifecycle) this.logger.debug("LIFECYCLE: onAwake()")
@@ -243,6 +250,20 @@ export class PremadeCard extends BaseScriptComponent {
   }
 
   /**
+   * The card's true footprint (width, height) in root-local cm, taken from the
+   * last auto-fit border pass. Scale-invariant — multiply by the card's world
+   * scale to get the real world size. Valid only after isContentMeasured().
+   */
+  getContentLocalSize(): vec2 {
+    return new vec2(this.contentLocalW, this.contentLocalH)
+  }
+
+  /** True once the border has been auto-fit at least once (footprint is known). */
+  isContentMeasured(): boolean {
+    return this.contentMeasured
+  }
+
+  /**
    * (Re)assigns the camera used for billboarding + gaze. Useful for cards
    * instantiated from a prefab at runtime, whose baked camera reference may not
    * resolve; the controller can pass the live camera in after instantiate.
@@ -266,6 +287,22 @@ export class PremadeCard extends BaseScriptComponent {
       ;(this.pictureVisual.mainPass as any).depthTest = !enabled
     }
     if (this.borderBubble) this.borderBubble.setRenderInFront(enabled, order)
+    const textVisual = this.caption ? this.caption.getTextVisual() : null
+    if (textVisual) (textVisual as any).renderOrder = order
+  }
+
+  /**
+   * Sets an explicit draw order on every visual sub-part of the card, keeping
+   * depthTest off so it stays above the depth-tested cosmos shell. Used by the
+   * CoverFlow deck to layer overlapping result cards by distance from centre
+   * (cards nearer the centre get a higher order so they draw in front).
+   */
+  setRenderOrder(order: number): void {
+    if (this.pictureVisual) {
+      ;(this.pictureVisual as any).renderOrder = order
+      ;(this.pictureVisual.mainPass as any).depthTest = false
+    }
+    if (this.borderBubble) this.borderBubble.setRenderInFront(true, order)
     const textVisual = this.caption ? this.caption.getTextVisual() : null
     if (textVisual) (textVisual as any).renderOrder = order
   }
@@ -449,6 +486,10 @@ export class PremadeCard extends BaseScriptComponent {
 
     this.borderBubble.setTargetSize(width, height)
     this.refreshBorderAtCurrentProgress()
+    // Record the true footprint (root-local cm) for the deck's packing.
+    this.contentLocalW = width
+    this.contentLocalH = height
+    this.contentMeasured = true
     this.logger.info("Fit border to " + width.toFixed(1) + " x " + height.toFixed(1) + " cm")
   }
 

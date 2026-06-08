@@ -26,31 +26,47 @@
   ExportUid: 00000000-0000-0000-0000-000000000000
   PackagePolicy: CanBeUnpacked
   ScriptInputsHidden:
-    bobAmplitude: false
-    bobFreqMax: false
-    bobFreqMin: false
     cameraObject: false
+    canvasHeightCm: false
+    cardDistanceCm: false
+    cardGapCm: false
+    cardHeightCm: false
     cardPrefab: false
+    cardSizeBase: false
+    cardSizeMaxScale: false
+    cardSizeMinScale: false
+    cardWidthCm: false
     centerObject: false
+    coverCenterGapCm: false
+    coverDepthStepCm: false
+    coverFlickThreshold: false
+    coverFoldStartDeg: false
+    coverFoldStepDeg: false
+    coverInvertFold: false
+    coverInvertScrub: false
+    coverMaxFoldDeg: false
+    coverMaxVisiblePerSide: false
+    coverMinScaleFrac: false
+    coverScrubStepCm: false
+    coverSideScaleFalloff: false
+    coverSideSpacingCm: false
+    coverSnapRate: false
+    dateRangeDays: false
+    dateWeight: false
     enableLogging: false
     enableLoggingLifecycle: false
-    enterConeAngleDeg: false
-    expandDwellSec: false
-    flipSpeedMax: false
-    flipSpeedMin: false
     globeView: false
-    heightAboveGlobe: false
-    heightSpread: false
-    horizontalRadius: false
-    keepConeAngleDeg: false
-    orbitSpeedMax: false
-    orbitSpeedMin: false
-    pauseDriftWhenExpanded: false
+    locationWeight: false
     placeholderImages: false
+    resultCardSize: false
     resultRowDepthCm: false
     resultRowRiseCm: false
-    resultRowSpacingCm: false
     searchSpinMultiplier: false
+    swayAmplitudeCm: false
+    swayFreqMax: false
+    swayFreqMin: false
+    topicWeight: false
+    verticalCenterRiseCm: false
   ScriptTypesHidden:
     {}
   ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
@@ -66,64 +82,100 @@
       cameraObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
       globeView: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
       centerObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
-      heightAboveGlobe: !<float> 8.000000
-      heightSpread: !<float> 6.000000
-      horizontalRadius: !<float> 22.000000
-      orbitSpeedMin: 0.040000
-      orbitSpeedMax: 0.160000
-      bobAmplitude: 1.500000
-      bobFreqMin: 0.300000
-      bobFreqMax: 0.800000
-      flipSpeedMin: 0.100000
-      flipSpeedMax: 0.350000
-      pauseDriftWhenExpanded: true
-      enterConeAngleDeg: !<float> 10.000000
-      keepConeAngleDeg: !<float> 16.000000
-      expandDwellSec: 0.600000
+      cardDistanceCm: !<float> 0.000000
+      verticalCenterRiseCm: !<float> 15.000000
+      canvasHeightCm: !<float> 220.000000
+      cardGapCm: !<float> 6.000000
+      cardSizeBase: 0.300000
+      cardSizeMinScale: 0.650000
+      cardSizeMaxScale: 1.600000
+      cardWidthCm: !<float> 26.000000
+      cardHeightCm: !<float> 34.000000
+      topicWeight: 0.700000
+      locationWeight: 0.200000
+      dateWeight: 0.100000
+      dateRangeDays: !<float> 120.000000
+      swayAmplitudeCm: 1.200000
+      swayFreqMin: 0.300000
+      swayFreqMax: 0.700000
       searchSpinMultiplier: 3.500000
-      resultRowSpacingCm: !<float> 16.000000
       resultRowDepthCm: !<float> 45.000000
       resultRowRiseCm: !<float> 0.000000
+      resultCardSize: 0.500000
+      coverCenterGapCm: !<float> 14.000000
+      coverSideSpacingCm: !<float> 6.000000
+      coverDepthStepCm: !<float> 6.000000
+      coverFoldStartDeg: !<float> 45.000000
+      coverFoldStepDeg: !<float> 12.000000
+      coverMaxFoldDeg: !<float> 75.000000
+      coverSideScaleFalloff: 0.820000
+      coverMinScaleFrac: 0.400000
+      coverMaxVisiblePerSide: !<float> 6.000000
+      coverScrubStepCm: !<float> 12.000000
+      coverSnapRate: !<float> 12.000000
+      coverFlickThreshold: !<float> 25.000000
+      coverInvertScrub: false
+      coverInvertFold: false
       enableLogging: false
       enableLoggingLifecycle: false
   ScriptTypes:
     -
       {}
   InputLines:
-    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">CardDeckController – the floating premade-card cosmos</span><br/><span style=\"color: #94A3B8; font-size: 11px;\">Spawns the PremadeCard prefab per cardDeckData entry, registers each in global.cropCardStore, and drifts them above the globe top.</span>"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">CardDeckController – the flat plane of premade cards above the globe</span><br/><span style=\"color: #94A3B8; font-size: 11px;\">Spawns the PremadeCard prefab per cardDeckData entry, registers each in global.cropCardStore, and lays them out clustered by relevance.</span>"}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">References</span>"}'
     - '// @input Asset.ObjectPrefab cardPrefab {"hint":"The PremadeCard prefab, instantiated once per deck entry as a child of this object."}'
     - '// @input Asset.Texture[] placeholderImages {"hint":"Placeholder image textures, assigned to the cards in order (cycled if fewer than the deck size). Fill the real images in later."}'
     - '// @input SceneObject cameraObject {"hint":"Camera the cards billboard toward + use for gaze. Forwarded to each spawned card."}'
-    - '// @input AssignableType globeView {"hint":"GlobeView whose top surface point is the centre of the cosmos shell. If unset, Center Object (or this object) is used."}'
-    - '// @input SceneObject centerObject {"hint":"Fallback centre for the cosmos shell when no GlobeView is set."}'
+    - '// @input AssignableType globeView {"hint":"GlobeView whose top surface point anchors the plane. If unset, Center Object (or this object) is used."}'
+    - '// @input SceneObject centerObject {"hint":"Fallback anchor for the plane when no GlobeView is set."}'
     - '// @ui {"widget":"separator"}'
-    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Cosmos shape</span>"}'
-    - '// @input float heightAboveGlobe = 8 {"hint":"Height (cm) the cards float ABOVE the top of the globe — the vertical (Y) distance. LOWER = closer to the globe. This is the main knob."}'
-    - '// @input float heightSpread = 6 {"hint":"Random +/- vertical variation (cm) so the cards sit at slightly different heights instead of one flat layer."}'
-    - "// @input float horizontalRadius = 22 {\"hint\":\"How far (cm) the cloud spreads out horizontally around the point above the globe's top.\"}"
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Wrap placement (cylinder around the head)</span>"}'
+    - "// @input float cardDistanceCm {\"hint\":\"Radius (cm) of the cylinder the cards wrap on = how far the cards are from your head. 0 = auto (the globe's distance). Cards have a minimum on-screen size, so DISTANCE is the real 'make them smaller' knob — push this out to shrink them.\"}"
+    - '// @input float verticalCenterRiseCm = 20 {"hint":"How far (cm) ABOVE the globe top the field is vertically centred."}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Cylinder wall (wraps around the head, above the globe)</span>"}'
+    - '// @input float canvasHeightCm = 20 {"hint":"Fixed HEIGHT (cm) of the cylinder-wall band. Vertical extent is fixed; cards spread sideways as needed to avoid overlap."}'
+    - "// @input float cardGapCm {\"hint\":\"Extra spacing (cm) kept between cards on top of each card's REAL measured footprint. THE spacing knob now — raise it to spread cards apart, 0 = cards packed just shy of touching.\"}"
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #94A3B8; font-size: 11px;\">Card size = uniform WORLD SCALE of the whole card (predictable; bypasses the prefab x10 ImageAnchor + parent scale).</span>"}'
+    - '// @input float cardSizeBase = 0.3 {"hint":"Overall card size — the world scale applied to a scale-1 card. THE size knob. Smaller = smaller cards. NOTE: set this in the Inspector (editing the code default does nothing once the component is in the scene)."}'
+    - '// @input float cardSizeMinScale = 0.3 {"hint":"Smallest per-card size multiplier (variety). Each card picks a random scale between this and the max."}'
+    - '// @input float cardSizeMaxScale = 1 {"hint":"Largest per-card size multiplier (variety)."}'
+    - "// @input float cardWidthCm = 10 {\"hint\":\"FALLBACK card footprint WIDTH (cm), used only for a card that hasn't measured its real size (e.g. border auto-fit off). Measured cards ignore this.\"}"
+    - "// @input float cardHeightCm = 15 {\"hint\":\"FALLBACK card footprint HEIGHT (cm), used only for a card that hasn't measured its real size. Measured cards ignore this.\"}"
     - '// @ui {"widget":"separator"}'
-    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Cosmos motion</span>"}'
-    - '// @input float orbitSpeedMin = 0.04 {"hint":"Slowest azimuthal orbit speed (radians/sec)."}'
-    - '// @input float orbitSpeedMax = 0.16 {"hint":"Fastest azimuthal orbit speed (radians/sec)."}'
-    - '// @input float bobAmplitude = 1.5 {"hint":"Vertical bob amplitude (cm)."}'
-    - '// @input float bobFreqMin = 0.3 {"hint":"Slowest bob frequency (radians/sec)."}'
-    - '// @input float bobFreqMax = 0.8 {"hint":"Fastest bob frequency (radians/sec)."}'
-    - '// @input float flipSpeedMin = 0.1 {"hint":"Slowest tumble speed (radians/sec)."}'
-    - '// @input float flipSpeedMax = 0.35 {"hint":"Fastest tumble speed (radians/sec)."}'
-    - "// @input bool pauseDriftWhenExpanded = true {\"hint\":\"Pause a card's drift and billboard it toward the camera while it is expanded by gaze.\"}"
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Relevance (clustering)</span>"}'
+    - '// @input float topicWeight = 0.7 {"hint":"Weight of shared topics in the relevance score (primary signal)."}'
+    - '// @input float locationWeight = 0.2 {"hint":"Weight of same-location in the relevance score."}'
+    - '// @input float dateWeight = 0.1 {"hint":"Weight of capture-date closeness in the relevance score."}'
+    - '// @input float dateRangeDays = 120 {"hint":"Date span (days) over which closeness fades to zero — dates farther apart than this count as unrelated in time."}'
     - '// @ui {"widget":"separator"}'
-    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Gaze (at most one card expands)</span>"}'
-    - '// @input float enterConeAngleDeg = 10 {"hint":"Half-angle (degrees) of the cone around the gaze centre a card must enter to become the expand candidate. Smaller = must look more directly at a card."}'
-    - '// @input float keepConeAngleDeg = 16 {"hint":"Wider half-angle (degrees) the expanded card may stay within before it collapses (hysteresis against flicker). Should be >= Enter Cone Angle."}'
-    - '// @input float expandDwellSec = 0.6 {"hint":"Seconds the most-centred card must stay the best candidate before it expands."}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Gentle motion</span>"}'
+    - '// @input float swayAmplitudeCm = 1.2 {"hint":"In-place sway amplitude (cm). Keep small so cards never drift into each other."}'
+    - '// @input float swayFreqMin = 0.3 {"hint":"Slowest sway frequency (radians/sec)."}'
+    - '// @input float swayFreqMax = 0.7 {"hint":"Fastest sway frequency (radians/sec)."}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Query results (driven by CardQueryVoiceAgent)</span>"}'
-    - '// @input float searchSpinMultiplier = 3.5 {"hint":"While the agent is searching, the cosmos orbit speed is multiplied by this so the cards visibly spin faster."}'
-    - '// @input float resultRowSpacingCm = 16 {"hint":"Horizontal gap (cm) between adjacent cards in the result row laid out in front of the user."}'
-    - '// @input float resultRowDepthCm = 45 {"hint":"Distance (cm) in front of the camera the result row is placed. Keep this CLOSER than the cosmos so results read in front."}'
+    - "// @input float searchSpinMultiplier = 3.5 {\"hint\":\"While the agent is searching, the gentle sway is sped up by this factor to signal 'working on it'.\"}"
+    - '// @input float resultRowDepthCm = 45 {"hint":"Distance (cm) in front of the camera the result deck is placed. Keep this CLOSER than the plane so results read in front."}'
     - "// @input float resultRowRiseCm {\"hint\":\"Vertical offset (cm) of the result row relative to the camera's eye line (positive = up).\"}"
+    - "// @input float resultCardSize = 0.5 {\"hint\":\"Uniform WORLD SCALE the CENTRED result card renders at; side cards shrink from this. (Overrides each card's varied deck size; restored when it returns to the cosmos.)\"}"
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">CoverFlow (result navigation)</span>"}'
+    - '// @input float coverCenterGapCm = 14 {"hint":"Horizontal gap (cm) from the centred card to the FIRST card on each side."}'
+    - '// @input float coverSideSpacingCm = 6 {"hint":"Horizontal spacing (cm) between successive side cards as they stack outward."}'
+    - '// @input float coverDepthStepCm = 6 {"hint":"How far back (cm) each step from centre recedes — gives the side cards parallax depth."}'
+    - '// @input float coverFoldStartDeg = 45 {"hint":"Fold angle (deg) of the FIRST card on each side, turned toward the centre."}'
+    - '// @input float coverFoldStepDeg = 12 {"hint":"Extra fold (deg) added per further step away from centre."}'
+    - '// @input float coverMaxFoldDeg = 75 {"hint":"Maximum fold angle (deg) any side card reaches."}'
+    - '// @input float coverSideScaleFalloff = 0.82 {"hint":"Per-step scale falloff for side cards (0..1): each step from centre multiplies size by this."}'
+    - '// @input float coverMinScaleFrac = 0.4 {"hint":"Smallest scale fraction a far side card shrinks to (× the centred size)."}'
+    - '// @input float coverMaxVisiblePerSide = 6 {"hint":"Cards farther than this many steps from centre stack at the edge instead of spreading further."}'
+    - '// @input float coverScrubStepCm = 12 {"hint":"Hand travel (cm) along the row required to scrub one card while pinch-dragging."}'
+    - '// @input float coverSnapRate = 12 {"hint":"How crisply the deck settles to the centred card after release (higher = snappier)."}'
+    - '// @input float coverFlickThreshold = 25 {"hint":"Release hand speed (cm/s) above which a quick flick advances one extra card in that direction."}'
+    - '// @input bool coverInvertScrub {"hint":"Invert the pinch-drag direction (which way you move your hand for next vs. previous)."}'
+    - '// @input bool coverInvertFold {"hint":"Invert the side-card fold direction (which way left/right cards tilt)."}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Logging</span>"}'
     - // @input bool enableLogging
