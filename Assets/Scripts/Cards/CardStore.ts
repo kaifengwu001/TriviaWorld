@@ -14,6 +14,7 @@
  * future: optional on-device persistence, globe placement by location.
  */
 import { Logger } from "Utilities.lspkg/Scripts/Utils/Logger";
+import { topicsFromHashtags } from "../Interests/TopicFromText";
 
 /** One card and all of its queryable metadata. */
 export interface CardRecord {
@@ -130,6 +131,24 @@ export class CardStore extends BaseScriptComponent {
   /** Cards related to the given topic of interest. */
   getByTopic(topic: string): CardRecord[] {
     return this.cards.filter((c) => c.topics.indexOf(topic) >= 0)
+  }
+
+  /**
+   * Replaces a card's caption text after a voice-driven edit and re-derives its
+   * hashtags + topics so later queries match the new wording. Returns false when no
+   * card has that id. Does NOT bump capturedVersion — the discussed visual animates
+   * the change directly; this keeps the store as the source of truth for queries and
+   * any future spawn (an already-spawned deck copy keeps its old text until respawn).
+   */
+  updateText(id: string, newText: string): boolean {
+    const record = this.getById(id)
+    if (!record) return false
+    const text = newText ?? ""
+    record.text = text
+    record.hashtags = this.parseHashtags(text)
+    record.topics = topicsFromHashtags(record.hashtags)
+    this.logger.info("Updated card " + id + " text")
+    return true
   }
 
   removeCard(id: string): boolean {

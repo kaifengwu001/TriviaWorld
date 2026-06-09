@@ -17,7 +17,7 @@ import { Logger } from "Utilities.lspkg/Scripts/Utils/Logger"
 import { BubbleMesh } from "../Bubbles/BubbleMesh"
 import { easeInOutQuad } from "../Bubbles/ShapeGeometry"
 import { colorForTopics, rainbowColor } from "../Interests/TopicColors"
-import { PlaneBasis, PlaneRect, unionVisualBounds, boundsToRect } from "./PlaneRect"
+import { PlaneBasis, PlaneBounds, PlaneRect, newBounds, accumulateLocalBox, boundsToRect } from "./PlaneRect"
 
 export interface CardBackdropConfig {
   scannerRoot: SceneObject
@@ -74,7 +74,7 @@ export class CardBackdrop {
   /** Returns false when the card is gone and this backdrop should be pruned. */
   update(): boolean {
     const basis = this.planeBasis()
-    const bounds = unionVisualBounds(this.measuredVisuals(), basis)
+    const bounds = this.measureBounds(basis)
     const rect = boundsToRect(bounds, this.config.padding)
     if (!rect) return true
 
@@ -104,10 +104,30 @@ export class CardBackdrop {
   // Always wrap the picture; fold in the caption only once it has animated in.
   // Before that the caption object still sits at its off-screen spawn position,
   // so including it early would stretch the rect far off the card.
-  private measuredVisuals(): BaseMeshVisual[] {
-    const visuals: BaseMeshVisual[] = [this.config.pictureVisual]
-    if (this.captionShown()) visuals.push(this.config.captionVisual)
-    return visuals
+  //
+  // The picture is measured from its local mesh AABB. The caption is measured from
+  // its LIVE getBoundingBox() rather than localAabb: a Text's localAabb does not
+  // refresh when its `.text` changes after layout, so a voice-edited caption that
+  // grew/shrank would otherwise leave the frame the wrong size. getBoundingBox()
+  // reflects the current glyphs (in the text's local units), which the caption's
+  // world transform then maps onto the card plane exactly like any other box.
+  private measureBounds(basis: PlaneBasis): PlaneBounds {
+    const acc = newBounds()
+
+    const pic = this.config.pictureVisual
+    const picMatrix = pic.getSceneObject().getTransform().getWorldTransform()
+    accumulateLocalBox(acc, pic.localAabbMin(), pic.localAabbMax(), picMatrix, basis)
+
+    if (this.captionShown()) {
+      const text = this.config.captionVisual as unknown as Text
+      const box = text.getBoundingBox()
+      const min = new vec3(box.left, box.bottom, 0)
+      const max = new vec3(box.right, box.top, 0)
+      const capMatrix = this.config.captionScaleTransform.getWorldTransform()
+      accumulateLocalBox(acc, min, max, capMatrix, basis)
+    }
+
+    return acc
   }
 
   private captionShown(): boolean {

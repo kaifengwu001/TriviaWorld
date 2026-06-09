@@ -4,6 +4,8 @@
  */
 import { Logger } from "Utilities.lspkg/Scripts/Utils/Logger";
 import animate, {CancelSet} from "SpectaclesInteractionKit.lspkg/Utils/animate"
+import { TypewriterText } from "./TypewriterText"
+import { sanitizeCaption } from "./Cards/CardEditTools"
 
 // World scale applied to the caption root. Defines the rendered text size and is
 // also the conversion factor between world units and the text's local layout units.
@@ -46,16 +48,49 @@ export class CaptionBehavior extends BaseScriptComponent {
 
   private scaleCancel: CancelSet = new CancelSet()
 
+  // The caption text currently shown, kept in sync with typewriter edits so the
+  // voice agent can read it back when composing an append.
+  private currentText: string = ""
+  private typewriter: TypewriterText
+
   onAwake() {
     this.logger = new Logger("CaptionBehavior", this.enableLogging || this.enableLoggingLifecycle, true);
     if (this.enableLoggingLifecycle) this.logger.debug("LIFECYCLE: onAwake()");
     this.trans = this.getSceneObject().getTransform()
     this.textTrans = this.captionText.getSceneObject().getTransform()
     this.textTrans.setLocalScale(vec3.zero())
+
+    // Typewriter for in-place caption edits (rewrite/append). It only mutates the
+    // text string; the wrap width/position set in openCaption stay valid because the
+    // text is top-anchored and grows downward. The host owns the update tick.
+    this.typewriter = new TypewriterText({
+      getText: () => this.captionText.text,
+      setText: (s: string) => { this.captionText.text = s },
+    })
+    this.createEvent("UpdateEvent").bind((ev) => {
+      this.typewriter.tick(ev.getDeltaTime())
+    })
+  }
+
+  /** The caption text currently shown (reflects any typewriter edits in progress). */
+  getText(): string {
+    return this.currentText
+  }
+
+  /**
+   * Animates the caption from its current text to `target` with a typewriter
+   * "delete then type" effect. Used by the voice agent to rewrite a misread caption
+   * or append an interesting detail surfaced in conversation.
+   */
+  animateTextTo(target: string): void {
+    const clean = sanitizeCaption(target)
+    this.currentText = clean
+    this.typewriter.animateTo(clean)
   }
 
   openCaption(text: string, pos: vec3, rot: quat, pictureWidth: number) {
     this.captionText.text = text
+    this.currentText = text
 
     // Wrap the caption to the picture width (minus side padding) and anchor it at the
     // top edge so it grows downward, keeping the gap above the caption constant.

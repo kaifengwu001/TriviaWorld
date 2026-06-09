@@ -9,6 +9,7 @@ import {CaptionBehavior} from "./CaptionBehavior"
 import {ChatGPT} from "./ChatGPT"
 import {CropRegion} from "./CropRegion"
 import {topicsFromHashtags} from "./Interests/TopicFromText"
+import {CardEditTarget} from "./Cards/CardEditTools"
 
 const BOX_MIN_SIZE = 8 //min size in cm for image capture
 
@@ -89,6 +90,10 @@ export class PictureBehavior extends BaseScriptComponent {
   // The finished card's caption text, handed to the voice agent on tap.
   private captionText: string = ""
   private cardTappable = false
+
+  // This card's id in the CardStore, captured when it's stored. Lets the voice
+  // agent persist caption edits back to the store (null until storeCard runs).
+  private storedCardId: string | null = null
 
   // The card's topics, derived from the caption's hashtags once the AI response
   // arrives. null until then — the CardBackdrop reads this (getResolvedTopics)
@@ -219,7 +224,7 @@ export class PictureBehavior extends BaseScriptComponent {
   private storeCard(text: string) {
     const cardStore = (global as any).cropCardStore
     if (!cardStore || typeof cardStore.addCard !== "function") return
-    cardStore.addCard({
+    const record = cardStore.addCard({
       image: this.captureRendMesh.mainPass.captureImage as Texture,
       text: text,
       hashtags: cardStore.parseHashtags(text),
@@ -227,6 +232,8 @@ export class PictureBehavior extends BaseScriptComponent {
       location: "Long Beach, California",
       // captureDate omitted -> CardStore stamps today's date.
     })
+    // Remember the id so the voice agent can persist caption edits to this record.
+    this.storedCardId = record && record.id ? record.id : null
   }
 
   /**
@@ -248,7 +255,15 @@ export class PictureBehavior extends BaseScriptComponent {
     const agent = (global as any).cardVoiceAgent
     if (agent && typeof agent.engageCard === "function") {
       this.logger.info("Engaging voice agent for card")
-      agent.engageCard(this.captionText)
+      // Hand the agent a live handle to this card so spoken corrections/additions
+      // can rewrite or append the caption in place. getCardId reads the field
+      // lazily (storeCard runs right after engageAgent on first capture).
+      const target: CardEditTarget = {
+        getCardId: () => this.storedCardId,
+        getText: () => this.caption.getText(),
+        setTextAnimated: (t: string) => this.caption.animateTextTo(t),
+      }
+      agent.engageCard(this.captionText, target)
     } else {
       this.logger.warn("No cardVoiceAgent is registered (is the component enabled?).")
     }

@@ -42,6 +42,7 @@
  */
 import { Logger } from "Utilities.lspkg/Scripts/Utils/Logger";
 import { SIK } from "SpectaclesInteractionKit.lspkg/SIK";
+import { Interactable } from "SpectaclesInteractionKit.lspkg/Components/Interaction/Interactable/Interactable";
 import { PremadeCard } from "../PremadeCard/PremadeCard";
 import { GlobeView } from "../Globe/GlobeView";
 import { PinchDragTracker } from "../Globe/PinchDragTracker";
@@ -302,6 +303,31 @@ export class CardDeckController extends BaseScriptComponent {
   // Stays well above the cosmos plane (order 0) for any sane maxVisiblePerSide.
   private static readonly COVER_BASE_ORDER = 100
 
+  // --- Vertical pinch-select deck (point-and-pinch a cosmos card to browse relatives) ---
+  // Mutually exclusive with the horizontal result deck (resultsActive). EXACTLY 3 cards
+  // are ever materialised, role-ordered [top, center, bottom]; scrolling regenerates the
+  // chain one relevance-linked card at a time.
+  private verticalActive: boolean = false
+  private verticalSlots: number[] = []          // slot indices, role order [top, center, bottom]
+  private vScrub: number = 0                     // fractional drag offset (0 settled; clamped [-1,1])
+  private vPinching: boolean = false             // a vertical drag is in progress
+  private vPinchIsRight: boolean = false
+  private vDragTracker = new PinchDragTracker()
+  private vDragAccumCm: number = 0
+  private vScrubVelCmPerSec: number = 0          // smoothed hand speed along up, for flick
+  // Chronological list of slot indices that have appeared in the deck, oldest->newest.
+  // The last 4 are excluded when picking the next card (no repeat within any 5-window).
+  private vAppeared: number[] = []
+  // Continuous-scrub snap state (mirrors the horizontal scrubPos/selectedPos pair). vScrub
+  // is the live offset; vSettleTarget is the integer (-1/0/+1) it eases to after release.
+  private vScrubStart: number = 0
+  private vSettleTarget: number = 0
+  private vDragSign: number = 0            // which way this drag is going (-1 up, +1 down, 0 undecided)
+  // Transient 4th card that slides in from the drag edge so the snap reads continuous; it
+  // is promoted to a role (or released) when the scrub settles. -1 when none.
+  private vIncoming: number = -1
+  private vIncomingK: number = 0           // its slot offset from centre (-2 entering top, +2 entering bottom)
+
   onAwake() {
     this.logger = new Logger("CardDeckController", this.enableLogging || this.enableLoggingLifecycle, true)
     if (this.enableLoggingLifecycle) this.logger.debug("LIFECYCLE: onAwake()")
@@ -370,9 +396,11 @@ export class CardDeckController extends BaseScriptComponent {
       }
 
       const slot = this.makeSlot(obj, card, entry, sizeScale)
-      this.idToSlot[entry.id] = this.slots.length
+      const slotIndex = this.slots.length
+      this.idToSlot[entry.id] = slotIndex
       this.slotIds.push(entry.id)
       this.slots.push(slot)
+      this.makeCardSelectable(obj, slotIndex)
 
       this.registerEntry(store, entry, this.placeholderImageFor(i))
     }
@@ -481,9 +509,54 @@ export class CardDeckController extends BaseScriptComponent {
     }
 
     const slot = this.makeSlot(obj, card, entry, sizeScale)
-    this.idToSlot[rec.id] = this.slots.length
+    const slotIndex = this.slots.length
+    this.idToSlot[rec.id] = slotIndex
     this.slotIds.push(rec.id)
     this.slots.push(slot)
+    this.makeCardSelectable(obj, slotIndex)
+  }
+
+  // Adds an SIK Interactable + EXPLICIT-size box collider to a card's ROOT object so a
+  // point-and-pinch selects it into the vertical browse deck. Mirrors GlobeController's
+  // makeInteractable/addBoxCollider (collider on the root with fitVisual=false and a real
+  // size — auto-fit on these tiny, far, nested-scale cards yields a degenerate box the SIK
+  // ray never hits). The box is in ROOT-LOCAL units (so root world scale gives the world
+  // footprint, matching buildWrappedLayout's `ls.x * worldScale`); a provisional size is
+  // set here and refined to each card's measured footprint in buildWrappedLayout.
+  // slotIndex is baked by value (slots are append-only, so a card's index is stable).
+  private makeCardSelectable(obj: SceneObject, slotIndex: number): void {
+    if (!obj) return
+    if (!obj.getComponent("Physics.ColliderComponent")) {
+      const collider = obj.createComponent("Physics.ColliderComponent") as ColliderComponent
+      const shape = Shape.createBoxShape()
+      // Provisional root-local size from the fallback footprint (world / worldScale).
+      const base = this.cardSizeBase > 1e-4 ? this.cardSizeBase : 0.3
+      shape.size = new vec3(this.cardWidthCm / base, this.cardHeightCm / base, 4)
+      collider.shape = shape
+      collider.fitVisual = false
+    }
+    let interactable = obj.getComponent(Interactable.getTypeName()) as Interactable
+    if (!interactable) {
+      interactable = obj.createComponent(Interactable.getTypeName()) as Interactable
+      // Direct (near-field) + Indirect (far-field ray) so a card off to the side can be
+      // pointed at and pinched, not just grabbed up close. Wire the trigger once, only on
+      // creation, so a relayout never stacks duplicate handlers.
+      interactable.targetingMode = 3
+      interactable.allowMultipleInteractors = false
+      interactable.onTriggerEnd.add(() => this.selectCard(slotIndex))
+    }
+  }
+
+  // Refits a card's root selection collider to its measured content footprint (root-local
+  // units), so the tap target matches what the user sees. Called from buildWrappedLayout
+  // once cards have measured. No-op if the collider isn't present yet.
+  private resizeSelectCollider(obj: SceneObject, localW: number, localH: number): void {
+    if (!obj || !(localW > 0) || !(localH > 0)) return
+    const collider = obj.getComponent("Physics.ColliderComponent") as ColliderComponent
+    if (!collider) return
+    const shape = Shape.createBoxShape()
+    shape.size = new vec3(localW, localH, Math.max(2, localW * 0.1))
+    collider.shape = shape
   }
 
   // Projects a store CardRecord onto the CardDeckEntry shape the layout + relevance
@@ -540,15 +613,23 @@ export class CardDeckController extends BaseScriptComponent {
     if (this.resultsActive) {
       if (this.pinching) this.updateScrub()
       else this.settleScrub(dt) // ease to the snapped card after release
+    } else if (this.verticalActive) {
+      // Gate on the ACTUAL pinch state each frame: if the pinch-up event was missed (hand
+      // left tracking, etc.) a latched flag would let plain hand-sway keep scrolling.
+      if (this.vPinching && !this.handIsPinching(this.vPinchIsRight)) this.endVerticalDrag()
+      if (this.vPinching) this.updateVerticalScrub()
+      else this.settleVerticalScrub(dt) // ease the scrub to its snapped target after release
     }
 
     const swaySpeed = this.searchActive ? this.searchSpinMultiplier : 1
     for (let i = 0; i < this.slots.length; i++) {
       const slot = this.slots[i]
 
-      // Result cards fly out to a readable row in front of the user.
+      // Front cards fly out to a readable deck in front of the user (horizontal
+      // CoverFlow for query results, vertical for a point-and-pinch selection).
       if (slot.isResult) {
-        this.layoutResultSlot(slot, dt)
+        if (this.verticalActive) this.layoutVerticalSlot(slot, dt)
+        else this.layoutResultSlot(slot, dt)
         continue
       }
 
@@ -622,6 +703,8 @@ export class CardDeckController extends BaseScriptComponent {
         const ls = slot.card.getContentLocalSize()
         w = ls.x * worldScale
         h = ls.y * worldScale
+        // Refit the selection collider (root-local units) to the real footprint.
+        this.resizeSelectCollider(slot.obj, ls.x, ls.y)
       } else {
         w = this.cardWidthCm * s
         h = this.cardHeightCm * s
@@ -796,6 +879,26 @@ export class CardDeckController extends BaseScriptComponent {
     this.searchActive = active
   }
 
+  // Snapshots a frozen, level world frame in front of the camera that the front deck
+  // (horizontal CoverFlow or vertical browse) is laid out on, so it stays put in the
+  // world instead of following the head. Flattens the look dir, mirroring
+  // buildWrappedLayout's Fh/rightN basis. Needs the camera; no-ops without it.
+  private snapshotResultFrame(): void {
+    if (!this.camTrans) return
+    const camPos = this.camTrans.getWorldPosition()
+    const look = this.camTrans.forward.uniformScale(-1) // camera looks along -forward
+    const fFlat = new vec3(look.x, 0, look.z)
+    const f = fFlat.length > 1e-3 ? fFlat.normalize() : new vec3(0, 0, -1)
+    this.resultRowRight = vec3.up().cross(f).normalize()
+    this.resultRowAnchor = camPos
+      .add(f.uniformScale(this.resultRowDepthCm))
+      .add(vec3.up().uniformScale(this.resultRowRiseCm))
+    // Side cards recede along f (away from the user); the centred card faces back
+    // toward the user along -f. Freeze that facing so the deck stays world-stable.
+    this.resultRowFaceForward = f
+    this.resultRowFaceRot = quat.lookAt(f.uniformScale(-1), vec3.up())
+  }
+
   /**
    * Pulls the cards with the given store ids out of the plane into a camera-
    * facing row in front of the user: freezes the plane sway, renders the results
@@ -804,6 +907,8 @@ export class CardDeckController extends BaseScriptComponent {
    * SEED_CARDS) are skipped. Returns how many were shown.
    */
   showQueryResults(ids: string[]): number {
+    // A new query supersedes a vertical browse deck: return its cards to the plane first.
+    if (this.verticalActive) this.clearVerticalDeck()
     this.clearResultSlots()
 
     const indices: number[] = []
@@ -824,22 +929,8 @@ export class CardDeckController extends BaseScriptComponent {
     this.pinching = false
 
     // Snapshot the deck's world frame ONCE from the camera's current pose so it stays
-    // put in the world (it must not follow the head). Flatten the look dir to keep the
-    // row level, mirroring buildWrappedLayout's Fh/rightN basis.
-    if (this.resultsActive && this.camTrans) {
-      const camPos = this.camTrans.getWorldPosition()
-      const look = this.camTrans.forward.uniformScale(-1) // camera looks along -forward
-      const fFlat = new vec3(look.x, 0, look.z)
-      const f = fFlat.length > 1e-3 ? fFlat.normalize() : new vec3(0, 0, -1)
-      this.resultRowRight = vec3.up().cross(f).normalize()
-      this.resultRowAnchor = camPos
-        .add(f.uniformScale(this.resultRowDepthCm))
-        .add(vec3.up().uniformScale(this.resultRowRiseCm))
-      // Side cards recede along f (away from the user); the centred card faces back
-      // toward the user along -f. Freeze that facing so the deck stays world-stable.
-      this.resultRowFaceForward = f
-      this.resultRowFaceRot = quat.lookAt(f.uniformScale(-1), vec3.up())
-    }
+    // put in the world (it must not follow the head).
+    if (this.resultsActive) this.snapshotResultFrame()
 
     for (const idx of indices) {
       const slot = this.slots[idx]
@@ -860,6 +951,8 @@ export class CardDeckController extends BaseScriptComponent {
    * no results are showing. Cards stay expanded — they never collapse.
    */
   clearQueryResults(): void {
+    // "clear" also dissolves a vertical browse deck (it can be up without a result row).
+    this.clearVerticalDeck()
     this.clearResultSlots()
     this.resultIndices = []
     this.resultsActive = false
@@ -878,6 +971,12 @@ export class CardDeckController extends BaseScriptComponent {
    * polls this so its context follows whichever card the user has scrubbed to.
    */
   getFocusedResultId(): string | null {
+    // Vertical browse deck: the centred card is always role index 1 (roles are
+    // reassigned synchronously on each committed scroll), so focus is stable.
+    if (this.verticalActive && this.verticalSlots.length === 3) {
+      const idx = this.verticalSlots[1]
+      return idx === undefined ? null : (this.slotIds[idx] ?? null)
+    }
     if (!this.resultsActive || this.resultIndices.length === 0) return null
     const pos = Math.round(this.scrubPos)
     const idx = this.resultIndices[pos]
@@ -910,6 +1009,337 @@ export class CardDeckController extends BaseScriptComponent {
       this.applyWorldScale(slot, this.cardSizeBase * slot.sizeScale) // back to deck size
       if (slot.card) slot.card.setRenderInFront(false)
     }
+  }
+
+  // --- Vertical pinch-select deck --------------------------------------------
+
+  /**
+   * Brings a cosmos card to the front as a vertical browse deck: the chosen card
+   * centred (faces the user, full size) with its 2 highest-relevance cards folded in
+   * above and below. Pinch-drag up/down then scrolls a relevance-linked chain. No-ops
+   * if a deck is already up, the cylinder isn't solved yet, or there are < 3 cards.
+   * Wired from each card's Interactable.onTriggerEnd (see makeCardSelectable).
+   */
+  selectCard(slotIndex: number): void {
+    if (this.resultsActive || this.verticalActive) return // ignore while any front deck is up
+    if (!this.layoutBuilt) return                         // positions invalid before the solve
+    if (slotIndex < 0 || slotIndex >= this.slots.length) return
+    if (this.slots.length < 3) return                     // a 3-card deck is impossible
+
+    this.snapshotResultFrame()
+
+    const pair = this.topTwoNeighbours(slotIndex)
+    const above = pair[0]
+    const below = pair[1]
+    if (above === undefined || below === undefined) return
+    this.verticalSlots = [above, slotIndex, below]
+
+    for (const idx of this.verticalSlots) {
+      const s = this.slots[idx]
+      if (!s) continue
+      s.isResult = true
+      s.renderOrder = -1 // force the first layout frame to push the distance-based order
+      if (s.card) s.card.setRenderInFront(true)
+    }
+
+    this.verticalActive = true
+    this.driftFrozen = true
+    this.searchActive = false
+    this.vScrub = 0
+    this.vScrubStart = 0
+    this.vSettleTarget = 0
+    this.vScrubVelCmPerSec = 0
+    this.vDragAccumCm = 0
+    this.vDragSign = 0
+    this.vIncoming = -1
+    this.vPinching = false
+    // Seed the anti-repeat chain with the initial 3 so the first generated card differs.
+    this.vAppeared = [above, slotIndex, below]
+
+    this.logger.info(
+      "[vertical] select center=" + (this.slotIds[slotIndex] ?? slotIndex) +
+      " top=" + (this.slotIds[above] ?? above) + " bottom=" + (this.slotIds[below] ?? below)
+    )
+  }
+
+  // The 2 distinct cards most relevant to `center` (by the same similarity used for
+  // clustering), highest first. Caller guarantees slots.length >= 3 so both exist.
+  private topTwoNeighbours(center: number): number[] {
+    const ranked = this.rankBySimilarity(center)
+    return [ranked[0], ranked[1]]
+  }
+
+  // All slot indices except `anchor`, sorted by similarity(anchor, j) descending.
+  private rankBySimilarity(anchor: number): number[] {
+    const ranked: number[] = []
+    for (let j = 0; j < this.slots.length; j++) if (j !== anchor) ranked.push(j)
+    ranked.sort((a, b) => this.similarity(anchor, b) - this.similarity(anchor, a))
+    return ranked
+  }
+
+  // Picks the next card to fold into the deck: highest relevance to `anchor`, excluding
+  // the 3 currently-visible cards and (the 5-window rule) the last 4 cards that appeared.
+  // Returns -1 when no valid card exists (pool too small) so the caller keeps the deck.
+  private pickNext(anchor: number): number {
+    const visible: { [k: number]: boolean } = {}
+    for (const idx of this.verticalSlots) visible[idx] = true
+    const recent: { [k: number]: boolean } = {}
+    for (const idx of this.vAppeared.slice(-4)) recent[idx] = true
+
+    const ranked = this.rankBySimilarity(anchor)
+    // Strict: not visible AND not in the last 4 appeared.
+    for (const j of ranked) if (!visible[j] && !recent[j]) return j
+    // Relax the anti-repeat (small pool) but never duplicate a currently-visible card.
+    for (const j of ranked) if (!visible[j]) return j
+    return -1
+  }
+
+  // True if the given hand is currently pinching (and tracked). Used to verify the drag
+  // is real every frame, so a missed pinch-up can't leave plain hand-sway scrolling.
+  private handIsPinching(isRight: boolean): boolean {
+    const hand = isRight ? this.rightHand : this.leftHand
+    if (!hand || (hand.isTracked && !hand.isTracked())) return false
+    return !!(hand.isPinching && hand.isPinching())
+  }
+
+  // Ends a vertical drag (real pinch-up OR a lost pinch): picks the snap target the same
+  // way the horizontal deck does — a flick, or a drag past half a card, advances one card
+  // in that direction; otherwise it settles back to centre. settleVerticalScrub then eases
+  // vScrub to the target and rebases the roles when it arrives.
+  private endVerticalDrag(): void {
+    this.vPinching = false
+    this.vDragTracker.end()
+    const flick = this.num(this.coverFlickThreshold, 25)
+    let target = 0
+    if (Math.abs(this.vScrubVelCmPerSec) > flick) target = this.vScrubVelCmPerSec > 0 ? 1 : -1
+    else if (this.vScrub > 0.5) target = 1
+    else if (this.vScrub < -0.5) target = -1
+    // Can only commit toward an edge that actually materialised an incoming card.
+    if (target !== 0 && this.vIncoming < 0) target = 0
+    this.vSettleTarget = target
+  }
+
+  // Materialises the transient 4th card entering from the drag edge so the snap reads
+  // continuous (it slides in as vScrub approaches ±1). sign < 0 = entering the TOP (the
+  // user is dragging up, top->centre); sign > 0 = entering the BOTTOM. The incoming is the
+  // card most relevant to whichever card will become the new centre. No-op (leaves
+  // vIncoming = -1) when the pool can't supply one — the drag then can't commit that way.
+  private materializeIncoming(sign: number): void {
+    if (this.verticalSlots.length !== 3) return
+    // New centre after a commit in this direction: dragging up -> old top; down -> old bottom.
+    const newCenter = sign < 0 ? this.verticalSlots[0] : this.verticalSlots[2]
+    const pick = this.pickNext(newCenter)
+    if (pick < 0) { this.vIncoming = -1; return }
+    this.vIncoming = pick
+    this.vIncomingK = sign < 0 ? -2 : 2 // one slot beyond the top/bottom role
+    const inc = this.slots[pick]
+    if (inc) {
+      inc.isResult = true
+      inc.renderOrder = -1
+      if (inc.card) inc.card.setRenderInFront(true)
+      this.seedIncomingAtEdge(pick, sign < 0)
+    }
+  }
+
+  // Drops the transient incoming card (drag reversed or settled back to centre): returns it
+  // to the cosmos plane. No-op if there is none.
+  private releaseIncoming(): void {
+    if (this.vIncoming < 0) return
+    const inc = this.slots[this.vIncoming]
+    if (inc) {
+      inc.isResult = false
+      this.applyWorldScale(inc, this.cardSizeBase * inc.sizeScale)
+      if (inc.card) inc.card.setRenderInFront(false)
+    }
+    this.vIncoming = -1
+  }
+
+  // Commits a settled scroll: the incoming card (now at the top/bottom edge) becomes a role,
+  // the role it displaced shifts toward centre, and the card that fell off the far edge is
+  // released to the plane. Index/scrub co-shift means resetting vScrub to 0 is seamless.
+  // sign < 0 = scrolled up (top -> centre); sign > 0 = scrolled down (bottom -> centre).
+  private rebaseVertical(sign: number): void {
+    if (this.verticalSlots.length !== 3 || this.vIncoming < 0) { this.vScrub = 0; return }
+    const top = this.verticalSlots[0]
+    const center = this.verticalSlots[1]
+    const bottom = this.verticalSlots[2]
+    const incoming = this.vIncoming
+
+    let outgoing: number
+    if (sign < 0) {
+      // top -> centre; incoming becomes new top; old bottom falls off.
+      this.verticalSlots = [incoming, top, center]
+      outgoing = bottom
+    } else {
+      // bottom -> centre; incoming becomes new bottom; old top falls off.
+      this.verticalSlots = [center, bottom, incoming]
+      outgoing = top
+    }
+    this.vIncoming = -1
+
+    // Release the card that fell off: the plane loop eases it home with billboard + sway.
+    const out = this.slots[outgoing]
+    if (out) {
+      out.isResult = false
+      this.applyWorldScale(out, this.cardSizeBase * out.sizeScale)
+      if (out.card) out.card.setRenderInFront(false)
+    }
+
+    // Record the newly-added card in the chronological chain (bounded) for the 5-window rule.
+    this.vAppeared.push(incoming)
+    if (this.vAppeared.length > 64) this.vAppeared = this.vAppeared.slice(-16)
+
+    // Co-shift: roles moved by one and vScrub resets to 0 -> no visual jump.
+    this.vScrub = 0
+    this.vSettleTarget = 0
+    this.vScrubVelCmPerSec = 0
+    this.vDragAccumCm = 0
+  }
+
+  // Parks the incoming card one step beyond the top/bottom edge so its first
+  // layoutVerticalSlot frame slides it inward to its role pose.
+  private seedIncomingAtEdge(slotIndex: number, fromTop: boolean): void {
+    const slot = this.slots[slotIndex]
+    if (!slot) return
+    const centerGap = this.num(this.coverCenterGapCm, 14)
+    const sideSpacing = this.num(this.coverSideSpacingCm, 6)
+    const depthStep = this.num(this.coverDepthStepCm, 6)
+    const off = (fromTop ? 1 : -1) * (centerGap + sideSpacing)
+    slot.trans.setWorldPosition(
+      this.resultRowAnchor
+        .add(vec3.up().uniformScale(off))
+        .add(this.resultRowFaceForward.uniformScale(2 * depthStep))
+    )
+  }
+
+  // Returns the vertical deck's cards to the plane and clears its state. Safe to call
+  // when no vertical deck is up. driftFrozen is left to the caller (clearQueryResults
+  // unfreezes; showQueryResults re-freezes for its own deck).
+  private clearVerticalDeck(): void {
+    if (!this.verticalActive && this.verticalSlots.length === 0 && this.vIncoming < 0) return
+    this.releaseIncoming()
+    for (const idx of this.verticalSlots) {
+      const s = this.slots[idx]
+      if (!s) continue
+      s.isResult = false
+      this.applyWorldScale(s, this.cardSizeBase * s.sizeScale) // back to deck size
+      if (s.card) s.card.setRenderInFront(false)
+    }
+    this.verticalSlots = []
+    this.vAppeared = []
+    this.verticalActive = false
+    this.vPinching = false
+    this.vScrub = 0
+    this.vScrubStart = 0
+    this.vSettleTarget = 0
+    this.vDragSign = 0
+    this.vScrubVelCmPerSec = 0
+    this.vDragAccumCm = 0
+    this.vDragTracker.end()
+  }
+
+  // Vertical analogue of layoutResultSlot: lays the 3 cards along the up axis and folds
+  // them about the horizontal axis (resultRowRight) instead of world-up. Only roles
+  // -1/0/+1 exist; r slides with vScrub during a drag so cards ease through smoothly.
+  private layoutVerticalSlot(slot: DeckSlot, dt: number): void {
+    const slotIndex = this.slots.indexOf(slot)
+    // k is the card's settled slot offset from centre: -1 top, 0 centre, +1 bottom for the
+    // 3 roles, or ±2 for the transient incoming card sliding in from an edge.
+    let k: number
+    const role = this.verticalSlots.indexOf(slotIndex)
+    if (role >= 0) k = role - 1
+    else if (slotIndex === this.vIncoming) k = this.vIncomingK
+    else return
+
+    const centerGap = this.num(this.coverCenterGapCm, 14)
+    const sideSpacing = this.num(this.coverSideSpacingCm, 6)
+    const depthStep = this.num(this.coverDepthStepCm, 6)
+    const foldStart = this.num(this.coverFoldStartDeg, 45)
+    const foldStep = this.num(this.coverFoldStepDeg, 12)
+    const maxFold = this.num(this.coverMaxFoldDeg, 75)
+    const falloff = this.num(this.coverSideScaleFalloff, 0.82)
+    const minFrac = this.num(this.coverMinScaleFrac, 0.4)
+    const maxVis = this.num(this.coverMaxVisiblePerSide, 6)
+    const centerSize = this.num(this.resultCardSize, this.cardSizeBase)
+
+    const r = k - this.vScrub
+    const a = Math.abs(r)
+    const sgn = r === 0 ? 0 : (r > 0 ? 1 : -1)
+    const aC = Math.min(a, maxVis)
+
+    // Vertical displacement: higher role index (k) sits LOWER, so offset = -sgn*vMag.
+    const vMag = aC <= 1 ? centerGap * aC : centerGap + (aC - 1) * sideSpacing
+    const target = this.resultRowAnchor
+      .add(vec3.up().uniformScale(-sgn * vMag))
+      .add(this.resultRowFaceForward.uniformScale(aC * depthStep))
+
+    // Fold about the HORIZONTAL axis: top card tilts toward the bottom, bottom toward
+    // the top — same magnitude profile as the horizontal deck's about-up fold. The sign
+    // is empirical on device; coverInvertFold flips it.
+    const foldSign = this.coverInvertFold ? 1 : -1
+    const foldMag = a <= 1 ? foldStart * a : Math.min(maxFold, foldStart + (a - 1) * foldStep)
+    const targetRot = quat.angleAxis(sgn * foldSign * foldMag * DEG2RAD, this.resultRowRight)
+      .multiply(this.resultRowFaceRot)
+
+    const worldScale = centerSize * Math.max(minFrac, Math.pow(falloff, a))
+
+    const cur = slot.trans.getWorldPosition()
+    slot.trans.setWorldPosition(vec3.lerp(cur, target, Math.min(1, 8 * dt)))
+    slot.trans.setWorldRotation(quat.slerp(slot.trans.getWorldRotation(), targetRot, Math.min(1, 12 * dt)))
+    this.easeWorldScale(slot, worldScale, Math.min(1, 10 * dt))
+
+    const order = Math.round(CardDeckController.COVER_BASE_ORDER - aC)
+    if (slot.card && order !== slot.renderOrder) {
+      slot.card.setRenderOrder(order)
+      slot.renderOrder = order
+    }
+  }
+
+  // Maps smoothed vertical hand travel to the live scroll offset and tracks hand speed for
+  // the flick test. As soon as the drag direction is known it materialises the incoming
+  // card on that edge so the deck slides continuously (mirrors the horizontal scrub).
+  private updateVerticalScrub(): void {
+    const point = this.handPoint(this.vPinchIsRight)
+    if (!point) return
+    const dCm = this.vDragTracker.update(point).dot(vec3.up())
+    this.vDragAccumCm += dCm
+    const step = this.num(this.coverScrubStepCm, 12)
+    // Drag UP (positive travel) -> vScrub negative -> top card eases toward centre.
+    const dir = this.coverInvertScrub ? 1 : -1
+    let raw = this.vScrubStart + dir * this.vDragAccumCm / step
+
+    // Lock in the drag direction the first time the user moves off centre, and prepare the
+    // incoming card for that edge. If they reverse across centre, swap to the other edge.
+    const sign = raw < -0.04 ? -1 : raw > 0.04 ? 1 : 0
+    if (sign !== 0 && sign !== this.vDragSign) {
+      this.releaseIncoming()
+      this.vDragSign = sign
+      this.materializeIncoming(sign)
+    }
+    // Only allow scrolling toward an edge that produced an incoming card; otherwise hold.
+    let lo = -1, hi = 1
+    if (this.vIncoming < 0 || this.vDragSign >= 0) lo = 0
+    if (this.vIncoming < 0 || this.vDragSign <= 0) hi = 0
+    this.vScrub = Math.max(lo, Math.min(hi, raw))
+
+    const dt = getDeltaTime()
+    const inst = dt > 1e-4 ? (dir * dCm) / dt : 0
+    this.vScrubVelCmPerSec = this.vScrubVelCmPerSec * 0.7 + inst * 0.3
+  }
+
+  // Eases vScrub to its snapped target (mirrors settleScrub), then rebases the roles when it
+  // lands on an edge so the next drag starts from a clean centred deck. Snapping back to 0
+  // drops the transient incoming card.
+  private settleVerticalScrub(dt: number): void {
+    const diff = this.vSettleTarget - this.vScrub
+    if (Math.abs(diff) < 0.01) {
+      this.vScrub = this.vSettleTarget
+      if (this.vSettleTarget !== 0) this.rebaseVertical(this.vSettleTarget) // commit the step
+      else if (this.vIncoming >= 0) this.releaseIncoming()                  // snapped back to centre
+      return
+    }
+    const rate = this.num(this.coverSnapRate, 12)
+    this.vScrub += diff * Math.min(1, rate * dt)
   }
 
   // Eases a result card toward its CoverFlow pose, computed against the frozen deck
@@ -989,6 +1419,20 @@ export class CardDeckController extends BaseScriptComponent {
   // --- CoverFlow pinch-drag scrub ---------------------------------------------
 
   private onPinchDown(isRight: boolean): void {
+    // Vertical browse deck takes priority and scrubs along the up axis.
+    if (this.verticalActive) {
+      if (this.vPinching) return
+      const vp = this.handPoint(isRight)
+      if (!vp) return
+      this.vPinching = true
+      this.vPinchIsRight = isRight
+      this.vScrubStart = this.vScrub // resume from where it currently rests (usually 0)
+      this.vDragAccumCm = 0
+      this.vScrubVelCmPerSec = 0
+      this.vDragSign = 0
+      this.vDragTracker.begin(vp)
+      return
+    }
     if (!this.resultsActive || this.pinching) return // only scrub while a deck is up
     const point = this.handPoint(isRight)
     if (!point) return
@@ -1001,6 +1445,11 @@ export class CardDeckController extends BaseScriptComponent {
   }
 
   private onPinchUp(isRight: boolean): void {
+    if (this.verticalActive) {
+      if (!this.vPinching || isRight !== this.vPinchIsRight) return
+      this.endVerticalDrag()
+      return
+    }
     if (!this.pinching || isRight !== this.pinchIsRight) return
     this.pinching = false
     this.dragTracker.end()
