@@ -67,9 +67,11 @@ export class CardStore extends BaseScriptComponent {
   // Monotonic counter for generated ids.
   private idCounter: number = 0
 
-  // Observers notified when a card is CAPTURED this session (addCard). Premade
-  // seeding (addPremade) does NOT notify. Reassigned, never mutated in place.
-  private captureListeners: ((card: CardRecord) => void)[] = []
+  // Bumped on every CAPTURED card (addCard); premade seeding does NOT bump it.
+  // The CardDeckController polls this (getCapturedVersion) to fold newly captured
+  // cards into the deck the next time it is shown — so the persistent store is the
+  // only thing capture and the (separate) deck scene need to share.
+  private capturedVersion: number = 0
 
   onAwake() {
     this.logger = new Logger("CardStore", this.enableLogging || this.enableLoggingLifecycle, true);
@@ -84,31 +86,19 @@ export class CardStore extends BaseScriptComponent {
   addCard(input: CardInput): CardRecord {
     const record = this.finalize(input, false)
     this.cards.push(record)
+    this.capturedVersion += 1
     this.logger.info("Captured card " + record.id + " @ " + record.location + " (" + this.cards.length + " total)")
-    this.notifyCaptured(record)
     return record
   }
 
   /**
-   * Registers a callback invoked AFTER each card is captured this session
-   * (addCard), with the stored record. Used by the CardDeckController to fold a
-   * freshly captured card into the deck (and re-shuffle) while it is being viewed.
-   * Premade seeding never fires this.
+   * A monotonic counter bumped each time a card is CAPTURED this session
+   * (addCard); premade seeding does not change it. The CardDeckController compares
+   * this against the last value it synced to detect cards captured while the deck
+   * scene was switched off — the two never need to be enabled at the same time.
    */
-  onCardAdded(callback: (card: CardRecord) => void): void {
-    if (typeof callback !== "function") return
-    this.captureListeners = [...this.captureListeners, callback]
-  }
-
-  private notifyCaptured(record: CardRecord): void {
-    for (const cb of this.captureListeners) {
-      try {
-        cb(record)
-      } catch (e) {
-        // A misbehaving listener must never break card storage.
-        this.logger.warn("onCardAdded listener threw: " + e)
-      }
-    }
+  getCapturedVersion(): number {
+    return this.capturedVersion
   }
 
   /**

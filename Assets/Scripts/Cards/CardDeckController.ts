@@ -16,17 +16,16 @@
  * primary, location + date as tie-breakers) solved once in angular space. Each
  * card billboards individually to face the user and sways gently; nothing orbits.
  *
- * CAPTURED CARDS: cards captured this session live in the CardStore. They are
- * folded into the deck two ways, both reusing the SAME native path — spawn a slot
- * for each captured record we lack, then re-solve the WHOLE layout once via
- * buildWrappedLayout() so they cluster in among their relatives instead of being
- * patched into a leftover gap:
- *   - LIVE: CardStore.onCardAdded fires on each capture; if the deck is currently
- *     on (enabled) we sync + re-shuffle immediately.
- *   - ON ENABLE: TurnOnEvent (the deck object becoming enabled) syncs anything
- *     captured while the deck was off.
- * A re-shuffle requested while a query result deck is up is deferred until
- * clearQueryResults() so it never disrupts the results.
+ * CAPTURED CARDS: cards captured this session live in the persistent CardStore
+ * (capture and deck-view are separate SceneSwitcher scenes, never enabled at the
+ * same time, so the always-on store is their only shared state). Each visible
+ * frame the deck polls CardStore.getCapturedVersion(); when it changes it spawns a
+ * slot for every captured record it lacks and re-solves the WHOLE layout once via
+ * buildWrappedLayout(), so captured cards cluster in among their relatives instead
+ * of being patched into a leftover gap. Because update() only ticks while the deck
+ * is shown, this fires the moment the deck scene is switched on (and live too, if
+ * both ever run together). A re-shuffle requested while a query result deck is up
+ * is deferred until clearQueryResults() so it never disrupts the results.
  *
  * QUERY MODE (driven by QueryOrchestrator / CardQueryVoiceAgent): the matching
  * cards fly out into an iPod-style CoverFlow deck in front of the user
@@ -253,9 +252,8 @@ export class CardDeckController extends BaseScriptComponent {
   private slots: DeckSlot[] = []
   private camTrans: Transform = null
 
-  // Premade deck + seeds are spawned exactly once; this guards re-entry from both
-  // onStart and the first TurnOnEvent (whichever fires first if the deck object
-  // starts disabled).
+  // Premade deck + seeds are spawned exactly once (in onStart, which fires the
+  // first frame this scene is switched on).
   private deckSpawned: boolean = false
   // Cylinder layout, built once the camera is available AND every card has
   // measured its real footprint (or the wait below times out).
@@ -264,6 +262,9 @@ export class CardDeckController extends BaseScriptComponent {
   // Set when a re-shuffle is wanted but a query result deck is currently up; the
   // re-solve is deferred until clearQueryResults() so it never disrupts results.
   private relayoutPending: boolean = false
+  // Last CardStore.getCapturedVersion() we folded in. -1 forces a sync on the
+  // first visible frame (catching cards captured before the deck was ever shown).
+  private lastSyncedVersion: number = -1
   // Frames to wait for cards to auto-fit before packing with fallback sizes
   // (covers cards whose border auto-fit is off and never measures).
   private static readonly MAX_LAYOUT_WAIT_FRAMES = 60
@@ -305,7 +306,6 @@ export class CardDeckController extends BaseScriptComponent {
     this.logger = new Logger("CardDeckController", this.enableLogging || this.enableLoggingLifecycle, true)
     if (this.enableLoggingLifecycle) this.logger.debug("LIFECYCLE: onAwake()")
     this.createEvent("OnStartEvent").bind(() => this.onStart())
-    this.createEvent("TurnOnEvent").bind(() => this.onTurnedOn())
     this.createEvent("UpdateEvent").bind(() => this.update(getDeltaTime()))
   }
 
@@ -320,47 +320,11 @@ export class CardDeckController extends BaseScriptComponent {
     this.leftHand.onPinchUp.add(() => this.onPinchUp(false))
 
     this.initDeckIfNeeded()
-
-    // Fold cards captured later this session into the deck the moment they're
-    // captured (and re-shuffle), but only while the deck is on. While it's off,
-    // the next TurnOnEvent does the same sync.
-    const store = (global as any).cropCardStore
-    if (store && typeof store.onCardAdded === "function") {
-      store.onCardAdded((rec: CardRecord) => this.onCardCaptured(rec))
-    }
-  }
-
-  // Fired when the deck object is enabled (the "view" interface opening). Capture
-  // runs in a separate interface with the deck disabled, so new cards appear only
-  // between views: pull in any captured store records we don't have yet and, if
-  // the set changed, re-solve the whole layout ONCE. No-op when nothing was
-  // captured or while a query result deck is up.
-  private onTurnedOn(): void {
-    if (!this.camTrans && this.cameraObject) this.camTrans = this.cameraObject.getTransform()
-    // Guard for a deck object that starts disabled: its first enable may precede
-    // onStart, so make sure the premade deck exists before syncing captured cards.
-    this.initDeckIfNeeded()
-    const store = (global as any).cropCardStore
-    const added = this.syncCapturedCards(store)
-    if (added > 0) this.scheduleRelayout()
-  }
-
-  // A card was captured this session (CardStore.onCardAdded). While the deck is
-  // being viewed, fold it in and re-shuffle right away; while the deck is off, do
-  // nothing — the next TurnOnEvent will sync it. The record arg is unused on
-  // purpose: syncCapturedCards rescans the store, so it also catches any card a
-  // prior pass somehow missed.
-  private onCardCaptured(_rec: CardRecord): void {
-    if (!this.getSceneObject().enabled) return
-    const store = (global as any).cropCardStore
-    const added = this.syncCapturedCards(store)
-    if (added > 0) this.scheduleRelayout()
   }
 
   // --- spawning ---------------------------------------------------------------
 
-  // Spawns the premade deck + registers seeds exactly once, regardless of whether
-  // onStart or the first TurnOnEvent reaches it first.
+  // Spawns the premade deck + registers seeds exactly once.
   private initDeckIfNeeded(): void {
     if (this.deckSpawned) return
     this.deckSpawned = true
@@ -458,7 +422,21 @@ export class CardDeckController extends BaseScriptComponent {
     }
   }
 
-  // --- captured-card sync (on enable) -----------------------------------------
+  // --- captured-card sync (driven by the persistent store) --------------------
+
+  // Polled every visible frame. The store bumps a version on each capture; when it
+  // differs from what we last folded in, spawn the new cards and re-shuffle once.
+  // Because update() only runs while the deck is shown, this naturally happens the
+  // moment the deck scene is switched on (capture happens in a separate scene).
+  private syncCapturedFromStore(): void {
+    const store = (global as any).cropCardStore
+    if (!store || typeof store.getCapturedVersion !== "function") return
+    const version = store.getCapturedVersion()
+    if (version === this.lastSyncedVersion) return
+    this.lastSyncedVersion = version
+    const added = this.syncCapturedCards(store)
+    if (added > 0) this.scheduleRelayout()
+  }
 
   // Spawns a deck slot for every captured (non-premade) store record we don't yet
   // have. Returns how many were newly added. Idempotent across repeated enables,
@@ -545,6 +523,12 @@ export class CardDeckController extends BaseScriptComponent {
 
   private update(dt: number): void {
     if (this.slots.length === 0) return
+    // This only ticks while the deck is actually visible (UpdateEvent is gated by
+    // hierarchy-enabled state), so polling here is how the deck "reads" the
+    // persistent store on show — folding in cards captured while it was switched
+    // off (and live, if both ever run together). Cheap version compare; the work
+    // runs only when a capture has happened since the last sync.
+    this.syncCapturedFromStore()
     if (!this.layoutBuilt) {
       if (!this.camTrans) return // need the camera to orient + anchor the cylinder
       // Hold off until every card has measured its real footprint, so the packing
@@ -816,7 +800,7 @@ export class CardDeckController extends BaseScriptComponent {
    * Pulls the cards with the given store ids out of the plane into a camera-
    * facing row in front of the user: freezes the plane sway, renders the results
    * in front (they are already expanded). Captured cards are eligible once the
-   * deck has synced them (see onTurnedOn); ids with no spawned slot (e.g. unspawned
+   * deck has synced them (see syncCapturedFromStore); ids with no spawned slot (e.g. unspawned
    * SEED_CARDS) are skipped. Returns how many were shown.
    */
   showQueryResults(ids: string[]): number {

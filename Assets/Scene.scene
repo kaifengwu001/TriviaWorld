@@ -2432,8 +2432,8 @@
       scene2IconTexture: !<reference.Texture> 810202b3-3302-466a-96d0-b3171cf8a863
       scene2Label: Deck
       scene2Objects: !<reference.SceneObject[]>
-        - !<reference> cb4fbe84-dded-4fbc-8e0f-1b0d681d0d3d
         - !<reference> 88f81952-1481-4cec-af46-2c6672cb056a
+        - !<reference> cb4fbe84-dded-4fbc-8e0f-1b0d681d0d3d
       scene3Button: !<reference.SceneObject> e3c3b1c3-e457-4db2-a5ae-73c7c2b65c08
       scene3IconTexture: !<reference.Texture> 50b008de-d7e9-4841-9594-368680ecc836
       scene3Label: Battle
