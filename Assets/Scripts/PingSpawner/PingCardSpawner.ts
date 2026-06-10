@@ -34,6 +34,7 @@ import { PremadeCard } from "../PremadeCard/PremadeCard"
 import { PingController } from "../PingController"
 import { CARD_DECK_DATA, CardDeckEntry } from "../Cards/cardDeckData"
 import { colorForTopics } from "../Interests/TopicColors"
+import { BubbleField } from "../Bubbles/BubbleField"
 
 // Fallback wavefront speed (cm/s) used only when no PingController is linked and
 // no override is set. Matches PingController.pingSpeed's default.
@@ -73,6 +74,11 @@ export class PingCardSpawner extends BaseScriptComponent {
   @allowUndefined
   renderLayerSource: SceneObject
 
+  @input
+  @hint("Optional BubbleField(s) (e.g. a child of this spawner). Each gets spawnWave(origin) forwarded so its bubbles pop in on the same wavefront as the cards.")
+  @allowUndefined
+  bubbleFields: BubbleField[]
+
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Selection</span>')
   @input
@@ -96,6 +102,20 @@ export class PingCardSpawner extends BaseScriptComponent {
   @input
   @hint("Ceiling height (cm, local Y) — the top of the spawn pipe.")
   ceilingHeight: number = 100
+
+  @ui.separator
+  @ui.label('<span style="color: #60A5FA;">Front-of-camera concentration</span>')
+  @input
+  @hint("Bias the cards into an arc toward where the camera is looking instead of scattering them evenly all around. Needs a Camera Object. Off = full 360° ring.")
+  concentrateTowardFront: boolean = true
+
+  @input
+  @hint("Half-angle (degrees) of the arc cards spawn within, centered on the camera's view direction. 180 = full ring, 90 = front half, smaller = a tight cone dead-ahead.")
+  frontArcHalfAngleDeg: number = 90
+
+  @input
+  @hint("How hard cards cluster toward dead-center of the arc. 0 = spread evenly across the arc, higher = packed near the center of view.")
+  frontBias: number = 1.0
 
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Wavefront timing</span>')
@@ -146,6 +166,10 @@ export class PingCardSpawner extends BaseScriptComponent {
   private spawned = false
   private spawnedObjects: SceneObject[] = []
   private popCancels: CancelSet[] = []
+  // Local-space azimuth (radians) pointing toward the camera's view direction,
+  // computed once per wave so every card in that wave shares the same "front".
+  // null = no concentration this wave (no camera, feature off, or degenerate).
+  private frontAzimuthForWave: number | null = null
 
   onAwake() {
     this.logger = new Logger("PingCardSpawner", this.enableLogging || this.enableLoggingLifecycle, true)
@@ -178,6 +202,9 @@ export class PingCardSpawner extends BaseScriptComponent {
     }
 
     const from = origin ? new vec3(origin.x, origin.y, origin.z) : this.worldOrigin()
+    // Bubbles ride the same wavefront origin; forward even when no cards match so
+    // the bubble field still reacts to the ping.
+    this.forwardWaveToBubbles(from)
     const entries = this.entriesForLocation()
     if (entries.length === 0) {
       this.logger.info("No cards match location \"" + this.location + "\"; nothing to spawn.")
@@ -187,6 +214,8 @@ export class PingCardSpawner extends BaseScriptComponent {
 
     const speed = this.wavefrontSpeed()
     const toWorld = this.getSceneObject().getTransform().getWorldTransform()
+    // Resolve "front" once so all cards in this wave land in the same arc.
+    this.frontAzimuthForWave = this.computeFrontAzimuth()
 
     for (let i = 0; i < entries.length; i++) {
       const localPos = this.randomCylinderPosition()
@@ -212,6 +241,15 @@ export class PingCardSpawner extends BaseScriptComponent {
   }
 
   // --- internal --------------------------------------------------------------
+
+  // Hands the wave origin to every linked BubbleField so its bubbles spawn out on
+  // the same expanding wavefront as the cards.
+  private forwardWaveToBubbles(origin: vec3): void {
+    if (!this.bubbleFields) return
+    for (const field of this.bubbleFields) {
+      if (field) field.spawnWave(origin)
+    }
+  }
 
   // Defers the actual instantiate to the moment the wavefront arrives, so the
   // card literally comes into existence on the band. Delay 0 spawns immediately.
@@ -328,13 +366,43 @@ export class PingCardSpawner extends BaseScriptComponent {
   private randomCylinderPosition(): vec3 {
     const inner = Math.max(0, Math.min(this.minDistance, this.maxDistance))
     const outer = Math.max(this.minDistance, this.maxDistance)
-    const theta = Math.random() * Math.PI * 2
+    const theta = this.sampleAzimuth()
     const t = Math.sqrt(Math.random())
     const r = inner + (outer - inner) * t
     const low = Math.min(this.floorHeight, this.ceilingHeight)
     const high = Math.max(this.floorHeight, this.ceilingHeight)
     const y = low + Math.random() * (high - low)
     return new vec3(r * Math.cos(theta), y, r * Math.sin(theta))
+  }
+
+  // Picks a ring angle. With no front concentration this is a plain full-circle
+  // random; otherwise it draws from an arc centered on the camera's view
+  // direction, optionally clustered toward dead-center by `frontBias`.
+  private sampleAzimuth(): number {
+    const center = this.frontAzimuthForWave
+    if (center === null) return Math.random() * Math.PI * 2
+    const half = (Math.max(0, Math.min(180, this.frontArcHalfAngleDeg)) * Math.PI) / 180
+    // u in [-1, 1]; raising |u| to a power >1 pulls samples toward 0 (the center
+    // of the arc) so a higher bias packs cards in front of the viewer.
+    const u = Math.random() * 2 - 1
+    const sign = u < 0 ? -1 : 1
+    const mag = Math.pow(Math.abs(u), 1 + Math.max(0, this.frontBias))
+    return center + sign * mag * half
+  }
+
+  // Local-space azimuth (atan2(z, x), matching randomCylinderPosition) that points
+  // toward where the camera is looking. The camera views along -forward in this
+  // project, and the direction is expressed in this object's local frame so the
+  // arc tracks the head regardless of how the spawner itself is oriented.
+  private computeFrontAzimuth(): number | null {
+    if (!this.concentrateTowardFront || !this.cameraObject) return null
+    const worldFront = this.cameraObject.getTransform().forward.uniformScale(-1)
+    const inv = this.getSceneObject().getTransform().getInvertedWorldTransform()
+    const localFront = inv.multiplyDirection(worldFront)
+    if (Math.sqrt(localFront.x * localFront.x + localFront.z * localFront.z) < 1e-4) {
+      return null // camera looking straight up/down: no meaningful horizontal front
+    }
+    return Math.atan2(localFront.z, localFront.x)
   }
 
   private worldOrigin(): vec3 {

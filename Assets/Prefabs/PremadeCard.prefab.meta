@@ -76,7 +76,7 @@
   PrefabRemaps:
     []
   Name: PremadeCard
-  Enabled: true
+  Enabled: false
   Layers: 1
   LocalTransform: !<TransformEntity>
     Position: {x: 0.000000, y: 28.822433, z: -82.457962}
@@ -210,7 +210,6 @@
     showThreshold: true
     gazeToExpand: true
     gazeDwell: true
-    gazeConeAngleDeg: true
     billboard: true
     enableLogging: true
     enableLoggingLifecycle: true
@@ -234,7 +233,7 @@
       showThreshold: 0.900000
       gazeToExpand: true
       gazeDwell: !<float> 1.000000
-      gazeConeAngleDeg: !<float> 12.000000
+      gazeConeAngleDeg: !<float> 24.000000
       collapseWhenGazeLost: true
       billboard: true
       enableLogging: false

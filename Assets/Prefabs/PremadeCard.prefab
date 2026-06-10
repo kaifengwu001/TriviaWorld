@@ -78,7 +78,7 @@
     - f107554c-c56c-4da7-a515-4628d132c5c6: f107554c-c56c-4da7-5aea-b9d72ecd3a39
     - febf81d8-7250-48a6-88ab-780c99d548bd: febf81d8-7250-48a6-7754-87f3662ab742
   Name: PremadeCard
-  Enabled: true
+  Enabled: false
   Layers: 1
   LocalTransform: !<TransformEntity>
     Position: {x: 0.000000, y: 28.822433, z: -82.457962}
@@ -207,7 +207,6 @@
     showThreshold: true
     gazeToExpand: true
     gazeDwell: true
-    gazeConeAngleDeg: true
     billboard: true
     enableLogging: true
     enableLoggingLifecycle: true
@@ -231,7 +230,7 @@
       showThreshold: 0.900000
       gazeToExpand: true
       gazeDwell: !<float> 1.000000
-      gazeConeAngleDeg: !<float> 12.000000
+      gazeConeAngleDeg: !<float> 24.000000
       collapseWhenGazeLost: true
       billboard: true
       enableLogging: false

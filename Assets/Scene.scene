@@ -12,7 +12,6 @@
     - !<own> 026777c9-2a55-4715-b0df-6e70af6e279d
     - !<own> ca317462-cdcf-48c3-bec3-957345c57d06
     - !<own> 738ad89a-82c4-4718-85b1-3b99e9f41195
-    - !<own> cbc64de6-f36c-4d43-81ed-51724106378c
     - !<own> 88f81952-1481-4cec-af46-2c6672cb056a
     - !<own> df855af7-a6b5-4363-866f-c0bb6422fc98
     - !<own> 5b25ffe0-9056-4935-b820-88a78173efbb
@@ -60,7 +59,7 @@
   RenderOrder: 0
   Size: 20.000000
   Near: 1.000000
-  Far: 1000.000000
+  Far: 1500.000000
   Fov: 63.541019
   ClearColor: !<CameraClearColor>
     Mode: None
@@ -405,9 +404,8 @@
     placeholderImages: true
     location: true
     minDistance: true
-    maxDistance: true
-    floorHeight: true
-    ceilingHeight: true
+    concentrateTowardFront: true
+    frontArcHalfAngleDeg: true
     wavefrontSpeedOverride: true
     revealOffsetSec: true
     revealPopDuration: true
@@ -426,11 +424,16 @@
       placeholderImages: !<reference.Texture[]>
         []
       renderLayerSource: !<reference.SceneObject> 00000000-0000-0065-0000-000000000064
+      bubbleFields: !<MappingBased.AssignableType_1[]>
+        - !<reference> d6415e26-4b5d-4fa7-ab71-93cc4876ccf1
       location: Seattle
       minDistance: !<float> 80.000000
-      maxDistance: !<float> 220.000000
-      floorHeight: !<float> -50.000000
-      ceilingHeight: !<float> 100.000000
+      maxDistance: !<float> 200.000000
+      floorHeight: !<float> -30.000000
+      ceilingHeight: !<float> 30.000000
+      concentrateTowardFront: true
+      frontArcHalfAngleDeg: !<float> 90.000000
+      frontBias: 0.300000
       wavefrontSpeedOverride: !<float> 0.000000
       revealOffsetSec: !<float> 0.000000
       revealPopDuration: 0.500000
@@ -2521,7 +2524,7 @@
   LocalTransform: !<TransformEntity>
     Position: {x: 0.000000, y: 0.000000, z: 0.000000}
     Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
-    Scale: {x: 30000.000000, y: 30000.000000, z: 30000.000000}
+    Scale: {x: 1500.000000, y: 1500.000000, z: 1500.000000}
     HasSegmentScaleCompensation: false
   Children:
     []
@@ -2782,7 +2785,6 @@
     showThreshold: true
     gazeToExpand: true
     gazeDwell: true
-    gazeConeAngleDeg: true
     billboard: true
     enableLogging: true
     enableLoggingLifecycle: true
@@ -2806,7 +2808,7 @@
       showThreshold: 0.900000
       gazeToExpand: true
       gazeDwell: !<float> 1.000000
-      gazeConeAngleDeg: !<float> 12.000000
+      gazeConeAngleDeg: !<float> 24.000000
       collapseWhenGazeLost: true
       billboard: true
       enableLogging: false
@@ -3964,7 +3966,7 @@
         - !<reference> 925aabf8-4148-4021-a636-53857bf010cb
       headObject: !<reference.SceneObject> 00000000-0000-0065-0000-000000000064
       pingSpeed: !<float> 350.000000
-      maxRadius: !<float> 9900.000000
+      maxRadius: !<float> 1500.000000
       bandThickness: !<float> 5.000000
       trailLength: !<float> 75.000000
       trailFalloff: !<float> 1.000000
@@ -5093,7 +5095,7 @@
   PrefabRemaps:
     []
   Name: (Unused)BubbleField
-  Enabled: false
+  Enabled: true
   Layers: 1
   LocalTransform: !<TransformEntity>
     Position: {x: 0.000000, y: 0.000000, z: 0.000000}
@@ -5170,6 +5172,7 @@
     - !<own> 580901eb-5721-44e1-9e89-9249bba7c292
     - !<own> 5a002bfe-7ee4-4985-879c-df240824f398
     - !<own> c5be34f2-fd58-4bb9-b900-b610829dbfb4
+    - !<own> cbc64de6-f36c-4d43-81ed-51724106378c
   Components:
     - !<own> e23fbc99-592e-4240-999f-80b77b24e35f
     - !<own> a038f5d3-c2e8-4d9a-ba30-0adfffbf5742
@@ -5198,11 +5201,15 @@
   ScriptAsset: !<reference> 9d71f1ff-4c59-4c84-87d2-402910def6cc
   ScriptInputsDefault:
     palette: true
-    minDistance: true
-    maxDistance: true
+    spawnOnWavefront: true
+    wavefrontSpeedOverride: true
+    revealOffsetSec: true
+    revealPopDuration: true
+    allowRespawn: true
     floorHeight: true
+    radiusMin: true
+    radiusMax: true
     targetWidthMin: true
-    targetWidthMax: true
     targetHeightMin: true
     targetHeightMax: true
     targetCornerRadius: true
@@ -5212,7 +5219,6 @@
     rectLineWidth: true
     fillOpacity: true
     globalProgress: true
-    autoAnimate: true
     animateSpeed: true
     billboard: true
     fovCullEnabled: true
@@ -5228,26 +5234,32 @@
       palette: !<Vec4[]>
         []
       bubbleCount: !<float> 90.000000
-      minDistance: !<float> 80.000000
-      maxDistance: !<float> 220.000000
+      minDistance: !<float> 300.000000
+      maxDistance: !<float> 1500.000000
+      spawnOnWavefront: true
+      pingController: !<MappingBased.AssignableType> a038f5d3-c2e8-4d9a-ba30-0adfffbf5742
+      wavefrontSpeedOverride: !<float> 0.000000
+      revealOffsetSec: !<float> 0.000000
+      revealPopDuration: 0.500000
+      allowRespawn: false
       floorHeight: !<float> -50.000000
       ceilingHeight: !<float> 50.000000
-      radiusMin: !<float> 1.000000
-      radiusMax: !<float> 3.000000
+      radiusMin: !<float> 3.000000
+      radiusMax: !<float> 6.000000
       targetWidthMin: !<float> 8.000000
-      targetWidthMax: !<float> 16.000000
+      targetWidthMax: !<float> 8.000000
       targetHeightMin: !<float> 6.000000
       targetHeightMax: !<float> 10.000000
       targetCornerRadius: !<float> 2.000000
-      numPoints: !<float> 32.000000
+      numPoints: !<float> 12.000000
       noiseScale: 0.480000
       distortion: !<float> 4.000000
       undulateSpeed: 0.150000
-      innerFraction: 0.300000
+      innerFraction: 0.500000
       rectLineWidth: 0.400000
       fillOpacity: 0.900000
       globalProgress: !<float> 0.000000
-      autoAnimate: true
+      autoAnimate: false
       animateSpeed: !<float> 1.000000
       cameraObject: !<reference.SceneObject> 00000000-0000-0065-0000-000000000064
       billboard: true

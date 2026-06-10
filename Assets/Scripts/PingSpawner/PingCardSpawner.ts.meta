@@ -27,12 +27,16 @@
   PackagePolicy: CanBeUnpacked
   ScriptInputsHidden:
     allowRespawn: false
+    bubbleFields: false
     cameraObject: false
     cardPrefab: false
     ceilingHeight: false
+    concentrateTowardFront: false
     enableLogging: false
     enableLoggingLifecycle: false
     floorHeight: false
+    frontArcHalfAngleDeg: false
+    frontBias: false
     gazeConeAngleDeg: false
     gazeDwellSec: false
     imageWidth: false
@@ -60,11 +64,16 @@
       placeholderImages: !<reference.Texture[]>
         []
       renderLayerSource: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      bubbleFields: !<MappingBased.AssignableType_1[]>
+        []
       location: Seattle
       minDistance: !<float> 80.000000
       maxDistance: !<float> 220.000000
       floorHeight: !<float> -50.000000
       ceilingHeight: !<float> 100.000000
+      concentrateTowardFront: true
+      frontArcHalfAngleDeg: !<float> 90.000000
+      frontBias: !<float> 1.000000
       wavefrontSpeedOverride: !<float> 0.000000
       revealOffsetSec: !<float> 0.000000
       revealPopDuration: 0.500000
@@ -86,6 +95,7 @@
     - '// @input AssignableType pingController {"hint":"PingController whose pingSpeed times the reveals so cards appear with the visible wavefront. Optional — falls back to Wavefront Speed Override."}'
     - '// @input Asset.Texture[] placeholderImages {"hint":"Placeholder image textures, assigned to the spawned cards in order (cycled). Fill the real images in later."}'
     - "// @input SceneObject renderLayerSource {\"hint\":\"Optional: put spawned cards on THIS object's render layer (e.g. the camera or any visible content object). Leave empty to keep the PremadeCard prefab's own layer — required when this spawner sits on a World Mesh / non-rendered object, otherwise the cards inherit that hidden layer and never draw.\"}"
+    - '// @input AssignableType_1[] bubbleFields {"hint":"Optional BubbleField(s) (e.g. a child of this spawner). Each gets spawnWave(origin) forwarded so its bubbles pop in on the same wavefront as the cards."}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Selection</span>"}'
     - '// @input string location = "Seattle" {"hint":"Only cards whose location matches this are spawned (case-insensitive). e.g. \"Seattle\" | \"Los Angeles\" | \"Tokyo\"."}'
@@ -95,6 +105,11 @@
     - "// @input float maxDistance = 220 {\"hint\":\"Maximum horizontal distance (cm) from this object a card can spawn — the pipe's outer wall.\"}"
     - '// @input float floorHeight = -50 {"hint":"Floor height (cm, local Y) — the bottom of the spawn pipe. May be negative (below the origin)."}'
     - '// @input float ceilingHeight = 100 {"hint":"Ceiling height (cm, local Y) — the top of the spawn pipe."}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Front-of-camera concentration</span>"}'
+    - '// @input bool concentrateTowardFront = true {"hint":"Bias the cards into an arc toward where the camera is looking instead of scattering them evenly all around. Needs a Camera Object. Off = full 360° ring."}'
+    - "// @input float frontArcHalfAngleDeg = 90 {\"hint\":\"Half-angle (degrees) of the arc cards spawn within, centered on the camera's view direction. 180 = full ring, 90 = front half, smaller = a tight cone dead-ahead.\"}"
+    - '// @input float frontBias = 1 {"hint":"How hard cards cluster toward dead-center of the arc. 0 = spread evenly across the arc, higher = packed near the center of view."}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Wavefront timing</span>"}'
     - '// @input float wavefrontSpeedOverride {"hint":"Override the wavefront speed (cm/s). 0 = read pingSpeed from the linked PingController (recommended so reveals match the visible ping)."}'

@@ -26,6 +26,7 @@
   ExportUid: 00000000-0000-0000-0000-000000000000
   PackagePolicy: CanBeUnpacked
   ScriptInputsHidden:
+    allowRespawn: false
     animateSpeed: false
     autoAnimate: false
     baseMaterial: false
@@ -50,15 +51,20 @@
     numPoints: false
     palette: false
     perfStatsText: false
+    pingController: false
     radiusMax: false
     radiusMin: false
     rectLineWidth: false
+    revealOffsetSec: false
+    revealPopDuration: false
+    spawnOnWavefront: false
     targetCornerRadius: false
     targetHeightMax: false
     targetHeightMin: false
     targetWidthMax: false
     targetWidthMin: false
     undulateSpeed: false
+    wavefrontSpeedOverride: false
   ScriptTypesHidden:
     {}
   ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
@@ -74,6 +80,12 @@
       bubbleCount: !<float> 12.000000
       minDistance: !<float> 80.000000
       maxDistance: !<float> 220.000000
+      spawnOnWavefront: true
+      pingController: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
+      wavefrontSpeedOverride: !<float> 0.000000
+      revealOffsetSec: !<float> 0.000000
+      revealPopDuration: 0.500000
+      allowRespawn: false
       floorHeight: !<float> -50.000000
       ceilingHeight: !<float> 100.000000
       radiusMin: !<float> 3.000000
@@ -116,6 +128,14 @@
     - '// @input float bubbleCount = 12 {"hint":"Number of bubbles to spawn"}'
     - "// @input float minDistance = 80 {\"hint\":\"Minimum horizontal distance (cm) from the field origin a bubble can spawn — the pipe's inner wall.\"}"
     - "// @input float maxDistance = 220 {\"hint\":\"Maximum horizontal distance (cm) from the field origin a bubble can spawn — the pipe's outer wall.\"}"
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Wavefront spawn-out</span>"}'
+    - '// @input bool spawnOnWavefront = true {"hint":"Pop bubbles into being as the ping wavefront reaches each one (call spawnWave(origin), e.g. forwarded by PingCardSpawner) instead of spawning them all at start. Off = legacy behaviour: all bubbles exist from the very beginning."}'
+    - "// @input AssignableType pingController {\"hint\":\"PingController whose pingSpeed times each bubble's reveal so they appear with the visible ping. Optional — falls back to Wavefront Speed Override.\"}"
+    - '// @input float wavefrontSpeedOverride {"hint":"Override the wavefront speed (cm/s). 0 = read pingSpeed from the linked PingController (recommended so reveals match the visible ping)."}'
+    - '// @input float revealOffsetSec {"hint":"Extra seconds added to every bubble reveal. Nudge to pop bubbles right ON the band vs slightly behind it."}'
+    - "// @input float revealPopDuration = 0.5 {\"hint\":\"Seconds of the bubble's pop-in scale animation when it is revealed on the wavefront.\"}"
+    - '// @input bool allowRespawn {"hint":"Allow a later wave to clear the previous bubbles and spawn again. Off = the first wave wins and later calls are ignored."}'
     - '// @input float floorHeight = -50 {"hint":"Floor height (cm, local Y) — the bottom of the spawn pipe. May be negative (below the origin)."}'
     - '// @input float ceilingHeight = 100 {"hint":"Ceiling height (cm, local Y) — the top of the spawn pipe."}'
     - '// @input float radiusMin = 3 {"hint":"Minimum blob radius (cm)"}'
