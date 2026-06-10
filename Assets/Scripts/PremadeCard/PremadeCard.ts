@@ -160,6 +160,12 @@ export class PremadeCard extends BaseScriptComponent {
   // real world size. The CardDeckController reads these for accurate packing.
   private contentLocalW = 0
   private contentLocalH = 0
+  // Centre of the border (and thus the visible card) in the card root's local cm.
+  // The picture sits at the root origin and the caption hangs below it, so the
+  // border is re-centred at a negative Y — anything placing UI off the card's
+  // edges must offset by this centre, not by the root origin.
+  private contentLocalCX = 0
+  private contentLocalCY = 0
   private contentMeasured = false
 
   onAwake() {
@@ -219,6 +225,11 @@ export class PremadeCard extends BaseScriptComponent {
     if (this.started) this.relayoutContent()
   }
 
+  /** The card's current caption text (for the voice agent / card buttons). */
+  getText(): string {
+    return this.currentText
+  }
+
   /** Sets the border color on the BubbleMesh border. */
   setBorderColor(color: vec4): void {
     this.borderColor = color
@@ -256,6 +267,16 @@ export class PremadeCard extends BaseScriptComponent {
    */
   getContentLocalSize(): vec2 {
     return new vec2(this.contentLocalW, this.contentLocalH)
+  }
+
+  /**
+   * The centre of the visible card (border) in root-local cm. The picture sits
+   * at the root origin and the caption hangs below, so this Y is usually
+   * negative. Combine with getContentLocalSize() to find the card's true edges
+   * (e.g. top-right corner = centre + size/2). Valid after isContentMeasured().
+   */
+  getContentLocalCenter(): vec2 {
+    return new vec2(this.contentLocalCX, this.contentLocalCY)
   }
 
   /** True once the border has been auto-fit at least once (footprint is known). */
@@ -486,9 +507,12 @@ export class PremadeCard extends BaseScriptComponent {
 
     this.borderBubble.setTargetSize(width, height)
     this.refreshBorderAtCurrentProgress()
-    // Record the true footprint (root-local cm) for the deck's packing.
+    // Record the true footprint + centre (root-local cm) for the deck's packing
+    // and for off-edge UI (e.g. the card action buttons).
     this.contentLocalW = width
     this.contentLocalH = height
+    this.contentLocalCX = centerX
+    this.contentLocalCY = centerY
     this.contentMeasured = true
     this.logger.info("Fit border to " + width.toFixed(1) + " x " + height.toFixed(1) + " cm")
   }

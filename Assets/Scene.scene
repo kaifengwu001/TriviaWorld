@@ -2973,6 +2973,42 @@
     - !<own> 81dff09b-2333-4e30-9bb1-7772d9f5bd1f
   Components:
     []
+- !<ScriptComponent/7f38e918-a6cf-434f-a5fe-f1da40dad08b>
+  PrefabRemaps:
+    []
+  Name: CardActionButtonsController
+  Enabled: true
+  ScriptAsset: !<reference> f0353738-c812-4585-83d4-4ee935ec3a9d
+  ScriptInputsDefault:
+    hideButtonVisual: true
+    buttonWidth: true
+    forwardOffset: true
+    iconForwardOffset: true
+    enableLogging: true
+    enableLoggingLifecycle: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      likeIconOff: !<reference.Texture> f3567578-40fe-4d56-bd99-bddc7e1598d1
+      likeIconOn: !<reference.Texture> 1033d21e-22ea-4c1e-acf0-4f98258c7e0a
+      commentIconOff: !<reference.Texture> 73eb4980-3655-404f-aaa8-cd4704d2a6e6
+      commentIconOn: !<reference.Texture> d92d1591-6e33-443e-9983-e578af569c57
+      deleteIcon: !<reference.Texture> 56a32ea0-6959-4240-9072-677ef75146a9
+      iconMaterial: !<reference.Material> fb942e39-cb39-45c9-a514-72ed8ef7bc4c
+      buttonPrefab: !<reference.ObjectPrefab> 9040e6d0-dd04-4b27-9c59-9c692a3aa1fb
+      hideButtonVisual: true
+      buttonWidth: !<float> 3.000000
+      buttonSpacing: 0.700000
+      sideOffset: 1.200000
+      forwardOffset: 0.600000
+      iconSize: 2.300000
+      iconForwardOffset: 0.200000
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    "":
+      {}
 - !<SceneObject/7f3ad388-3d0f-4adf-a221-d3779d57b31a>
   PrefabRemaps:
     []
@@ -5041,6 +5077,7 @@
     - !<own> e23fbc99-592e-4240-999f-80b77b24e35f
     - !<own> a038f5d3-c2e8-4d9a-ba30-0adfffbf5742
     - !<own> 0508054e-2e96-4e10-ae65-e0301fc8323b
+    - !<own> 7f38e918-a6cf-434f-a5fe-f1da40dad08b
 - !<SceneObject/d4e4bf56-fa5e-4e5f-a300-f3d93779c106>
   PrefabRemaps:
     []

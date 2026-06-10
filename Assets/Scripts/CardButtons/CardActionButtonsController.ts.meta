@@ -71,7 +71,7 @@
     -
       {}
   InputLines:
-    - "// @ui {\"widget\":\"label\", \"label\":\"<span style=\\\"color: #60A5FA;\\\">CardActionButtonsController – like/comment/delete rail per card</span><br/><span style=\\\"color: #94A3B8; font-size: 11px;\\\">Watches for Scanner prefab children and, once each card's caption loads, spawns three RoundButtons off its right edge. Comment mirrors the agent highlight; delete removes the card from the CardStore.</span>\"}"
+    - "// @ui {\"widget\":\"label\", \"label\":\"<span style=\\\"color: #60A5FA;\\\">CardActionButtonsController – like/comment/delete rail per card</span><br/><span style=\\\"color: #94A3B8; font-size: 11px;\\\">Watches this object's child cards (Scanner captures OR ping PremadeCards) and spawns three RoundButtons off each card's right edge once it is ready. Comment mirrors the agent highlight; delete removes the card.</span>\"}"
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Icons (hollow = off, solid = on)</span>"}'
     - '// @input Asset.Texture likeIconOff {"hint":"LIKE icon when toggled OFF (hollow version)."}'

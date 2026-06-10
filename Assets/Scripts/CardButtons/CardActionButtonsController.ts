@@ -2,37 +2,42 @@
  * Specs Inc. 2026
  * Card Action Buttons Controller for the Crop Spectacles lens.
  *
- * Attach this to the SAME object as PictureController / CardBackdropController.
- * It watches for the Scanner prefab children that PictureController spawns (one
- * per crop) and, once a card's AI caption has loaded (getResolvedTopics() turns
- * non-null), spawns a CardActionButtons rail — like / comment / delete — off the
- * card's right edge.
+ * Attach this to the SAME object that spawns the cards you want buttons on, and
+ * it watches THAT object's children:
+ *   - on the capture object (PictureController / CardBackdropController) it picks
+ *     up Scanner cards (PictureBehavior);
+ *   - on the Exploration Controller (PingCardSpawner) it picks up the ping
+ *     PremadeCards.
+ * Because it only watches its own children, the CardDeck cosmos — which spawns
+ * the same PremadeCard prefab under a DIFFERENT object — gets no buttons.
  *
+ * Once a child card is ready (host.isReady(): caption loaded for captured cards,
+ * expanded for premade cards) it spawns a CardActionButtons rail off the right
+ * edge:
  *   - like    : demo-only toggle; nothing beyond the visual state.
  *   - comment : engages the voice agent on that card (same path as tapping the
  *               card, which keeps working). Whichever path engages a card, that
  *               card's comment button toggles ON and every other card's toggles
  *               OFF (the agent highlights one card at a time).
- *   - delete  : removes the card from the CardStore and destroys the scanner.
+ *   - delete  : removes the card from the CardStore (if present) and destroys it.
  *
- * Separation of concerns: PictureBehavior is reached only through its public
- * API (getResolvedTopics, getCardFrame, picAnchorObj, engage, addOnEngaged,
- * getStoredCardId); the button visuals live in CardActionButtons.
+ * The card kind is reached only through CardButtonHost, so this controller is
+ * agnostic to captured vs premade cards.
  */
 import { Logger } from "Utilities.lspkg/Scripts/Utils/Logger"
-import { PictureBehavior } from "../PictureBehavior"
 import { CardActionButtons } from "./CardActionButtons"
+import { CardButtonHost, makeCardButtonHost } from "./CardButtonHost"
 
-// One tracked card: its scanner child, behavior, and spawned button rail.
+// One tracked card: its child object, host adapter, and spawned button rail.
 type CardEntry = {
-  scanner: SceneObject
-  pb: PictureBehavior
+  obj: SceneObject
+  host: CardButtonHost
   buttons: CardActionButtons
 }
 
 @component
 export class CardActionButtonsController extends BaseScriptComponent {
-  @ui.label('<span style="color: #60A5FA;">CardActionButtonsController – like/comment/delete rail per card</span><br/><span style="color: #94A3B8; font-size: 11px;">Watches for Scanner prefab children and, once each card\'s caption loads, spawns three RoundButtons off its right edge. Comment mirrors the agent highlight; delete removes the card from the CardStore.</span>')
+  @ui.label('<span style="color: #60A5FA;">CardActionButtonsController – like/comment/delete rail per card</span><br/><span style="color: #94A3B8; font-size: 11px;">Watches this object\'s child cards (Scanner captures OR ping PremadeCards) and spawns three RoundButtons off each card\'s right edge once it is ready. Comment mirrors the agent highlight; delete removes the card.</span>')
   @ui.separator
 
   @ui.label('<span style="color: #60A5FA;">Icons (hollow = off, solid = on)</span>')
@@ -115,7 +120,7 @@ export class CardActionButtonsController extends BaseScriptComponent {
   private logger: Logger
   private entries: CardEntry[] = []
   // The card the agent currently highlights (last engaged), if any.
-  private engagedPb: PictureBehavior | null = null
+  private engagedHost: CardButtonHost | null = null
 
   onAwake() {
     this.logger = new Logger("CardActionButtonsController", this.enableLogging || this.enableLoggingLifecycle, true)
@@ -129,39 +134,37 @@ export class CardActionButtonsController extends BaseScriptComponent {
     this.attachNew(children)
   }
 
-  // Drops entries whose scanner has left the hierarchy (deleted card, or a
-  // too-small crop that destroyed its own scanner). The rail object dies with
-  // the scanner, so we only need to forget the record.
+  // Drops entries whose card has left the hierarchy (deleted card, a too-small
+  // crop that destroyed its own scanner, or a cleared ping wave). The rail dies
+  // with the card, so we only need to forget the record.
   private pruneRemoved(children: SceneObject[]): void {
     for (let i = this.entries.length - 1; i >= 0; i--) {
-      if (children.indexOf(this.entries[i].scanner) < 0) {
+      if (children.indexOf(this.entries[i].obj) < 0) {
         this.entries[i].buttons.destroy()
         this.entries.splice(i, 1)
       }
     }
   }
 
-  // Spawns a rail on any scanner child whose caption has loaded and that we are
-  // not already tracking. Cards still capturing (topics null) are retried next
-  // frame — "text loads in" is the spawn trigger.
+  // Spawns a rail on any child card that is ready and not already tracked. Cards
+  // not yet ready (capturing, or a still-collapsed bubble) are retried next frame.
   private attachNew(children: SceneObject[]): void {
     for (let i = 0; i < children.length; i++) {
       const child = children[i]
       if (this.isTracked(child)) continue
-      const pb = (child as any).getComponent(PictureBehavior.getTypeName()) as PictureBehavior
-      if (!pb || pb.getResolvedTopics() === null) continue
-      this.attachButtons(child, pb)
+      const host = makeCardButtonHost(child)
+      if (!host || !host.isReady()) continue
+      this.attachButtons(child, host)
     }
   }
 
-  private isTracked(scanner: SceneObject): boolean {
-    return this.entries.some((e) => e.scanner === scanner)
+  private isTracked(obj: SceneObject): boolean {
+    return this.entries.some((e) => e.obj === obj)
   }
 
-  private attachButtons(scanner: SceneObject, pb: PictureBehavior): void {
+  private attachButtons(obj: SceneObject, host: CardButtonHost): void {
     const buttons = new CardActionButtons({
-      scannerRoot: scanner,
-      pictureBehavior: pb,
+      host: host,
       buttonPrefab: this.buttonPrefab,
       likeIconOff: this.likeIconOff ?? null,
       likeIconOn: this.likeIconOn ?? null,
@@ -176,51 +179,48 @@ export class CardActionButtonsController extends BaseScriptComponent {
       forwardOffset: this.forwardOffset,
       iconSize: this.iconSize,
       iconForwardOffset: this.iconForwardOffset,
-      // Comment button = the same engagement path as tapping the card. engage()
-      // fires pb's onEngaged callbacks, which route back into markEngaged below,
-      // so the toggle states settle no matter which path started it.
-      onCommentPressed: () => pb.engage(),
-      onDeletePressed: () => this.deleteCard(scanner, pb),
+      // Comment press engages the agent AND marks this card highlighted; for
+      // captured cards the tap path also routes here via addOnEngaged below.
+      onCommentPressed: () => {
+        host.engage()
+        this.markEngaged(host)
+      },
+      onDeletePressed: () => this.deleteCard(obj, host),
       logger: this.logger,
     })
 
-    this.entries.push({ scanner, pb, buttons })
+    this.entries.push({ obj, host, buttons })
 
-    // Any future engagement of this card (tap on the card, comment button, a
-    // re-capture flow) toggles its comment button on and the other cards' off.
-    pb.addOnEngaged(() => this.markEngaged(pb))
+    // Captured cards can also engage by being tapped directly; route that back
+    // into the radio so the comment button mirrors it (no-op for premade cards).
+    host.addOnEngaged(() => this.markEngaged(host))
 
-    // The capture flow already engaged the agent when the caption loaded (just
-    // before we could attach), so this newest card starts highlighted.
-    this.markEngaged(pb)
+    // Captured cards auto-engage as their caption loads (just before the rail
+    // attaches), so they start highlighted; premade cards do not.
+    if (host.shouldStartEngaged()) this.markEngaged(host)
   }
 
   // Radio behaviour across cards: the agent highlights one card at a time, so
   // exactly that card's comment button shows the engaged (toggled-on) state.
-  private markEngaged(pb: PictureBehavior): void {
-    this.engagedPb = pb
-    this.entries.forEach((entry) => entry.buttons.setCommentEngaged(entry.pb === pb))
+  private markEngaged(host: CardButtonHost): void {
+    this.engagedHost = host
+    this.entries.forEach((entry) => entry.buttons.setCommentEngaged(entry.host === host))
   }
 
   /**
-   * Delete button: drop the card from the CardStore, send the agent's orb home
-   * if it was perched on this card, then destroy the scanner. Destruction is
-   * deferred a frame so we never tear down the button mid-trigger-callback;
-   * pruneRemoved then forgets the entry on the next update.
+   * Delete button: drop the card from the CardStore (captured cards only — the
+   * host decides), send the agent's orb home if it was perched on this card,
+   * then dispose of the card. Disposal (destroy for captured cards, turn-off for
+   * premade ones) is deferred a frame so we never tear down the button
+   * mid-trigger-callback. A disabled premade card stays in the hierarchy, so we
+   * drop its tracking entry + rail here rather than relying on pruneRemoved.
    */
-  private deleteCard(scanner: SceneObject, pb: PictureBehavior): void {
-    const id = pb.getStoredCardId()
-    const store = (global as any).cropCardStore
-    if (id && store && typeof store.removeCard === "function") {
-      const removed = store.removeCard(id)
-      this.logger.info("Removed card " + id + " from CardStore: " + removed)
-    } else {
-      this.logger.warn("Could not remove card from CardStore (id=" + id + ").")
-    }
+  private deleteCard(obj: SceneObject, host: CardButtonHost): void {
+    host.removeFromStore()
 
     // Only send the orb home when it was perched on THE deleted card.
-    if (this.engagedPb === pb) {
-      this.engagedPb = null
+    if (this.engagedHost === host) {
+      this.engagedHost = null
       const sphere = (global as any).agentSphere
       if (sphere && typeof sphere.goHome === "function") {
         sphere.goHome()
@@ -230,11 +230,23 @@ export class CardActionButtonsController extends BaseScriptComponent {
     const delayed = this.createEvent("DelayedCallbackEvent")
     delayed.bind(() => {
       try {
-        scanner.destroy()
+        this.forget(obj)
+        host.disposeObject()
       } catch (e) {
         // Already gone; nothing to do.
       }
     })
     delayed.reset(0)
+  }
+
+  // Drops the tracking entry for a card and destroys its rail. Used on delete so
+  // a turned-off (not destroyed) premade card isn't left tracked or re-attached.
+  private forget(obj: SceneObject): void {
+    for (let i = this.entries.length - 1; i >= 0; i--) {
+      if (this.entries[i].obj === obj) {
+        this.entries[i].buttons.destroy()
+        this.entries.splice(i, 1)
+      }
+    }
   }
 }

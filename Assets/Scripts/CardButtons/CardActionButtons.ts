@@ -24,11 +24,12 @@
 import { Logger } from "Utilities.lspkg/Scripts/Utils/Logger"
 import { RoundButton } from "SpectaclesUIKit.lspkg/Scripts/Components/Button/RoundButton"
 import { RoundedRectangleVisual } from "SpectaclesUIKit.lspkg/Scripts/Visuals/RoundedRectangle/RoundedRectangleVisual"
-import { PictureBehavior } from "../PictureBehavior"
+import { CardButtonHost } from "./CardButtonHost"
 
 export interface CardActionButtonsConfig {
-  scannerRoot: SceneObject
-  pictureBehavior: PictureBehavior
+  // Adapter for the wrapped card (captured Scanner card or premade card): owns
+  // the rail's parent + placement, engage, and store removal.
+  host: CardButtonHost
   // The authored RoundButton prefab, instantiated once per button.
   buttonPrefab: ObjectPrefab
   // Like / comment toggle icons: hollow = off, solid = on.
@@ -105,27 +106,20 @@ export class CardActionButtons {
 
   // --- internal --------------------------------------------------------------
 
-  // Places the rail just off the card's top-right corner, on the card's plane,
-  // facing the user (the card frame is static after capture, so a one-time
-  // world placement is enough).
+  // Creates the rail root under the card and lets the host place it (world
+  // placement for the static captured card; local placement parented to the
+  // billboarding premade card so it tracks the card).
   private build(): void {
-    const pb = this.config.pictureBehavior
-    const frame = pb.getCardFrame()
+    const host = this.config.host
+    const parent = host.getRoot()
     const halfW = this.config.buttonWidth * 0.5
 
     const root = global.scene.createSceneObject("CardActionButtons")
-    root.setParent(this.config.scannerRoot)
-    root.layer = this.config.scannerRoot.layer
+    root.setParent(parent)
+    root.layer = parent.layer
     this.rootObj = root
 
-    const pos = frame.corner
-      .add(frame.right.uniformScale(this.config.sideOffset + halfW))
-      .add(frame.normal.uniformScale(this.config.forwardOffset))
-    const trans = root.getTransform()
-    // Same rotation as the card's picture anchor: local +Z points at the viewer.
-    trans.setWorldRotation(pb.picAnchorObj.getTransform().getWorldRotation())
-    trans.setWorldPosition(pos)
-    trans.setWorldScale(vec3.one())
+    host.placeRail(root, this.config.sideOffset + halfW, this.config.forwardOffset)
 
     const step = this.config.buttonWidth + this.config.buttonSpacing
 
