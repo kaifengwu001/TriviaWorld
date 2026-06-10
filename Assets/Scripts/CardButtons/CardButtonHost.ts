@@ -22,8 +22,16 @@ import { PremadeCard } from "../PremadeCard/PremadeCard"
 import { CardEditTarget } from "../Cards/CardEditTools"
 
 export interface CardButtonHost {
-  /** The object the rail is parented to (and that delete destroys). */
+  /** The card object that delete destroys/disables (the tracked child). */
   getRoot(): SceneObject
+  /**
+   * The object the rail is parented to. For a premade card it is the card root
+   * (which billboards, so a local-placed rail tracks it). For a captured card it
+   * is the scanner root, which is static after capture, so the rail is placed
+   * once in world space. Must be a descendant of (or equal to) getRoot() so it
+   * dies with the card.
+   */
+  getRailParent(): SceneObject
   /**
    * Positions the freshly-created rail root. `rightInset` is how far (cm) right
    * of the card's right edge the rail's vertical centre line sits; `forward` is
@@ -66,9 +74,18 @@ class PictureHost implements CardButtonHost {
     return this.root
   }
 
+  getRailParent(): SceneObject {
+    // The scanner root: it is static once the card is captured, so the rail can
+    // be world-placed once with no per-frame tracking.
+    return this.root
+  }
+
   placeRail(railRoot: SceneObject, rightInset: number, forward: number): void {
-    // The captured card is static after capture, so a one-time WORLD placement
-    // off its frame is enough (mirrors the original rail placement).
+    // The card's corner markers (circleTrans) freeze the instant capture ends —
+    // long before the caption resolves and the rail spawns — so a one-time WORLD
+    // placement at the image's TOP-right corner is exact and never drifts. The
+    // caption hangs BELOW the image, so the frame's top edge IS the image's top
+    // edge; no caption/backdrop size measurement is needed for top alignment.
     const frame = this.pb.getCardFrame()
     const pos = frame.corner
       .add(frame.right.uniformScale(rightInset))
@@ -118,12 +135,18 @@ class PremadeHost implements CardButtonHost {
     return this.root
   }
 
+  getRailParent(): SceneObject {
+    // The card root itself: it billboards, so a local-placed rail tracks it.
+    return this.root
+  }
+
   placeRail(railRoot: SceneObject, rightInset: number, forward: number): void {
     // Parented to the billboarding card root, so LOCAL placement makes the rail
-    // track the card automatically. The card's footprint is centred at
-    // getContentLocalCenter() (NOT the root origin — the caption hangs below the
-    // picture), so the top-right corner is centre + size/2. Both are root-local
-    // cm, valid once isContentMeasured().
+    // track the card automatically. Anchor at the TOP-right corner. The footprint
+    // is centred at getContentLocalCenter() (NOT the root origin — the caption
+    // hangs below the picture), so the right edge is centre.x + width/2 and the
+    // top edge is centre.y + height/2. Both are root-local cm, valid once
+    // isContentMeasured(). The buttons hang down from there.
     const size = this.card.getContentLocalSize()
     const center = this.card.getContentLocalCenter()
     const t = railRoot.getTransform()

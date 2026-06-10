@@ -39,9 +39,16 @@
     iconForwardOffset: false
     iconMaterial: false
     iconSize: false
+    labelColor: false
+    labelOffset: false
+    labelSize: false
+    likeCountMax: false
+    likeCountMin: false
     likeIconOff: false
     likeIconOn: false
+    profilePics: false
     sideOffset: false
+    verticalOffset: false
   ScriptTypesHidden:
     {}
   ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
@@ -56,22 +63,30 @@
       commentIconOff: !<reference.Texture> 00000000-0000-0000-0000-000000000000
       commentIconOn: !<reference.Texture> 00000000-0000-0000-0000-000000000000
       deleteIcon: !<reference.Texture> 00000000-0000-0000-0000-000000000000
+      profilePics: !<reference.Texture[]>
+        []
       iconMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
       buttonPrefab: !<reference.ObjectPrefab> 00000000-0000-0000-0000-000000000000
       hideButtonVisual: true
       buttonWidth: !<float> 3.000000
       buttonSpacing: !<float> 1.000000
       sideOffset: 1.500000
+      verticalOffset: 1.500000
       forwardOffset: 0.600000
       iconSize: 1.800000
       iconForwardOffset: 0.200000
+      labelSize: !<float> 24.000000
+      labelOffset: !<float> 1.000000
+      labelColor: !<Vec4> {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+      likeCountMin: !<float> 3.000000
+      likeCountMax: !<float> 999.000000
       enableLogging: false
       enableLoggingLifecycle: false
   ScriptTypes:
     -
       {}
   InputLines:
-    - "// @ui {\"widget\":\"label\", \"label\":\"<span style=\\\"color: #60A5FA;\\\">CardActionButtonsController – like/comment/delete rail per card</span><br/><span style=\\\"color: #94A3B8; font-size: 11px;\\\">Watches this object's child cards (Scanner captures OR ping PremadeCards) and spawns three RoundButtons off each card's right edge once it is ready. Comment mirrors the agent highlight; delete removes the card.</span>\"}"
+    - "// @ui {\"widget\":\"label\", \"label\":\"<span style=\\\"color: #60A5FA;\\\">CardActionButtonsController – profile/like/comment/delete rail per card</span><br/><span style=\\\"color: #94A3B8; font-size: 11px;\\\">Watches this object's child cards (Scanner captures OR ping PremadeCards) and spawns four RoundButtons hanging down from each card's top-right corner once it is ready. Profile picks a random avatar; comment mirrors the agent highlight; delete removes the card.</span>\"}"
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Icons (hollow = off, solid = on)</span>"}'
     - '// @input Asset.Texture likeIconOff {"hint":"LIKE icon when toggled OFF (hollow version)."}'
@@ -79,6 +94,7 @@
     - '// @input Asset.Texture commentIconOff {"hint":"COMMENT icon when OFF (hollow). Shown solid when the agent highlights this card (caption load, card tap, or this button)."}'
     - '// @input Asset.Texture commentIconOn {"hint":"COMMENT icon when ON (solid version)."}'
     - '// @input Asset.Texture deleteIcon {"hint":"DELETE icon (single — delete is a momentary action, not a toggle)."}'
+    - '// @input Asset.Texture[] profilePics {"hint":"PROFILE-PIC pool (topmost button). One texture is picked at random per card when it spawns. Not a toggle, so no separate on/off icons."}'
     - "// @input Asset.Material iconMaterial {\"hint\":\"Unlit, transparency-capable material the icons are drawn with. Cloned per icon (same material as SceneSwitcherPanel's icons works).\"}"
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Button Prefab</span>"}'
@@ -89,9 +105,19 @@
     - '// @input float buttonWidth = 3 {"hint":"RoundButton width/height (cm)."}'
     - '// @input float buttonSpacing = 1 {"hint":"Vertical gap (cm) between buttons."}'
     - "// @input float sideOffset = 1.5 {\"hint\":\"Gap (cm) between the card's right edge and the buttons.\"}"
+    - "// @input float verticalOffset = 1.5 {\"hint\":\"Gap (cm) between the card's top edge and the topmost (profile) button.\"}"
     - '// @input float forwardOffset = 0.6 {"hint":"Distance (cm) to push the buttons toward the viewer along the card normal, so they clear the backdrop rect. Flip the sign if they land behind."}'
     - "// @input float iconSize = 1.8 {\"hint\":\"Icon height in cm. Width follows the texture's aspect ratio.\"}"
     - '// @input float iconForwardOffset = 0.2 {"hint":"How far in front of the button face (cm) the icon sits, to avoid clipping."}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Hover Labels</span>"}'
+    - '// @input float labelSize = 24 {"hint":"Font size (points) of the hover label shown to the right of a button."}'
+    - "// @input float labelOffset = 1 {\"hint\":\"Gap (cm) between a button's right edge and its hover label.\"}"
+    - '// @input vec4 labelColor = {1,1,1,1} {"hint":"Hover label text color (RGBA)."}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Like Count</span>"}'
+    - '// @input float likeCountMin = 3 {"hint":"Minimum random like count assigned to a card when it spawns."}'
+    - '// @input float likeCountMax = 999 {"hint":"Maximum random like count assigned to a card when it spawns."}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Logging</span>"}'
     - '// @input bool enableLogging {"hint":"Enable general logging"}'

@@ -37,7 +37,7 @@ type CardEntry = {
 
 @component
 export class CardActionButtonsController extends BaseScriptComponent {
-  @ui.label('<span style="color: #60A5FA;">CardActionButtonsController – like/comment/delete rail per card</span><br/><span style="color: #94A3B8; font-size: 11px;">Watches this object\'s child cards (Scanner captures OR ping PremadeCards) and spawns three RoundButtons off each card\'s right edge once it is ready. Comment mirrors the agent highlight; delete removes the card.</span>')
+  @ui.label('<span style="color: #60A5FA;">CardActionButtonsController – profile/like/comment/delete rail per card</span><br/><span style="color: #94A3B8; font-size: 11px;">Watches this object\'s child cards (Scanner captures OR ping PremadeCards) and spawns four RoundButtons hanging down from each card\'s top-right corner once it is ready. Profile picks a random avatar; comment mirrors the agent highlight; delete removes the card.</span>')
   @ui.separator
 
   @ui.label('<span style="color: #60A5FA;">Icons (hollow = off, solid = on)</span>')
@@ -65,6 +65,11 @@ export class CardActionButtonsController extends BaseScriptComponent {
   @hint("DELETE icon (single — delete is a momentary action, not a toggle).")
   @allowUndefined
   deleteIcon: Texture
+
+  @input
+  @hint("PROFILE-PIC pool (topmost button). One texture is picked at random per card when it spawns. Not a toggle, so no separate on/off icons.")
+  @allowUndefined
+  profilePics: Texture[]
 
   @input
   @hint("Unlit, transparency-capable material the icons are drawn with. Cloned per icon (same material as SceneSwitcherPanel's icons works).")
@@ -96,6 +101,10 @@ export class CardActionButtonsController extends BaseScriptComponent {
   sideOffset: number = 1.5
 
   @input
+  @hint("Gap (cm) between the card's top edge and the topmost (profile) button.")
+  verticalOffset: number = 1.5
+
+  @input
   @hint("Distance (cm) to push the buttons toward the viewer along the card normal, so they clear the backdrop rect. Flip the sign if they land behind.")
   forwardOffset: number = 0.6
 
@@ -106,6 +115,30 @@ export class CardActionButtonsController extends BaseScriptComponent {
   @input
   @hint("How far in front of the button face (cm) the icon sits, to avoid clipping.")
   iconForwardOffset: number = 0.2
+
+  @ui.separator
+  @ui.label('<span style="color: #60A5FA;">Hover Labels</span>')
+  @input
+  @hint("Font size (points) of the hover label shown to the right of a button.")
+  labelSize: number = 24
+
+  @input
+  @hint("Gap (cm) between a button's right edge and its hover label.")
+  labelOffset: number = 1.0
+
+  @input
+  @hint("Hover label text color (RGBA).")
+  labelColor: vec4 = new vec4(1, 1, 1, 1)
+
+  @ui.separator
+  @ui.label('<span style="color: #60A5FA;">Like Count</span>')
+  @input
+  @hint("Minimum random like count assigned to a card when it spawns.")
+  likeCountMin: number = 3
+
+  @input
+  @hint("Maximum random like count assigned to a card when it spawns.")
+  likeCountMax: number = 999
 
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Logging</span>')
@@ -171,14 +204,21 @@ export class CardActionButtonsController extends BaseScriptComponent {
       commentIconOff: this.commentIconOff ?? null,
       commentIconOn: this.commentIconOn ?? null,
       deleteIcon: this.deleteIcon ?? null,
+      profileIcons: this.profilePics ?? [],
       iconMaterial: this.iconMaterial ?? null,
       hideButtonVisual: this.hideButtonVisual,
       buttonWidth: this.buttonWidth,
       buttonSpacing: this.buttonSpacing,
       sideOffset: this.sideOffset,
+      verticalOffset: this.verticalOffset,
       forwardOffset: this.forwardOffset,
       iconSize: this.iconSize,
       iconForwardOffset: this.iconForwardOffset,
+      labelSize: this.labelSize,
+      labelOffset: this.labelOffset,
+      labelColor: this.labelColor ?? new vec4(1, 1, 1, 1),
+      likeCountMin: this.likeCountMin,
+      likeCountMax: this.likeCountMax,
       // Comment press engages the agent AND marks this card highlighted; for
       // captured cards the tap path also routes here via addOnEngaged below.
       onCommentPressed: () => {

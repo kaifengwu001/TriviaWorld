@@ -1,15 +1,18 @@
 /**
  * Specs Inc. 2026
- * Card Action Buttons – the like / comment / delete rail for one finished card.
+ * Card Action Buttons – the profile / like / comment / delete rail for one card.
  *
  * Instantiates the authored RoundButton prefab (the same one used under
- * SceneSwitcher) three times, stacked vertically just off the card's right edge
- * and parented to the scanner root so they share the card's lifetime. The button
- * VISUAL is hidden (its render mesh is disabled) so only the icon is seen — the
- * collider/Interactable stays active so taps still register. Toggle state is
- * shown by swapping the icon texture (a hollow "off" texture vs a solid "on"
- * texture), not by changing opacity.
+ * SceneSwitcher) four times, stacked vertically DOWN from the card's top-right
+ * corner (offset by a vertical gap) and parented to the card's frame so they
+ * share its lifetime and stay aligned as it tracks/animates. The button VISUAL is
+ * hidden (its render mesh is disabled) so only the icon is seen — the collider/
+ * Interactable stays active so taps still register. Toggle state is shown by
+ * swapping the icon texture (a hollow "off" texture vs a solid "on" texture),
+ * not by changing opacity.
  *
+ *   - profile : topmost; momentary (non-toggle), single icon picked at RANDOM
+ *               from a texture pool when the card spawns (a stand-in avatar).
  *   - like    : pure visual toggle (demo only) — swaps its own off/on icon.
  *   - comment : shows the "on" (solid) icon whenever the agent highlights this
  *               card (any path: caption load, card tap, or pressing this button).
@@ -39,6 +42,8 @@ export interface CardActionButtonsConfig {
   commentIconOn: Texture | null
   // Delete is momentary, so it shows a single icon.
   deleteIcon: Texture | null
+  // Profile-pic button: a pool of textures; ONE is picked at random per card.
+  profileIcons: Texture[]
   // Unlit transparent material, CLONED per icon so each icon's texture is its own.
   iconMaterial: Material | null
   // Hide the RoundButton's render mesh so only the icon shows (interaction stays).
@@ -47,10 +52,19 @@ export interface CardActionButtonsConfig {
   buttonSpacing: number
   // Gap (cm) between the card's right edge and the buttons' left edge.
   sideOffset: number
+  // Gap (cm) between the card's top edge and the topmost (profile) button.
+  verticalOffset: number
   // Push (cm) toward the viewer along the card normal, to clear the backdrop.
   forwardOffset: number
   iconSize: number
   iconForwardOffset: number
+  // Hover label (shown to the right of a button while it is hovered).
+  labelSize: number
+  labelOffset: number
+  labelColor: vec4
+  // Random like-count range (inclusive), picked once per card at spawn.
+  likeCountMin: number
+  likeCountMax: number
   onCommentPressed: () => void
   onDeletePressed: () => void
   logger: Logger
@@ -65,12 +79,18 @@ type IconHandle = {
 
 export class CardActionButtons {
   private rootObj: SceneObject = null
+  private profileButton: RoundButton = null
+  private profileIcon: IconHandle = null
   private likeButton: RoundButton = null
   private likeIcon: IconHandle = null
   private commentButton: RoundButton = null
   private commentIcon: IconHandle = null
   private deleteButton: RoundButton = null
   private deleteIcon: IconHandle = null
+  // Like-count hover label state: a base count picked at spawn, shown as
+  // base (+1 while liked). Updated only when the like toggle flips.
+  private likeLabel: Text = null
+  private likeBaseCount = 0
 
   constructor(private config: CardActionButtonsConfig) {
     if (!config.buttonPrefab) {
@@ -106,12 +126,12 @@ export class CardActionButtons {
 
   // --- internal --------------------------------------------------------------
 
-  // Creates the rail root under the card and lets the host place it (world
-  // placement for the static captured card; local placement parented to the
-  // billboarding premade card so it tracks the card).
+  // Creates the rail root under the card's chosen parent (the backdrop frame for
+  // captured cards, the card root for premade cards) and lets the host place it.
+  // In both cases the parent is centred on / tracks the card, so the rail follows.
   private build(): void {
     const host = this.config.host
-    const parent = host.getRoot()
+    const parent = host.getRailParent()
     const halfW = this.config.buttonWidth * 0.5
 
     const root = global.scene.createSceneObject("CardActionButtons")
@@ -119,28 +139,48 @@ export class CardActionButtons {
     root.layer = parent.layer
     this.rootObj = root
 
+    // The rail origin is the card's top-right corner. Hang the buttons DOWN from
+    // it, the first one a vertical-offset gap below the top edge.
     host.placeRail(root, this.config.sideOffset + halfW, this.config.forwardOffset)
 
     const step = this.config.buttonWidth + this.config.buttonSpacing
+    const topY = -(this.config.verticalOffset + halfW)
 
-    const like = this.createButton("Like", true, -halfW, this.config.likeIconOff, this.config.likeIconOn)
+    // Profile (topmost): a random avatar from the pool; momentary, no action.
+    // Its hover label is the chosen texture's name.
+    const profileTex = this.pickProfileIcon()
+    const profile = this.createButton("Profile", false, topY, profileTex, null)
+    this.profileButton = profile.button
+    this.profileIcon = profile.icon
+    this.setIconSelected(this.profileIcon, false)
+    this.addHoverLabel(this.profileButton, "Profile", this.textureName(profileTex))
+
+    const like = this.createButton("Like", true, topY - step, this.config.likeIconOff, this.config.likeIconOn)
     this.likeButton = like.button
     this.likeIcon = like.icon
+    this.likeBaseCount = this.randomLikeCount()
+    this.likeLabel = this.addHoverLabel(this.likeButton, "Like", String(this.likeBaseCount))
     if (this.likeButton) {
-      // Pure demo toggle: swap its own off/on icon as it flips.
-      this.likeButton.onValueChange.add((value: number) => this.setIconSelected(this.likeIcon, value === 1))
+      // Pure demo toggle: swap its own off/on icon AND bump the like count by 1
+      // while liked (base while not). The base never changes after spawn.
+      this.likeButton.onValueChange.add((value: number) => {
+        const liked = value === 1
+        this.setIconSelected(this.likeIcon, liked)
+        this.updateLikeLabel(liked)
+      })
     }
     this.setIconSelected(this.likeIcon, false)
 
-    const comment = this.createButton("Comment", true, -halfW - step, this.config.commentIconOff, this.config.commentIconOn)
+    const comment = this.createButton("Comment", true, topY - 2 * step, this.config.commentIconOff, this.config.commentIconOn)
     this.commentButton = comment.button
     this.commentIcon = comment.icon
     if (this.commentButton) {
       this.commentButton.onTriggerUp.add(() => this.config.onCommentPressed())
     }
     this.setIconSelected(this.commentIcon, false)
+    this.addHoverLabel(this.commentButton, "Comment", "Chat with Momo")
 
-    const del = this.createButton("Delete", false, -halfW - 2 * step, this.config.deleteIcon, null)
+    const del = this.createButton("Delete", false, topY - 3 * step, this.config.deleteIcon, null)
     this.deleteButton = del.button
     this.deleteIcon = del.icon
     if (this.deleteButton) {
@@ -148,8 +188,34 @@ export class CardActionButtons {
     }
     // Momentary action: always shows its single (off) icon.
     this.setIconSelected(this.deleteIcon, false)
+    this.addHoverLabel(this.deleteButton, "Delete", "Remove")
 
-    this.config.logger.info("Spawned card action buttons (like/comment/delete)")
+    this.config.logger.info("Spawned card action buttons (profile/like/comment/delete)")
+  }
+
+  // A random integer in [likeCountMin, likeCountMax] (inclusive), clamped sane.
+  private randomLikeCount(): number {
+    const lo = Math.round(Math.min(this.config.likeCountMin, this.config.likeCountMax))
+    const hi = Math.round(Math.max(this.config.likeCountMin, this.config.likeCountMax))
+    const min = Math.max(0, lo)
+    return min + Math.floor(Math.random() * (Math.max(min, hi) - min + 1))
+  }
+
+  // Shows base (+1 while liked). Base is fixed for the card's lifetime.
+  private updateLikeLabel(liked: boolean): void {
+    if (this.likeLabel) this.likeLabel.text = String(this.likeBaseCount + (liked ? 1 : 0))
+  }
+
+  // The chosen profile texture's asset name (the profile button's hover label).
+  private textureName(tex: Texture | null): string {
+    return tex ? ((tex as any).name ?? "") : ""
+  }
+
+  // Picks one profile-pic texture at random from the pool, or null if none set.
+  private pickProfileIcon(): Texture | null {
+    const pool = this.config.profileIcons
+    if (!pool || pool.length === 0) return null
+    return pool[Math.floor(Math.random() * pool.length)] ?? null
   }
 
   /**
@@ -239,6 +305,40 @@ export class CardActionButtons {
     image.mainPass.baseTex = initial
     image.mainPass.baseColor = new vec4(1, 1, 1, 1)
     return { image, offTex, onTex }
+  }
+
+  /**
+   * Creates a Text label just to the RIGHT of a button, hidden until the button
+   * is hovered (the UI Kit fires onHoverEnter/onHoverExit even with the visual
+   * hidden, since the collider/Interactable stay active). Returns the Text so the
+   * caller can update it (the like count), or null if the button is absent.
+   */
+  private addHoverLabel(button: RoundButton, name: string, content: string): Text | null {
+    if (!button) return null
+    const buttonObj = button.getSceneObject()
+    const obj = global.scene.createSceneObject(name + " Label")
+    obj.setParent(buttonObj)
+    obj.layer = buttonObj.layer
+    // Sit off the button's right edge, slightly toward the viewer so it's clear.
+    const x = this.config.buttonWidth * 0.5 + this.config.labelOffset
+    obj.getTransform().setLocalPosition(new vec3(x, 0, this.config.iconForwardOffset))
+
+    const text = obj.createComponent("Component.Text") as Text
+    text.text = content
+    text.size = Math.max(1, Math.round(this.config.labelSize))
+    // Left-anchored so the label grows rightward, away from the card.
+    text.horizontalAlignment = HorizontalAlignment.Left
+    text.verticalAlignment = VerticalAlignment.Center
+    text.textFill.color = this.config.labelColor
+
+    obj.enabled = false // shown only while hovered
+    button.onHoverEnter.add(() => {
+      obj.enabled = true
+    })
+    button.onHoverExit.add(() => {
+      obj.enabled = false
+    })
+    return text
   }
 
   private textureAspect(tex: Texture): number {

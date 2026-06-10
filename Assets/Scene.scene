@@ -1864,7 +1864,7 @@
   Components:
     - !<own> 698f5e89-f8f4-4e32-8008-0ad83d59f853
     - !<own> cdb37c38-7e27-4df9-8c9f-64155418b1e6
-    - !<own> a50b5bbc-692b-4ae7-af50-c0235723fd22
+    - !<own> c767cfe4-513b-4677-a085-8ae5966f41d7
 - !<SceneObject/3fc47e57-f34c-4ed1-afb8-922c693071cf>
   PrefabRemaps:
     []
@@ -2466,7 +2466,7 @@
     labelSize: true
     enableTracking: true
     distanceFromCamera: true
-    rotateSpeed: true
+    followSpeed: true
     enableLogging: true
     enableLoggingLifecycle: true
   ScriptTypesDefault:
@@ -2503,9 +2503,9 @@
       labelSize: !<float> 28.000000
       enableTracking: true
       distanceFromCamera: !<float> 60.000000
-      heightOffset: !<float> -15.000000
-      followSpeed: !<float> 10.000000
-      rotateSpeed: !<float> 6.000000
+      heightOffset: !<float> -17.000000
+      followSpeed: !<float> 6.000000
+      rotateSpeed: !<float> 4.000000
       positionDeadzone: 0.500000
       enableLogging: false
       enableLoggingLifecycle: false
@@ -3033,9 +3033,11 @@
   ScriptAsset: !<reference> f0353738-c812-4585-83d4-4ee935ec3a9d
   ScriptInputsDefault:
     hideButtonVisual: true
-    buttonWidth: true
     forwardOffset: true
     iconForwardOffset: true
+    labelColor: true
+    likeCountMin: true
+    likeCountMax: true
     enableLogging: true
     enableLoggingLifecycle: true
   ScriptTypesDefault:
@@ -3047,15 +3049,30 @@
       commentIconOff: !<reference.Texture> 73eb4980-3655-404f-aaa8-cd4704d2a6e6
       commentIconOn: !<reference.Texture> d92d1591-6e33-443e-9983-e578af569c57
       deleteIcon: !<reference.Texture> 56a32ea0-6959-4240-9072-677ef75146a9
+      profilePics: !<reference.Texture[]>
+        - !<reference> 9d74cedd-34ca-44a2-93a7-4834f25f05da
+        - !<reference> d4f4c284-c54f-44aa-8f28-d8afb7060dac
+        - !<reference> 1a11bd61-9e49-4d9b-8001-f5027b46693a
+        - !<reference> 3dd2a77c-0604-4e2a-956d-452bcd4c4890
+        - !<reference> 69ce31ae-2cbf-4ed5-b170-9445e5e38e7e
+        - !<reference> 7775ce41-39c2-4da6-97fa-bd4c2e34bc59
+        - !<reference> 40464294-1788-4058-8ad7-cb12cc34a7a6
+        - !<reference> a06d2788-d8a0-429b-a2e6-ab78906d7ae8
       iconMaterial: !<reference.Material> fb942e39-cb39-45c9-a514-72ed8ef7bc4c
       buttonPrefab: !<reference.ObjectPrefab> 9040e6d0-dd04-4b27-9c59-9c692a3aa1fb
       hideButtonVisual: true
-      buttonWidth: !<float> 3.000000
-      buttonSpacing: 0.700000
-      sideOffset: 1.200000
+      buttonWidth: 4.500000
+      buttonSpacing: 0.100000
+      sideOffset: 0.200000
+      verticalOffset: -0.300000
       forwardOffset: 0.600000
-      iconSize: 2.300000
+      iconSize: 2.500000
       iconForwardOffset: 0.200000
+      labelSize: !<float> 45.000000
+      labelOffset: 7.400000
+      labelColor: !<Vec4> {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+      likeCountMin: !<float> 3.000000
+      likeCountMax: !<float> 999.000000
       enableLogging: false
       enableLoggingLifecycle: false
   ScriptTypes:
@@ -3979,42 +3996,6 @@
     - !<own> 7e83b54b-f746-4415-991a-d3ed7c7bd09d
   Components:
     []
-- !<ScriptComponent/a50b5bbc-692b-4ae7-af50-c0235723fd22>
-  PrefabRemaps:
-    []
-  Name: CardActionButtonsController
-  Enabled: true
-  ScriptAsset: !<reference> f0353738-c812-4585-83d4-4ee935ec3a9d
-  ScriptInputsDefault:
-    hideButtonVisual: true
-    buttonWidth: true
-    forwardOffset: true
-    iconForwardOffset: true
-    enableLogging: true
-    enableLoggingLifecycle: true
-  ScriptTypesDefault:
-    {}
-  ScriptInputs:
-    "":
-      likeIconOff: !<reference.Texture> f3567578-40fe-4d56-bd99-bddc7e1598d1
-      likeIconOn: !<reference.Texture> 1033d21e-22ea-4c1e-acf0-4f98258c7e0a
-      commentIconOff: !<reference.Texture> 73eb4980-3655-404f-aaa8-cd4704d2a6e6
-      commentIconOn: !<reference.Texture> d92d1591-6e33-443e-9983-e578af569c57
-      deleteIcon: !<reference.Texture> 56a32ea0-6959-4240-9072-677ef75146a9
-      iconMaterial: !<reference.Material> fb942e39-cb39-45c9-a514-72ed8ef7bc4c
-      buttonPrefab: !<reference.ObjectPrefab> 9040e6d0-dd04-4b27-9c59-9c692a3aa1fb
-      hideButtonVisual: true
-      buttonWidth: !<float> 3.000000
-      buttonSpacing: 0.700000
-      sideOffset: 1.200000
-      forwardOffset: 0.600000
-      iconSize: 2.300000
-      iconForwardOffset: 0.200000
-      enableLogging: false
-      enableLoggingLifecycle: false
-  ScriptTypes:
-    "":
-      {}
 - !<SceneObject/a52b385a-0271-4d86-a736-2bafe9c65263>
   PrefabRemaps:
     []
@@ -4805,6 +4786,50 @@
     CapitalizationOverride: None
   DepthTest: false
   TwoSided: false
+- !<ScriptComponent/c767cfe4-513b-4677-a085-8ae5966f41d7>
+  PrefabRemaps:
+    []
+  Name: CardActionButtonsController
+  Enabled: true
+  ScriptAsset: !<reference> f0353738-c812-4585-83d4-4ee935ec3a9d
+  ScriptInputsDefault:
+    hideButtonVisual: true
+    forwardOffset: true
+    iconForwardOffset: true
+    labelColor: true
+    enableLogging: true
+    enableLoggingLifecycle: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      likeIconOff: !<reference.Texture> f3567578-40fe-4d56-bd99-bddc7e1598d1
+      likeIconOn: !<reference.Texture> 1033d21e-22ea-4c1e-acf0-4f98258c7e0a
+      commentIconOff: !<reference.Texture> 73eb4980-3655-404f-aaa8-cd4704d2a6e6
+      commentIconOn: !<reference.Texture> d92d1591-6e33-443e-9983-e578af569c57
+      deleteIcon: !<reference.Texture> 56a32ea0-6959-4240-9072-677ef75146a9
+      profilePics: !<reference.Texture[]>
+        - !<reference> 1a11bd61-9e49-4d9b-8001-f5027b46693a
+      iconMaterial: !<reference.Material> fb942e39-cb39-45c9-a514-72ed8ef7bc4c
+      buttonPrefab: !<reference.ObjectPrefab> 9040e6d0-dd04-4b27-9c59-9c692a3aa1fb
+      hideButtonVisual: true
+      buttonWidth: !<float> 4.000000
+      buttonSpacing: 0.100000
+      sideOffset: 1.200000
+      verticalOffset: -1.500000
+      forwardOffset: 0.600000
+      iconSize: 2.300000
+      iconForwardOffset: 0.200000
+      labelSize: !<float> 45.000000
+      labelOffset: 7.400000
+      labelColor: !<Vec4> {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+      likeCountMin: !<float> 0.000000
+      likeCountMax: !<float> 0.000000
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    "":
+      {}
 - !<RenderMeshVisual/c7eb7de5-8058-479a-8813-bc835a108f4a>
   PrefabRemaps:
     []
