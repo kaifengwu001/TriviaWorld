@@ -4,22 +4,76 @@
     - !<own> 28e1fa35-f607-4659-b34c-fd08670066c4
   LazyLoading: false
   RetainAssets: true
+- !<SceneObject/2173fd5d-bc0c-4131-a6a0-c854aff08015>
+  PrefabRemaps:
+    []
+  Name: QueryVoiceAgent
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> 21cdd33a-4729-4381-b87c-c8e658cc942b
+- !<ScriptComponent/21cdd33a-4729-4381-b87c-c8e658cc942b>
+  PrefabRemaps:
+    []
+  Name: CardQueryVoiceAgent
+  Enabled: true
+  ScriptAsset: !<reference> 5238106c-5e3e-4b44-9b5e-27195870dc2b
+  ScriptInputsDefault:
+    autoStart: true
+    model: true
+    enableLogging: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      websocketRequirementsObj: !<reference.SceneObject> 9e699c2a-7957-4e80-81c2-293713313823
+      dynamicAudioOutput: !<MappingBased.AssignableType> a30a1f42-a974-46ea-beab-0fd3b13c92b7
+      microphoneRecorder: !<MappingBased.AssignableType_1> 47821bbb-431d-42a7-8434-7350a520e8bf
+      cardDeck: !<MappingBased.AssignableType_2> c99be548-d91a-4909-b4fb-8e0e02d53858
+      globeController: !<MappingBased.AssignableType_3> 05388fb0-0dde-44c7-a8c9-1f6a6bb35ced
+      autoStart: true
+      voice: Leda
+      persona: |-
+        You help the user find AR trivia cards floating in a deck above a globe. When they describe what they want, call query_cards with the location, topic, date range, and/or keyword you extract, and say a short warm line like 'Gotcha — finding those now!'. If query_cards returns zero cards, ask ONE short clarifying question; if the next try still finds nothing, If the user asks for a location, and the location is not one that is Tokyo, Seattle, or Los Angeles, or a place nearby, tell the user something in effect of :there are no cards in the place they asked for. Note: Long Beach, or AWE (conference) are all equal to Los Angeles.
+        DROP your least-certain keyword and query again, briefly narrating each step so the user follows along. When it returns cards, summarize how many and where (e.g. 'I found 3 cards captured in Tokyo!'). If some matches can't be shown (unshown > 0), mention that. After results, the user may ask about the card they're looking at — I will tell you which card thatis; do NOT bring it up or speak about it until they actually ask. Keep replies to one to three warm sentences. To start over or undo, call clear_query.
+      model: gemini-live-2.5-flash
+      enableLogging: true
+  ScriptTypes:
+    "":
+      {}
 - !<SceneObject/28e1fa35-f607-4659-b34c-fd08670066c4>
   PrefabRemaps:
+    - 2173fd5d-bc0c-4131-a6a0-c854aff08015: 89bdbd2f-2c5e-4661-9ac5-3caedcec8c3e
+    - 21cdd33a-4729-4381-b87c-c8e658cc942b: 0147ca01-978e-46d6-b0ae-ac86b504f3d4
     - 28e1fa35-f607-4659-b34c-fd08670066c4: 28e1fa35-f607-4659-4cb3-02f798ff993b
+    - 389c129b-79f1-4934-bf51-961c4febfb34: 72eba348-5917-4bd5-a90b-53a8bcbacfb5
     - 435a158d-ddca-4b73-aa4c-3e880b880e4a: 435a158d-ddca-4b73-55b3-c177f477f1b5
     - 46f1733b-addc-4546-b01a-9cc598744bb6: 46f1733b-addc-4546-4fe5-633a678bb449
+    - 47821bbb-431d-42a7-8434-7350a520e8bf: 0089a315-f601-4a5a-8301-d20eb8866d54
     - 4a093e9a-493e-45a8-bc17-b86eda7c89ad: 4a093e9a-493e-45a8-43e8-479125837652
     - 4bacfcbc-822f-4c9f-a594-bbf2389e97be: 4bacfcbc-822f-4c9f-5a6b-440dc7616841
     - 533d9034-38cf-4ec5-93cb-a9a3bbd2a19d: 533d9034-38cf-4ec5-6c34-565c442d5e62
     - 66c91b6d-6de1-4ce0-be31-eeff6b9562d7: 66c91b6d-6de1-4ce0-41ce-1100946a9d28
+    - 72cd585a-0296-4155-b327-c39f90259783: ed9eb98a-e91c-4e66-b579-3862e8e655b5
     - 77d2c357-de28-4edf-87df-01ae6a067860: 77d2c357-de28-4edf-7820-fe5195f9879f
     - 7a736f99-b065-473c-aced-f7cac109964a: 7a736f99-b065-473c-5312-08353ef669b5
     - 9e699c2a-7957-4e80-81c2-293713313823: 9e699c2a-7957-4e80-7e3d-d6c8eccec7dc
+    - a30a1f42-a974-46ea-beab-0fd3b13c92b7: b85087c5-8b5b-468a-b37f-a072168237c5
+    - b304ed23-3d4f-40cd-94a6-4cae505e8e65: d6e56cf7-8039-4c14-91d1-455fe0230238
+    - ba6b588c-b6dc-4443-ac56-5fd5058aa338: ebcf5c8e-dd2a-444e-a061-7b383eed8b7e
     - cc2f7ac7-ccf4-464c-9b9c-671b2e95699a: cc2f7ac7-ccf4-464c-6463-98e4d16a9665
     - d5e3c257-62ae-40b0-898b-af999333eaef: d5e3c257-62ae-40b0-7674-50666ccc1510
     - dd07fc93-81ae-439d-b724-1ff3de95b5ac: dd07fc93-81ae-439d-48db-e00c216a4a53
+    - f32ac733-da58-4ef7-bde2-42ef39bcae1e: e86aff95-bf9c-49ff-af38-265cf78642a2
     - f58dd695-41dc-42ca-9875-7a8645cf5bce: f58dd695-41dc-42ca-678a-8579ba30a431
+    - faa1ff95-f705-4504-bd86-2bcb7c7a89c9: 4c85f423-1d18-42d6-8466-4630f7622904
   Name: VoiceAgent
   Enabled: true
   Layers: 1
@@ -33,8 +87,26 @@
     - !<own> 7a736f99-b065-473c-aced-f7cac109964a
     - !<own> 533d9034-38cf-4ec5-93cb-a9a3bbd2a19d
     - !<own> dd07fc93-81ae-439d-b724-1ff3de95b5ac
+    - !<own> 2173fd5d-bc0c-4131-a6a0-c854aff08015
   Components:
     []
+- !<AudioComponent/389c129b-79f1-4934-bf51-961c4febfb34>
+  PrefabRemaps:
+    []
+  Name: Audio
+  Enabled: true
+  AudioTrack: !<reference> 00000000-0000-0000-0000-000000000000
+  EnableAutoplayLoop: false
+  Volume: 1.000000
+  EnableMixToSnap: false
+  RecordVolume: 1.000000
+  EnableSpatialAudio: false
+  EnableDistanceEffect: false
+  CurveType: Logarithm
+  MinDistance: 0.000000
+  MaxDistance: 100.000000
+  EnableDirectivityEffect: false
+  EnablePositionEffect: false
 - !<ScriptComponent/435a158d-ddca-4b73-aa4c-3e880b880e4a>
   PrefabRemaps:
     []
@@ -69,6 +141,25 @@
     []
   Components:
     - !<own> 435a158d-ddca-4b73-aa4c-3e880b880e4a
+- !<ScriptComponent/47821bbb-431d-42a7-8434-7350a520e8bf>
+  PrefabRemaps:
+    []
+  Name: MicrophoneRecorder
+  Enabled: true
+  ScriptAsset: !<reference> 600eb5ab-2e7a-4418-b57b-8dea968a0ed6
+  ScriptInputsDefault:
+    enableLogging: true
+    enableLoggingLifecycle: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      micAudioTrack: !<reference.AudioTrackAsset> 368f97e9-75c3-4051-bc58-ec0f162b4f59
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    "":
+      {}
 - !<ScriptComponent/4a093e9a-493e-45a8-bc17-b86eda7c89ad>
   PrefabRemaps:
     []
@@ -148,6 +239,22 @@
   MaxDistance: 100.000000
   EnableDirectivityEffect: false
   EnablePositionEffect: false
+- !<SceneObject/72cd585a-0296-4155-b327-c39f90259783>
+  PrefabRemaps:
+    []
+  Name: QueryVoiceDynamicAudioOutput
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> a30a1f42-a974-46ea-beab-0fd3b13c92b7
+    - !<own> faa1ff95-f705-4504-bd86-2bcb7c7a89c9
 - !<ScriptComponent/77d2c357-de28-4edf-87df-01ae6a067860>
   PrefabRemaps:
     []
@@ -163,7 +270,7 @@
   ScriptInputs:
     "":
       websocketRequirementsObj: !<reference.SceneObject> 9e699c2a-7957-4e80-81c2-293713313823
-      dynamicAudioOutput: !<MappingBased.AssignableType> 4bacfcbc-822f-4c9f-a594-bbf2389e97be
+      dynamicAudioOutput: !<MappingBased.AssignableType> ba6b588c-b6dc-4443-ac56-5fd5058aa338
       microphoneRecorder: !<MappingBased.AssignableType_1> 435a158d-ddca-4b73-aa4c-3e880b880e4a
       voice: Leda
       persona: |
@@ -204,8 +311,65 @@
   Children:
     - !<own> 46f1733b-addc-4546-b01a-9cc598744bb6
     - !<own> d5e3c257-62ae-40b0-898b-af999333eaef
+    - !<own> b304ed23-3d4f-40cd-94a6-4cae505e8e65
+    - !<own> 72cd585a-0296-4155-b327-c39f90259783
+    - !<own> f32ac733-da58-4ef7-bde2-42ef39bcae1e
   Components:
     []
+- !<ScriptComponent/a30a1f42-a974-46ea-beab-0fd3b13c92b7>
+  PrefabRemaps:
+    []
+  Name: DynamicAudioOutput
+  Enabled: true
+  ScriptAsset: !<reference> a2da8d76-427e-415d-943a-cd5a33591b33
+  ScriptInputsDefault:
+    enableLogging: true
+    enableLoggingLifecycle: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      audioOutputTrack: !<reference.AudioTrackAsset> a811b3a1-c2fe-45ba-8940-b319aef5ac49
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    "":
+      {}
+- !<SceneObject/b304ed23-3d4f-40cd-94a6-4cae505e8e65>
+  PrefabRemaps:
+    []
+  Name: CardVoiceDynamicAudioOutput
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> ba6b588c-b6dc-4443-ac56-5fd5058aa338
+    - !<own> 389c129b-79f1-4934-bf51-961c4febfb34
+- !<ScriptComponent/ba6b588c-b6dc-4443-ac56-5fd5058aa338>
+  PrefabRemaps:
+    []
+  Name: DynamicAudioOutput
+  Enabled: true
+  ScriptAsset: !<reference> a2da8d76-427e-415d-943a-cd5a33591b33
+  ScriptInputsDefault:
+    enableLogging: true
+    enableLoggingLifecycle: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      audioOutputTrack: !<reference.AudioTrackAsset> a811b3a1-c2fe-45ba-8940-b319aef5ac49
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    "":
+      {}
 - !<PostEffectVisual/cc2f7ac7-ccf4-464c-9b9c-671b2e95699a>
   PrefabRemaps:
     []
@@ -251,6 +415,21 @@
     []
   Components:
     - !<own> f58dd695-41dc-42ca-9875-7a8645cf5bce
+- !<SceneObject/f32ac733-da58-4ef7-bde2-42ef39bcae1e>
+  PrefabRemaps:
+    []
+  Name: QueryMicrophoneRecorder
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> 47821bbb-431d-42a7-8434-7350a520e8bf
 - !<ScriptComponent/f58dd695-41dc-42ca-9875-7a8645cf5bce>
   PrefabRemaps:
     []
@@ -280,3 +459,20 @@
   ScriptTypes:
     "":
       {}
+- !<AudioComponent/faa1ff95-f705-4504-bd86-2bcb7c7a89c9>
+  PrefabRemaps:
+    []
+  Name: Audio
+  Enabled: true
+  AudioTrack: !<reference> 00000000-0000-0000-0000-000000000000
+  EnableAutoplayLoop: false
+  Volume: 1.000000
+  EnableMixToSnap: false
+  RecordVolume: 1.000000
+  EnableSpatialAudio: false
+  EnableDistanceEffect: false
+  CurveType: Logarithm
+  MinDistance: 0.000000
+  MaxDistance: 100.000000
+  EnableDirectivityEffect: false
+  EnablePositionEffect: false

@@ -1863,6 +1863,7 @@
   Components:
     - !<own> 698f5e89-f8f4-4e32-8008-0ad83d59f853
     - !<own> cdb37c38-7e27-4df9-8c9f-64155418b1e6
+    - !<own> a50b5bbc-692b-4ae7-af50-c0235723fd22
 - !<SceneObject/3fc47e57-f34c-4ed1-afb8-922c693071cf>
   PrefabRemaps:
     []
@@ -3874,6 +3875,42 @@
     - !<own> 7e83b54b-f746-4415-991a-d3ed7c7bd09d
   Components:
     []
+- !<ScriptComponent/a50b5bbc-692b-4ae7-af50-c0235723fd22>
+  PrefabRemaps:
+    []
+  Name: CardActionButtonsController
+  Enabled: true
+  ScriptAsset: !<reference> f0353738-c812-4585-83d4-4ee935ec3a9d
+  ScriptInputsDefault:
+    hideButtonVisual: true
+    buttonWidth: true
+    forwardOffset: true
+    iconForwardOffset: true
+    enableLogging: true
+    enableLoggingLifecycle: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      likeIconOff: !<reference.Texture> f3567578-40fe-4d56-bd99-bddc7e1598d1
+      likeIconOn: !<reference.Texture> 1033d21e-22ea-4c1e-acf0-4f98258c7e0a
+      commentIconOff: !<reference.Texture> 73eb4980-3655-404f-aaa8-cd4704d2a6e6
+      commentIconOn: !<reference.Texture> d92d1591-6e33-443e-9983-e578af569c57
+      deleteIcon: !<reference.Texture> 56a32ea0-6959-4240-9072-677ef75146a9
+      iconMaterial: !<reference.Material> fb942e39-cb39-45c9-a514-72ed8ef7bc4c
+      buttonPrefab: !<reference.ObjectPrefab> 9040e6d0-dd04-4b27-9c59-9c692a3aa1fb
+      hideButtonVisual: true
+      buttonWidth: !<float> 3.000000
+      buttonSpacing: 0.700000
+      sideOffset: 1.200000
+      forwardOffset: 0.600000
+      iconSize: 2.300000
+      iconForwardOffset: 0.200000
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    "":
+      {}
 - !<SceneObject/a52b385a-0271-4d86-a736-2bafe9c65263>
   PrefabRemaps:
     []
@@ -5251,8 +5288,8 @@
       autoStart: true
       voice: Leda
       persona: |-
-        You help the user find AR trivia cards floating in a deck above a globe. When they describe what they want, call query_cards with the location, topic, date range, and/or keyword you extract, and say a short warm line like 'Gotcha — finding those now!'. If query_cards returns zero cards, ask ONE short clarifying question; if the next try still finds nothing,
-          DROP your least-certain keyword and query again, briefly narrating each step so the user follows along. When it returns cards, summarize how many and where (e.g. 'I found 3 cards captured in Tokyo!'). If some matches can't be shown (unshown > 0), mention that. After results, the user may ask about the card they're looking at — I will tell you which card thatis; do NOT bring it up or speak about it until they actually ask. Keep replies to one to three warm sentences. To start over or undo, call clear_query.
+        You help the user find AR trivia cards floating in a deck above a globe. When they describe what they want, call query_cards with the location, topic, date range, and/or keyword you extract, and say a short warm line like 'Gotcha — finding those now!'. If query_cards returns zero cards, ask ONE short clarifying question; if the next try still finds nothing, If the user asks for a location, and the location is not one that is Tokyo, Seattle, or Los Angeles, or a place nearby, tell the user something in effect of :there are no cards in the place they asked for. Note: Long Beach, or AWE (conference) are all equal to Los Angeles.
+        DROP your least-certain keyword and query again, briefly narrating each step so the user follows along. When it returns cards, summarize how many and where (e.g. 'I found 3 cards captured in Tokyo!'). If some matches can't be shown (unshown > 0), mention that. After results, the user may ask about the card they're looking at — I will tell you which card thatis; do NOT bring it up or speak about it until they actually ask. Keep replies to one to three warm sentences. To start over or undo, call clear_query.
       model: gemini-live-2.5-flash
       enableLogging: true
   ScriptTypes:
@@ -5288,18 +5325,28 @@
       {}
 - !<SceneObject/df855af7-a6b5-4363-866f-c0bb6422fc98>
   PrefabRemaps:
+    - 038af4d5-dc3b-4b24-8420-37c70448bcea: 72eba348-5917-4bd5-a90b-53a8bcbacfb5
     - 0fc53fdb-e0c9-4876-9997-27447c597c4f: 9e699c2a-7957-4e80-7e3d-d6c8eccec7dc
     - 20e7349d-8dd9-4741-b3f6-93b3ce13c8cd: dd07fc93-81ae-439d-48db-e00c216a4a53
+    - 216bcce4-99eb-4cdd-9a87-eff42292d03b: 4c85f423-1d18-42d6-8466-4630f7622904
+    - 2233c94e-ea2f-4926-977e-b0100c676fac: 0089a315-f601-4a5a-8301-d20eb8866d54
+    - 34449955-604d-4bdc-ae62-7c9addcd2171: ed9eb98a-e91c-4e66-b579-3862e8e655b5
+    - 3a4edacd-6231-4d02-93bd-c65abfbb48e6: e86aff95-bf9c-49ff-af38-265cf78642a2
     - 3e426613-e3cf-4baf-9705-ed329411a494: 435a158d-ddca-4b73-55b3-c177f477f1b5
     - 56d4b1d9-f137-4f41-8c54-c2efaf037961: 4bacfcbc-822f-4c9f-5a6b-440dc7616841
     - 6c3a3259-f262-4fce-bf96-730ac5776c0b: d5e3c257-62ae-40b0-7674-50666ccc1510
     - 71b6d385-1738-41f3-a309-d34faabb74c9: 66c91b6d-6de1-4ce0-41ce-1100946a9d28
     - 800a463c-050f-4573-a947-255c97c1c13f: 46f1733b-addc-4546-4fe5-633a678bb449
     - 980e639c-f730-4c5d-ba0d-971b13163457: 77d2c357-de28-4edf-7820-fe5195f9879f
+    - b16b7dc3-834c-4c9e-b650-04767518f774: 89bdbd2f-2c5e-4661-9ac5-3caedcec8c3e
+    - c08e4315-dc45-4651-a92c-0f9163dee80d: d6e56cf7-8039-4c14-91d1-455fe0230238
+    - ddc4f975-fa22-4409-8001-7cfa360e683b: 0147ca01-978e-46d6-b0ae-ac86b504f3d4
     - de193d8a-4469-437c-9731-b1ebbba3002a: 4a093e9a-493e-45a8-43e8-479125837652
     - df855af7-a6b5-4363-866f-c0bb6422fc98: 28e1fa35-f607-4659-4cb3-02f798ff993b
     - e2eb7415-a59b-43a4-ac16-1dc57e5ebb3b: cc2f7ac7-ccf4-464c-6463-98e4d16a9665
     - e7ae79e5-4ae2-4f94-8b7b-97ca811b6863: f58dd695-41dc-42ca-678a-8579ba30a431
+    - eba86db5-9832-40a5-9ec1-dc54aa70902c: ebcf5c8e-dd2a-444e-a061-7b383eed8b7e
+    - f53fb092-b740-4038-84d4-0c8f01e84a1e: b85087c5-8b5b-468a-b37f-a072168237c5
     - f5ab05ba-81c9-4165-998d-9e5302ec6424: 533d9034-38cf-4ec5-6c34-565c442d5e62
     - f5d1055c-1532-4a7f-b1cc-c4a5683b42a0: 7a736f99-b065-473c-5312-08353ef669b5
   Name: VoiceAgent

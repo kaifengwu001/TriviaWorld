@@ -100,6 +100,11 @@ export class PictureBehavior extends BaseScriptComponent {
   // to know when to stop the rainbow border and settle on the topic color.
   private resolvedTopics: string[] = null
 
+  // Fired every time THIS card engages the voice agent — via the initial caption
+  // load, a direct card tap, or the comment button. Lets card UI (the comment
+  // button's toggle) mirror "the agent is highlighting this card" from any path.
+  private engagedCallbacks: (() => void)[] = []
+
   onAwake() {
     this.logger = new Logger("PictureBehavior", this.enableLogging || this.enableLoggingLifecycle, true);
     if (this.enableLoggingLifecycle) this.logger.debug("LIFECYCLE: onAwake()");
@@ -211,6 +216,28 @@ export class PictureBehavior extends BaseScriptComponent {
     return this.resolvedTopics ? this.resolvedTopics.slice() : null
   }
 
+  /** This card's id in the CardStore, or null until storeCard has run. */
+  getStoredCardId(): string | null {
+    return this.storedCardId
+  }
+
+  /**
+   * Registers a callback fired whenever this card engages the voice agent
+   * (caption load, card tap, or the comment button). Used by the card's action
+   * buttons to toggle the comment button on no matter which path engaged it.
+   */
+  addOnEngaged(cb: () => void): void {
+    this.engagedCallbacks.push(cb)
+  }
+
+  /**
+   * Public entry point for card UI (the comment button): engages the voice
+   * agent on this card exactly like tapping the card does.
+   */
+  engage(): void {
+    this.engageAgent()
+  }
+
   /** Extracts every "#Tag" from text, returning the tags without the '#'. */
   private parseHashtags(text: string): string[] {
     const out: string[] = []
@@ -273,6 +300,16 @@ export class PictureBehavior extends BaseScriptComponent {
     if (sphere && typeof sphere.perchOnCard === "function") {
       sphere.perchOnCard(this)
     }
+
+    // Tell listeners (the card's action buttons) that this card is now the one
+    // the agent is highlighting, regardless of which path triggered it.
+    this.engagedCallbacks.forEach((cb) => {
+      try {
+        cb()
+      } catch (e) {
+        this.logger.warn("onEngaged callback failed: " + e)
+      }
+    })
   }
 
   /**

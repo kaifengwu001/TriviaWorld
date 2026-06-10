@@ -1,6 +1,3 @@
-# Generated map tile cache (artifacts from tools/generate_map_textures.py)
-tools/.tile_cache/
-
 # Shipped by Lens Studio
 
 # The lines below are automatically generated and updated by Lens Studio.
@@ -19,3 +16,6 @@ Workspaces/**
 *.lock
 
 # Shipped by Lens Studio
+# Generated map tile cache (artifacts from tools/generate_map_textures.py)
+tools/.tile_cache/
+

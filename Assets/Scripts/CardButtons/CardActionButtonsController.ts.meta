@@ -1,0 +1,98 @@
+- !<AssetImportMetadata/c03ba60d-9769-4185-9792-8d1a2669acbe>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> f0353738-c812-4585-83d4-4ee935ec3a9d
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> f0353738-c812-4585-83d4-4ee935ec3a9d
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> 651f7877-0398-430f-bd01-247fc6507e9a
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/651f7877-0398-430f-bd01-247fc6507e9a>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 28440658-a9a0-4dce-a31f-1fac6164c297
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    buttonPrefab: false
+    buttonSpacing: false
+    buttonWidth: false
+    commentIconOff: false
+    commentIconOn: false
+    deleteIcon: false
+    enableLogging: false
+    enableLoggingLifecycle: false
+    forwardOffset: false
+    hideButtonVisual: false
+    iconForwardOffset: false
+    iconMaterial: false
+    iconSize: false
+    likeIconOff: false
+    likeIconOn: false
+    sideOffset: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - likeIconOff: !<reference.Texture> 00000000-0000-0000-0000-000000000000
+      likeIconOn: !<reference.Texture> 00000000-0000-0000-0000-000000000000
+      commentIconOff: !<reference.Texture> 00000000-0000-0000-0000-000000000000
+      commentIconOn: !<reference.Texture> 00000000-0000-0000-0000-000000000000
+      deleteIcon: !<reference.Texture> 00000000-0000-0000-0000-000000000000
+      iconMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
+      buttonPrefab: !<reference.ObjectPrefab> 00000000-0000-0000-0000-000000000000
+      hideButtonVisual: true
+      buttonWidth: !<float> 3.000000
+      buttonSpacing: !<float> 1.000000
+      sideOffset: 1.500000
+      forwardOffset: 0.600000
+      iconSize: 1.800000
+      iconForwardOffset: 0.200000
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - "// @ui {\"widget\":\"label\", \"label\":\"<span style=\\\"color: #60A5FA;\\\">CardActionButtonsController – like/comment/delete rail per card</span><br/><span style=\\\"color: #94A3B8; font-size: 11px;\\\">Watches for Scanner prefab children and, once each card's caption loads, spawns three RoundButtons off its right edge. Comment mirrors the agent highlight; delete removes the card from the CardStore.</span>\"}"
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Icons (hollow = off, solid = on)</span>"}'
+    - '// @input Asset.Texture likeIconOff {"hint":"LIKE icon when toggled OFF (hollow version)."}'
+    - '// @input Asset.Texture likeIconOn {"hint":"LIKE icon when toggled ON (solid version)."}'
+    - '// @input Asset.Texture commentIconOff {"hint":"COMMENT icon when OFF (hollow). Shown solid when the agent highlights this card (caption load, card tap, or this button)."}'
+    - '// @input Asset.Texture commentIconOn {"hint":"COMMENT icon when ON (solid version)."}'
+    - '// @input Asset.Texture deleteIcon {"hint":"DELETE icon (single — delete is a momentary action, not a toggle)."}'
+    - "// @input Asset.Material iconMaterial {\"hint\":\"Unlit, transparency-capable material the icons are drawn with. Cloned per icon (same material as SceneSwitcherPanel's icons works).\"}"
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Button Prefab</span>"}'
+    - "// @input Asset.ObjectPrefab buttonPrefab {\"hint\":\"The authored RoundButton prefab (the same one used under SceneSwitcher). Instantiated three times per card. Drag the scene RoundButton into Assets to make a prefab if you don't have one yet.\"}"
+    - "// @input bool hideButtonVisual = true {\"hint\":\"Hide the RoundButton's rendered shape so only the icon is visible. The collider stays active, so taps still work. Turn off to debug button placement.\"}"
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Layout</span>"}'
+    - '// @input float buttonWidth = 3 {"hint":"RoundButton width/height (cm)."}'
+    - '// @input float buttonSpacing = 1 {"hint":"Vertical gap (cm) between buttons."}'
+    - "// @input float sideOffset = 1.5 {\"hint\":\"Gap (cm) between the card's right edge and the buttons.\"}"
+    - '// @input float forwardOffset = 0.6 {"hint":"Distance (cm) to push the buttons toward the viewer along the card normal, so they clear the backdrop rect. Flip the sign if they land behind."}'
+    - "// @input float iconSize = 1.8 {\"hint\":\"Icon height in cm. Width follows the texture's aspect ratio.\"}"
+    - '// @input float iconForwardOffset = 0.2 {"hint":"How far in front of the button face (cm) the icon sits, to avoid clipping."}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Logging</span>"}'
+    - '// @input bool enableLogging {"hint":"Enable general logging"}'
+    - '// @input bool enableLoggingLifecycle {"hint":"Enable lifecycle logging (onAwake, onStart, onUpdate, onDestroy)"}'
