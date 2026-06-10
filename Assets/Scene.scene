@@ -2521,7 +2521,7 @@
   LocalTransform: !<TransformEntity>
     Position: {x: 0.000000, y: 0.000000, z: 0.000000}
     Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
-    Scale: {x: 10000.000000, y: 10000.000000, z: 10000.000000}
+    Scale: {x: 30000.000000, y: 30000.000000, z: 30000.000000}
     HasSegmentScaleCompensation: false
   Children:
     []
@@ -3950,12 +3950,7 @@
   Enabled: true
   ScriptAsset: !<reference> 59d15e09-55c9-4f47-911c-ae290cca5b4e
   ScriptInputsDefault:
-    pingSpeed: true
-    maxRadius: true
-    bandThickness: true
-    burstCount: true
     burstIntervalSec: true
-    pingColor: true
     debugStaticRing: true
     enableLogging: true
     enableLoggingLifecycle: true
@@ -3968,12 +3963,15 @@
         - !<reference> f57efa55-ee0a-46d2-9cca-f46a9ef0deef
         - !<reference> 925aabf8-4148-4021-a636-53857bf010cb
       headObject: !<reference.SceneObject> 00000000-0000-0065-0000-000000000064
-      pingSpeed: !<float> 250.000000
-      maxRadius: !<float> 450.000000
-      bandThickness: !<float> 25.000000
-      burstCount: !<float> 3.000000
+      pingSpeed: !<float> 350.000000
+      maxRadius: !<float> 9900.000000
+      bandThickness: !<float> 5.000000
+      trailLength: !<float> 75.000000
+      trailFalloff: !<float> 1.000000
+      burstCount: !<float> 7.000000
       burstIntervalSec: 0.150000
-      pingColor: !<Vec4> {x: 0.300000, y: 0.800000, z: 1.000000, w: 1.000000}
+      burstBrightnessFalloff: 0.800000
+      pingColor: !<Vec4> {x: 0.300000, y: 0.800000, z: 1.000000, w: 0.800000}
       debugStaticRing: false
       debugRadius: !<float> 300.000000
       enableLogging: false
@@ -5630,7 +5628,6 @@
   ScriptAsset: !<reference> bce6a0db-a3d6-428f-926a-ccf9a6531843
   ScriptInputsDefault:
     defaultFloorOffset: true
-    keepGroundWithMesh: true
     assumeMeshOnDevice: true
     checkIntervalSec: true
     debugMode: true
@@ -5644,7 +5641,7 @@
       groundPlane: !<reference.SceneObject> 5a002bfe-7ee4-4985-879c-df240824f398
       headObject: !<reference.SceneObject> 00000000-0000-0065-0000-000000000064
       defaultFloorOffset: !<float> -120.000000
-      keepGroundWithMesh: false
+      keepGroundWithMesh: true
       assumeMeshOnDevice: true
       checkIntervalSec: !<float> 1.000000
       debugText: !<reference.Text> 1ff9d132-0e28-48fa-96e0-2b64936a8b9b

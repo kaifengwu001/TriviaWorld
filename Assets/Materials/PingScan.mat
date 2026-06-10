@@ -55,6 +55,9 @@
     - Port_WorldTangent_N004:
         typeIdx: 4
         value: {x: 0.000000, y: 0.000000, z: 1.000000}
+    - Port_bandThickness;_N000:
+        typeIdx: 1
+        value: 0.000000
     - Port_bandThickness_N000:
         typeIdx: 1
         value: 0.000000
@@ -118,6 +121,18 @@
     - Port_pingRadius5_N000:
         typeIdx: 1
         value: 0.000000
+    - Port_trailFalloff;_N000:
+        typeIdx: 1
+        value: 0.000000
+    - Port_trailFalloff_N000:
+        typeIdx: 1
+        value: 0.000000
+    - Port_trailLength;_N000:
+        typeIdx: 1
+        value: 0.000000
+    - Port_trailLength_N000:
+        typeIdx: 1
+        value: 0.000000
     - Port_worldPos_N000:
         typeIdx: 4
         value: {x: 0.000000, y: 0.000000, z: 0.000000}
@@ -128,6 +143,36 @@
         typeIdx: 5
         value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
     - Tweak_N3pingColor:
+        typeIdx: 5
+        value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    - "Tweak_N9pingBrightness[0]":
+        typeIdx: 5
+        value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    - "Tweak_N9pingBrightness[1]":
+        typeIdx: 5
+        value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    - "Tweak_N9pingBrightness[2]":
+        typeIdx: 5
+        value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    - "Tweak_N9pingBrightness[3]":
+        typeIdx: 5
+        value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    - "Tweak_N9pingBrightness[4]":
+        typeIdx: 5
+        value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    - "Tweak_N9pingBrightness[5]":
+        typeIdx: 5
+        value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    - mainColor:
+        typeIdx: 5
+        value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    - "pingBrightness[12]":
+        typeIdx: 5
+        value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    - "pingData[12]":
+        typeIdx: 5
+        value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    - "pingData[13]":
         typeIdx: 5
         value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
     - pingRadius0:
@@ -171,10 +216,52 @@
     maxRadius:
       typeIdx: 1
       value: 450.000000
+    "pingBrightness[0]":
+      typeIdx: 5
+      value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    "pingBrightness[10]":
+      typeIdx: 5
+      value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    "pingBrightness[11]":
+      typeIdx: 5
+      value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    "pingBrightness[1]":
+      typeIdx: 5
+      value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    "pingBrightness[2]":
+      typeIdx: 5
+      value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    "pingBrightness[3]":
+      typeIdx: 5
+      value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    "pingBrightness[4]":
+      typeIdx: 5
+      value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    "pingBrightness[5]":
+      typeIdx: 5
+      value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    "pingBrightness[6]":
+      typeIdx: 5
+      value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    "pingBrightness[7]":
+      typeIdx: 5
+      value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    "pingBrightness[8]":
+      typeIdx: 5
+      value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    "pingBrightness[9]":
+      typeIdx: 5
+      value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
     pingColor:
       typeIdx: 5
       value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
     "pingData[0]":
+      typeIdx: 5
+      value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    "pingData[10]":
+      typeIdx: 5
+      value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    "pingData[11]":
       typeIdx: 5
       value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
     "pingData[1]":
@@ -192,4 +279,22 @@
     "pingData[5]":
       typeIdx: 5
       value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    "pingData[6]":
+      typeIdx: 5
+      value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    "pingData[7]":
+      typeIdx: 5
+      value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    "pingData[8]":
+      typeIdx: 5
+      value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    "pingData[9]":
+      typeIdx: 5
+      value: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    trailFalloff:
+      typeIdx: 1
+      value: 1.000000
+    trailLength:
+      typeIdx: 1
+      value: 1.000000
   Pass: !<reference> 4520b677-0487-41be-81b5-332eab3ea0f2

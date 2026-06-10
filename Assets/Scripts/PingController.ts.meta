@@ -27,6 +27,7 @@
   PackagePolicy: CanBeUnpacked
   ScriptInputsHidden:
     bandThickness: false
+    burstBrightnessFalloff: false
     burstCount: false
     burstIntervalSec: false
     debugRadius: false
@@ -39,6 +40,8 @@
     pingMaterial: false
     pingSpeed: false
     targetVisuals: false
+    trailFalloff: false
+    trailLength: false
   ScriptTypesHidden:
     {}
   ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
@@ -55,8 +58,11 @@
       pingSpeed: !<float> 250.000000
       maxRadius: !<float> 450.000000
       bandThickness: !<float> 25.000000
+      trailLength: !<float> 90.000000
+      trailFalloff: !<float> 2.000000
       burstCount: !<float> 3.000000
       burstIntervalSec: 0.150000
+      burstBrightnessFalloff: 0.500000
       pingColor: !<Vec4> {x: 0.300000, y: 0.800000, z: 1.000000, w: 1.000000}
       debugStaticRing: false
       debugRadius: !<float> 150.000000
@@ -76,9 +82,12 @@
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Tuning</span>"}'
     - '// @input float pingSpeed = 250 {"hint":"Expansion speed of each shell, in cm per second"}'
     - '// @input float maxRadius = 450 {"hint":"Radius (cm) at which a ping has fully faded out and is recycled"}'
-    - '// @input float bandThickness = 25 {"hint":"Thickness of the glowing band (cm)"}'
+    - '// @input float bandThickness = 12 {"hint":"Sharpness of the leading (outer) edge (cm). Small = crisp wavefront."}'
+    - '// @input float trailLength = 90 {"hint":"How far the glow trails behind the wavefront on the inner side (cm). Large = long comet tail."}'
+    - '// @input float trailFalloff = 2 {"hint":"Tail shaping power. >1 concentrates brightness near the front and fades the tail out smoothly."}'
     - '// @input float burstCount = 3 {"hint":"Number of shells emitted per emitBurst() call"}'
     - '// @input float burstIntervalSec = 0.15 {"hint":"Seconds between successive shells within a burst"}'
+    - '// @input float burstBrightnessFalloff = 0.5 {"hint":"Brightness multiplier applied to each successive shell in a burst (0.5 = each followup is half as bright as the previous)."}'
     - '// @input vec4 pingColor = {0.3,0.8,1,1} {"hint":"Color of the ping band (RGB), alpha scales overall intensity"}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Debug</span>"}'

@@ -12,7 +12,16 @@
  *   pingData      : Float Array Object Parameter, Channels = xyzw (vec4), size MAX_PINGS.
  *                   Element i = vec4(originX, originY, originZ, radius). A negative
  *                   radius marks an inactive slot (shader skips it).
- *   bandThickness : Float Parameter (cm)
+ *   pingBrightness: Float Array Object Parameter, Channels = xyzw (vec4), size MAX_PINGS
+ *                   (same layout as pingData for reliable per-element assignment).
+ *                   Element i = vec4(brightness, 0, 0, 0); the shader reads .x as the
+ *                   per-shell intensity multiplier (followup shells in a burst dimmer).
+ *   bandThickness : Float Parameter (cm) — sharpness of the leading (outer) edge.
+ *                   Small = crisp wavefront.
+ *   trailLength   : Float Parameter (cm) — how far the glow trails behind the
+ *                   wavefront on the inner side. Large = long comet tail.
+ *   trailFalloff  : Float Parameter — tail shaping power. >1 concentrates the
+ *                   brightness near the front and fades the tail out smoothly.
  *   maxRadius     : Float Parameter (cm) — shader uses it to fade each shell out
  *   pingColor     : Color Parameter (vec4)
  *
@@ -34,6 +43,8 @@ type Ping = {
   startTime: number;
   origin: vec3;
   active: boolean;
+  // Per-shell intensity multiplier. Followup shells in a burst are dimmer.
+  brightness: number;
 };
 
 @component
@@ -66,8 +77,16 @@ export class PingController extends BaseScriptComponent {
   maxRadius: number = 450
 
   @input
-  @hint("Thickness of the glowing band (cm)")
-  bandThickness: number = 25
+  @hint("Sharpness of the leading (outer) edge (cm). Small = crisp wavefront.")
+  bandThickness: number = 12
+
+  @input
+  @hint("How far the glow trails behind the wavefront on the inner side (cm). Large = long comet tail.")
+  trailLength: number = 90
+
+  @input
+  @hint("Tail shaping power. >1 concentrates brightness near the front and fades the tail out smoothly.")
+  trailFalloff: number = 2.0
 
   @input
   @hint("Number of shells emitted per emitBurst() call")
@@ -76,6 +95,10 @@ export class PingController extends BaseScriptComponent {
   @input
   @hint("Seconds between successive shells within a burst")
   burstIntervalSec: number = 0.15
+
+  @input
+  @hint("Brightness multiplier applied to each successive shell in a burst (0.5 = each followup is half as bright as the previous).")
+  burstBrightnessFalloff: number = 0.5
 
   @input
   @hint("Color of the ping band (RGB), alpha scales overall intensity")
@@ -134,27 +157,30 @@ export class PingController extends BaseScriptComponent {
     const count = Math.max(1, Math.floor(this.burstCount))
     for (let i = 0; i < count; i++) {
       const delay = i * this.burstIntervalSec
+      // Each followup shell is dimmer than the one before it.
+      const brightness = Math.pow(this.burstBrightnessFalloff, i)
       // Copy the origin so later external mutation can't change a queued ping.
       const frozenOrigin = new vec3(origin.x, origin.y, origin.z)
       if (delay <= 0) {
-        this.emitPing(frozenOrigin)
+        this.emitPing(frozenOrigin, brightness)
       } else {
         const delayed = this.createEvent("DelayedCallbackEvent")
-        delayed.bind(() => this.emitPing(frozenOrigin))
+        delayed.bind(() => this.emitPing(frozenOrigin, brightness))
         delayed.reset(delay)
       }
     }
   }
 
   // Starts a single shell at the given origin, recycling the oldest slot.
-  emitPing(origin: vec3): void {
+  emitPing(origin: vec3, brightness: number = 1): void {
     if (!origin) {
       return
     }
     this.pings[this.nextSlot] = {
       startTime: getTime(),
       origin: new vec3(origin.x, origin.y, origin.z),
-      active: true
+      active: true,
+      brightness: brightness
     }
     this.nextSlot = (this.nextSlot + 1) % MAX_PINGS
   }
@@ -164,7 +190,7 @@ export class PingController extends BaseScriptComponent {
   private initPings(): void {
     const initial: Ping[] = []
     for (let i = 0; i < MAX_PINGS; i++) {
-      initial.push({ startTime: 0, origin: vec3.zero(), active: false })
+      initial.push({ startTime: 0, origin: vec3.zero(), active: false, brightness: 0 })
     }
     this.pings = initial
   }
@@ -178,6 +204,8 @@ export class PingController extends BaseScriptComponent {
     this.material = this.pingMaterial.clone()
     const pass = this.material.mainPass as any
     pass.bandThickness = this.bandThickness
+    pass.trailLength = this.trailLength
+    pass.trailFalloff = this.trailFalloff
     pass.maxRadius = this.maxRadius
     pass.pingColor = this.pingColor
 
@@ -213,8 +241,10 @@ export class PingController extends BaseScriptComponent {
         ? this.headObject.getTransform().getWorldPosition()
         : vec3.zero()
       pass["pingData[0]"] = new vec4(origin.x, origin.y, origin.z, this.debugRadius)
+      pass["pingBrightness[0]"] = new vec4(1, 0, 0, 0)
       for (let i = 1; i < MAX_PINGS; i++) {
         pass["pingData[" + i + "]"] = new vec4(0, 0, 0, INACTIVE_RADIUS)
+        pass["pingBrightness[" + i + "]"] = new vec4(0, 0, 0, 0)
       }
       return
     }
@@ -229,7 +259,7 @@ export class PingController extends BaseScriptComponent {
         radius = (now - ping.startTime) * this.pingSpeed
         if (radius >= this.maxRadius) {
           // Expired: recycle the slot with a fresh inactive entry (no mutation).
-          this.pings[i] = { startTime: 0, origin: vec3.zero(), active: false }
+          this.pings[i] = { startTime: 0, origin: vec3.zero(), active: false, brightness: 0 }
           radius = INACTIVE_RADIUS
         }
       }
@@ -238,6 +268,8 @@ export class PingController extends BaseScriptComponent {
       const origin = current.origin
       // Element i = vec4(x, y, z, radius); negative radius = inactive slot.
       pass["pingData[" + i + "]"] = new vec4(origin.x, origin.y, origin.z, radius)
+      const b = current.active ? current.brightness : 0
+      pass["pingBrightness[" + i + "]"] = new vec4(b, 0, 0, 0)
     }
   }
 }
