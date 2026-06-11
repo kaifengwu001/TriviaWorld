@@ -3197,7 +3197,6 @@
     cardPadUp: true
     cardPopOut: true
     orbRadiusCm: true
-    subtitleGapCm: true
     subtitleFovMarginCm: true
     moveSpeed: true
     rotateSpeed: true
@@ -3218,7 +3217,7 @@
       cardPadUp: !<float> 3.000000
       cardPopOut: !<float> 2.000000
       orbRadiusCm: !<float> 3.000000
-      subtitleGapCm: 1.500000
+      subtitleGapCm: !<float> 1.000000
       subtitleFovMarginCm: !<float> 3.000000
       moveSpeed: !<float> 4.000000
       rotateSpeed: !<float> 4.000000
@@ -12143,7 +12142,6 @@
     subtitleText: true
     font: true
     color: true
-    sidePadCm: true
     minCps: true
     maxCps: true
     tailCps: true
@@ -12157,8 +12155,8 @@
       subtitleText: !<reference.Text> 00000000-0000-0000-0000-000000000000
       font: !<reference.Font> 00000000-0000-0000-0000-000000000000
       color: !<Vec4> {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
-      heightScale: 0.500000
-      sidePadCm: 0.600000
+      heightScale: 0.350000
+      sidePadCm: 0.200000
       minCps: !<float> 6.000000
       maxCps: !<float> 55.000000
       tailCps: !<float> 28.000000

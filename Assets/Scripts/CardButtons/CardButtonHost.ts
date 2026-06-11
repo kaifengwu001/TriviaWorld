@@ -86,8 +86,14 @@ class PictureHost implements CardButtonHost {
     // placement at the image's TOP-right corner is exact and never drifts. The
     // caption hangs BELOW the image, so the frame's top edge IS the image's top
     // edge; no caption/backdrop size measurement is needed for top alignment.
+    //
+    // getCardFrame().corner is the card's TOP-LEFT corner, so derive the
+    // top-right edge from it (corner + right * width) rather than assuming the
+    // frame's corner is already top-right. This keeps the rail off the right edge
+    // regardless of which corner the orb (AgentSphere) chooses to perch on.
     const frame = this.pb.getCardFrame()
-    const pos = frame.corner
+    const topRight = frame.corner.add(frame.right.uniformScale(frame.width))
+    const pos = topRight
       .add(frame.right.uniformScale(rightInset))
       .add(frame.normal.uniformScale(forward))
     const t = railRoot.getTransform()

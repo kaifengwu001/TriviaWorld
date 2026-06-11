@@ -1,5 +1,3 @@
-# SNAPCrop
-
 A Spectacles lens built in Lens Studio.
 
 ## Cloning & setup
