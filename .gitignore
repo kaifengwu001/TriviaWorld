@@ -19,3 +19,6 @@ Workspaces/**
 # Generated map tile cache (artifacts from tools/generate_map_textures.py)
 tools/.tile_cache/
 
+# Claude Code local workspace (skills, settings, plans) — not project assets
+.claude/
+
