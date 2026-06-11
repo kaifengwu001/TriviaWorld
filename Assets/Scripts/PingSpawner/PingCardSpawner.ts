@@ -402,6 +402,9 @@ export class PingCardSpawner extends BaseScriptComponent {
     card.gazeDwell = this.gazeDwellSec
     card.gazeConeAngleDeg = this.gazeConeAngleDeg
     if (this.cameraObject) card.setCamera(this.cameraObject)
+    // Discovered cards are tappable once opened: a tap hands the caption to the
+    // CardVoiceAgent for a conversation (cosmos / CoverFlow cards never opt in).
+    card.enableTapToEngage()
 
     // Apply content now AND again next frame. The prefab is authored disabled, so
     // its PremadeCard.onAwake (which resets currentImage/currentText to the prefab

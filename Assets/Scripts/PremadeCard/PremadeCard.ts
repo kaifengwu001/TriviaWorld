@@ -22,9 +22,11 @@
  * material is cloned per card so each card carries its own image.
  */
 import { Logger } from "Utilities.lspkg/Scripts/Utils/Logger"
+import { Interactable } from "SpectaclesInteractionKit.lspkg/Components/Interaction/Interactable/Interactable"
 import { BubbleMesh } from "../Bubbles/BubbleMesh"
 import { CardMorph } from "./CardMorph"
 import { CardCaption } from "./CardCaption"
+import { CardEditTarget } from "../Cards/CardEditTools"
 
 // Frames to wait after content changes before reading the text bounds, so the
 // text engine has laid the (invisibly-enabled) text out before it is measured.
@@ -152,6 +154,17 @@ export class PremadeCard extends BaseScriptComponent {
   private gazeTimer = 0
   private gazeCosThreshold = -1
 
+  // Tap-to-engage (opt-in, used only by PingCardSpawner's discovered cards): once
+  // the card has opened, a tap hands its caption to global.cardVoiceAgent. Gated so
+  // the cosmos / CoverFlow PremadeCards (driven by CardQueryVoiceAgent) are unaffected.
+  // The tap target is enabled ONLY while the card is the gaze-selected one, so an
+  // open card sitting in the FOV never steals taps meant for other cards.
+  private engageOnTap = false
+  private cardTappable = false
+  private tapCollider: ColliderComponent = null
+  private tapInteractable: Interactable = null
+  private tapEnabled = false
+
   private currentImage: Texture = null
   private currentText: string = ""
 
@@ -228,6 +241,43 @@ export class PremadeCard extends BaseScriptComponent {
   /** The card's current caption text (for the voice agent / card buttons). */
   getText(): string {
     return this.currentText
+  }
+
+  /**
+   * Opt this card into tap-to-engage: once it has opened (gaze-expanded) a tap
+   * hands its caption to the CardVoiceAgent for a conversation. Called by
+   * PingCardSpawner for prayer-gesture-discovered cards only; cosmos / CoverFlow
+   * cards never call this, so they stay non-engageable.
+   */
+  enableTapToEngage(): void {
+    this.engageOnTap = true
+  }
+
+  /**
+   * The card's top-left corner + plane basis (world space), so AgentSphere can
+   * perch the orb on it (duck-typed: AgentSphere only needs getCardFrame). Built
+   * from the billboarded transform and the measured footprint; returns null until
+   * the border has been auto-fit at least once (footprint unknown before then).
+   * Corner is the top-left; normal points toward the camera. Mirrors the role of
+   * PictureBehavior.getCardFrame for captured cards.
+   */
+  getCardFrame(): { corner: vec3; right: vec3; up: vec3; normal: vec3; width: number; height: number } | null {
+    if (!this.trans || !this.contentMeasured) return null
+    const wp = this.trans.getWorldPosition()
+    const right = this.trans.right
+    const up = this.trans.up
+    const normal = this.camTrans
+      ? this.camTrans.getWorldPosition().sub(wp).normalize()
+      : right.cross(up).normalize()
+    const s = this.trans.getWorldScale()
+    const center = wp
+      .add(right.uniformScale(this.contentLocalCX * s.x))
+      .add(up.uniformScale(this.contentLocalCY * s.y))
+    const halfW = this.contentLocalW * 0.5 * s.x
+    const halfH = this.contentLocalH * 0.5 * s.y
+    const corner = center.sub(right.uniformScale(halfW)).add(up.uniformScale(halfH))
+    // World-space dimensions so AgentSubtitle can cap its width to the card.
+    return { corner, right, up, normal, width: halfW * 2, height: halfH * 2 }
   }
 
   /** Sets the border color on the BubbleMesh border. */
@@ -374,6 +424,9 @@ export class PremadeCard extends BaseScriptComponent {
     if (visible !== this.lastContentVisible) {
       this.applyContentVisibility(visible)
       this.lastContentVisible = visible
+      // The card just opened: if it opted into tap-to-engage, make it a tap target
+      // now (closed bubbles stay non-tappable — gaze still opens them).
+      if (visible && this.engageOnTap && !this.cardTappable) this.makeCardTappable()
     }
   }
 
@@ -387,13 +440,84 @@ export class PremadeCard extends BaseScriptComponent {
     if (dist < 1e-3) return
 
     const cosAngle = toCard.dot(viewDir) / dist
-    if (cosAngle >= this.gazeCosThreshold) {
+    const gazing = cosAngle >= this.gazeCosThreshold
+    if (gazing) {
       this.gazeTimer += dt
       if (this.gazeTimer >= this.gazeDwell) this.morph.expand()
     } else {
       this.gazeTimer = 0
       if (this.collapseWhenGazeLost) this.morph.collapse()
     }
+    // Only the gaze-selected card is a live tap target, so an open card lingering
+    // in the FOV never intercepts pinches meant for a captured card elsewhere.
+    if (this.cardTappable) this.setTapEnabled(gazing)
+  }
+
+  // Adds an explicit-size box collider + Interactable on the card ROOT so a
+  // pinch/point-tap engages the voice agent. Sized from the measured footprint
+  // (NOT fitVisual on a nested mesh — SIK rays miss tiny/far/nested colliders;
+  // an explicit box on the root mirrors GlobeController.addBoxCollider). The box
+  // is centred on the root origin but grown to cover the caption that hangs below.
+  private makeCardTappable(): void {
+    if (this.cardTappable) return
+    this.cardTappable = true
+
+    const obj = this.getSceneObject()
+    this.tapCollider = obj.getComponent("Physics.ColliderComponent") as ColliderComponent
+    if (!this.tapCollider) {
+      this.tapCollider = obj.createComponent("Physics.ColliderComponent") as ColliderComponent
+      const shape = Shape.createBoxShape()
+      const w = this.contentLocalW > 0 ? this.contentLocalW : this.imageWidth
+      const h = (this.contentLocalH > 0 ? this.contentLocalH : this.imageWidth) +
+        2 * Math.abs(this.contentLocalCY)
+      shape.size = new vec3(w, h, 1)
+      this.tapCollider.shape = shape
+      this.tapCollider.fitVisual = false
+    }
+
+    this.tapInteractable = obj.getComponent(Interactable.getTypeName()) as Interactable
+    if (!this.tapInteractable) {
+      this.tapInteractable = obj.createComponent(Interactable.getTypeName()) as Interactable
+    }
+    // Direct (near-field) + Indirect (far-field ray) so it works hand-near and pointed-at.
+    this.tapInteractable.targetingMode = 3
+    this.tapInteractable.allowMultipleInteractors = false
+    this.tapInteractable.onTriggerEnd.add(() => this.engage())
+    // Live now (the card was just gaze-opened); updateGaze gates it from here on.
+    this.setTapEnabled(true)
+    this.logger.info("Discovered card is now tappable to engage the voice agent")
+  }
+
+  // Enables/disables this card's tap target. Toggling the collider (not just the
+  // Interactable) ensures the SIK ray passes straight through to whatever is behind
+  // it when the card isn't the gaze-selected one.
+  private setTapEnabled(on: boolean): void {
+    if (on === this.tapEnabled) return
+    this.tapEnabled = on
+    if (this.tapCollider) this.tapCollider.enabled = on
+    if (this.tapInteractable) this.tapInteractable.enabled = on
+  }
+
+  // Hands this card's caption to the voice agent (global.cardVoiceAgent) and sends
+  // the agent's orb to perch on it. Conversation-only: getCardId returns null so
+  // any spoken caption edit stays visual (not persisted to the store). Mirrors
+  // PictureBehavior.engageAgent for captured cards.
+  private engage(): void {
+    const agent = (global as any).cardVoiceAgent
+    if (agent && typeof agent.engageCard === "function") {
+      this.logger.info("Engaging voice agent for discovered card")
+      const target: CardEditTarget = {
+        getCardId: () => null,
+        getText: () => this.getText(),
+        setTextAnimated: (t: string) => this.setText(t),
+      }
+      agent.engageCard(this.getText(), target)
+    } else {
+      this.logger.warn("No cardVoiceAgent is registered (is the component enabled?).")
+    }
+
+    const sphere = (global as any).agentSphere
+    if (sphere && typeof sphere.perchOnCard === "function") sphere.perchOnCard(this)
   }
 
   // Resizes the picture to the image aspect, re-lays the caption beneath it, and
