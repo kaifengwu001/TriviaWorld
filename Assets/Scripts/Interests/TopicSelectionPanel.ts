@@ -95,6 +95,9 @@ export class TopicSelectionPanel extends BaseScriptComponent {
   private topicButtons: TopicButton[] = []
   // True once the panel has been built and positioned, so getPanelFrame() is valid.
   private built = false
+  // True once Start has fired, so a manual pinch and a voice start_exploring can't
+  // both run the handoff (suspend host -> engage recommendation agent).
+  private started = false
 
   onAwake() {
     this.logger = new Logger("TopicSelectionPanel", this.enableLogging || this.enableLoggingLifecycle, true);
@@ -332,9 +335,12 @@ export class TopicSelectionPanel extends BaseScriptComponent {
   }
 
   private onStart() {
-    const selected = this.topicButtons
-      .filter((entry) => entry.button.isOn)
-      .map((entry) => entry.topic)
+    // Idempotent: a manual pinch and a voice start_exploring must not both run the
+    // handoff (which would suspend the host twice and double-engage agent #2).
+    if (this.started) return
+    this.started = true
+
+    const selected = this.getSelectedTopics()
 
     const store = this.resolveStore()
     if (store) {
@@ -346,13 +352,7 @@ export class TopicSelectionPanel extends BaseScriptComponent {
 
     this.logger.info("Selected topics: " + (selected.length > 0 ? selected.join(", ") : "(none)"))
 
-    // Have the host voice acknowledge the picks and tease recommended places.
-    const hostVoice = (global as any).hostVoice
-    if (hostVoice && typeof hostVoice.announceInterests === "function") {
-      hostVoice.announceInterests(selected)
-    }
-
-    // Fly in the three recommendation cards in sync with the announcement.
+    // Fly in the three recommendation cards.
     const recs = (global as any).recommendationCards
     if (recs && typeof recs.show === "function") {
       recs.show()
@@ -369,8 +369,60 @@ export class TopicSelectionPanel extends BaseScriptComponent {
       sphere.goHome()
     }
 
-    // The card-query agent now arms itself purely on gaze — it opens its mic when
-    // the user looks at the card deck — so the panel no longer force-starts it.
+    // Hand the single Gemini Live slot from the welcome host to the recommendation
+    // presenter: the host goes silent, then agent #2 (its own voice) presents the
+    // cards. Sequential, so only one live session is ever open. Works the same
+    // whether Start came from a pinch or the host's start_exploring tool.
+    const host = (global as any).hostVoice
+    if (host && typeof host.suspend === "function") host.suspend()
+
+    const recAgent = (global as any).recommendationVoiceAgent
+    if (recAgent && typeof recAgent.engage === "function") recAgent.engage(selected)
+
+    // The card-query agent still arms purely on gaze once the cosmos deck appears.
+  }
+
+  // --- voice-agent API (called via global.topicPanel by WelcomeVoice) ----------
+
+  /** Topics currently toggled on, in panel order. */
+  getSelectedTopics(): string[] {
+    return this.topicButtons
+      .filter((entry) => entry.button.isOn)
+      .map((entry) => entry.topic)
+  }
+
+  /** Every topic the panel offers (for the agent's context / matching). */
+  getAvailableTopics(): string[] {
+    return this.topicButtons.map((entry) => entry.topic)
+  }
+
+  /**
+   * Toggle the named topics on/off for the user. Matching is case/space-insensitive
+   * so the model's canonical topic names line up with the button labels. Returns the
+   * topics actually matched plus the full selection afterwards (for the tool reply).
+   */
+  setTopicSelection(topics: string[], on: boolean): { matched: string[]; selected: string[] } {
+    const matched: string[] = []
+    const requested = Array.isArray(topics) ? topics : []
+    for (const raw of requested) {
+      const key = this.normalizeTopic(raw)
+      if (!key) continue
+      const entry = this.topicButtons.find((e) => this.normalizeTopic(e.topic) === key)
+      if (entry) {
+        entry.button.isOn = on
+        matched.push(entry.topic)
+      }
+    }
+    return { matched, selected: this.getSelectedTopics() }
+  }
+
+  /** Press "Start exploring" — the public hook the host's start_exploring tool calls. */
+  startExploring(): void {
+    this.onStart()
+  }
+
+  private normalizeTopic(topic: string): string {
+    return typeof topic === "string" ? topic.trim().toLowerCase() : ""
   }
 
   private resolveFrame(): Frame | null {

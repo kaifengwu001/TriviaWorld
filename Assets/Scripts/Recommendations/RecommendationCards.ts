@@ -27,6 +27,11 @@ import { PremadeCard } from "../PremadeCard/PremadeCard";
 
 const DEG2RAD = Math.PI / 180;
 
+// Short labels for the three cards, index-aligned with RECOMMENDATION_TEXTS and
+// cardHeadings. Used by the RecommendationVoiceAgent's select_card tool so the model
+// can refer to a card by name ("the Snap one") and we map it back to an index.
+export const RECOMMENDATION_LABELS: string[] = ["Art Festival", "Reality Hack", "Snap Lounge"];
+
 // Fixed caption copy for the three recommendation cards, in inspector image order.
 const RECOMMENDATION_TEXTS: string[] = [
   // 0 – AWE Art Festival
@@ -246,6 +251,19 @@ export class RecommendationCards extends BaseScriptComponent {
         }
       })
     }
+  }
+
+  /**
+   * Select a card by index on the user's behalf (called by the RecommendationVoiceAgent
+   * once the model resolves "the Snap one" to an index). Runs the exact same flow as a
+   * manual pinch — onSelect's selected/bounds guards make it safe and idempotent.
+   * Returns false if the index is out of range or a card is already selected.
+   */
+  selectByVoice(index: number): boolean {
+    if (this.selected || !this.shown) return false;
+    if (index < 0 || index >= this.cards.length) return false;
+    this.onSelect(index);
+    return true;
   }
 
   // --- selection -------------------------------------------------------------
