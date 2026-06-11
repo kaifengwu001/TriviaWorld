@@ -1,0 +1,104 @@
+- !<AssetImportMetadata/e0859ce4-367e-4771-aa18-ccb0d589220a>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> a6ef4b5b-6945-4bb4-a81d-52c07d9c1175
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> a6ef4b5b-6945-4bb4-a81d-52c07d9c1175
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> 75a43616-461a-445b-bca9-d04d9672f3f7
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/75a43616-461a-445b-bca9-d04d9672f3f7>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: a72663df-81de-4505-a995-259309b67e83
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    correctText: false
+    enableDebugLogs: false
+    functionName: false
+    incorrectText: false
+    myScoreValueText: false
+    nextRoundDelaySeconds: false
+    object: false
+    opponentScoreValueText: false
+    optionButton1: false
+    optionButton2: false
+    optionButton3: false
+    optionButton4: false
+    optionButtonChildTextName: false
+    questionText: false
+    roastFetcherComponent: false
+    roastText: false
+    roundDurationSeconds: false
+    snapCloudRequirements: false
+    statusText: false
+    timerText: false
+    topic: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - snapCloudRequirements: !<reference.ScriptComponent> 00000000-0000-0000-0000-000000000000
+      functionName: "[your-function-name]"
+      object: ""
+      topic: ""
+      questionText: !<reference.Text> 00000000-0000-0000-0000-000000000000
+      optionButton1: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
+      optionButton2: !<MappingBased.AssignableType_1> 00000000-0000-0000-0000-000000000000
+      optionButton3: !<MappingBased.AssignableType_2> 00000000-0000-0000-0000-000000000000
+      optionButton4: !<MappingBased.AssignableType_3> 00000000-0000-0000-0000-000000000000
+      optionButtonChildTextName: ""
+      correctText: !<reference.Text> 00000000-0000-0000-0000-000000000000
+      incorrectText: !<reference.Text> 00000000-0000-0000-0000-000000000000
+      myScoreValueText: !<reference.Text> 00000000-0000-0000-0000-000000000000
+      statusText: !<reference.Text> 00000000-0000-0000-0000-000000000000
+      opponentScoreValueText: !<reference.Text> 00000000-0000-0000-0000-000000000000
+      timerText: !<reference.Text> 00000000-0000-0000-0000-000000000000
+      roundDurationSeconds: !<float> 15.000000
+      nextRoundDelaySeconds: !<float> 5.000000
+      enableDebugLogs: true
+      roastFetcherComponent: !<reference.ScriptComponent> 00000000-0000-0000-0000-000000000000
+      roastText: !<reference.Text> 00000000-0000-0000-0000-000000000000
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - // @input Component.ScriptComponent snapCloudRequirements
+    - // @input string functionName
+    - // @input string object
+    - // @input string topic
+    - // @input Component.Text questionText
+    - // @input AssignableType optionButton1
+    - // @input AssignableType_1 optionButton2
+    - // @input AssignableType_2 optionButton3
+    - // @input AssignableType_3 optionButton4
+    - // @input string optionButtonChildTextName
+    - // @input Component.Text correctText
+    - // @input Component.Text incorrectText
+    - // @input Component.Text myScoreValueText
+    - // @input Component.Text statusText
+    - // @input Component.Text opponentScoreValueText
+    - // @input Component.Text timerText
+    - // @input float roundDurationSeconds = 30
+    - // @input float nextRoundDelaySeconds = 5
+    - // @input bool enableDebugLogs = true
+    - '// @input Component.ScriptComponent roastFetcherComponent {"hint":"EdgeFunctionRoastById script component"}'
+    - '// @input Component.Text roastText {"hint":"Text component to display the roast message on screen"}'

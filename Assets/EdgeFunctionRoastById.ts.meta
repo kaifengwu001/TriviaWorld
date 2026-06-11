@@ -1,0 +1,50 @@
+- !<AssetImportMetadata/2187a845-8b46-463b-a144-73fb0405b678>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> 30c8b7f1-d548-46c0-b753-55c41e436d3d
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> 30c8b7f1-d548-46c0-b753-55c41e436d3d
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> 4defd18e-ab08-430d-9792-90df70d8b60d
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/4defd18e-ab08-430d-9792-90df70d8b60d>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: fac92857-dfeb-401f-adcb-c8ae0a98daa8
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    enableDebugLogs: false
+    functionName: false
+    snapCloudRequirements: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - snapCloudRequirements: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
+      functionName: "[your-function-name]"
+      enableDebugLogs: true
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - '// @input AssignableType snapCloudRequirements {"hint":"Reference to SnapCloudRequirements for centralized Supabase configuration"}'
+    - '// @input string functionName = "[your-function-name]" {"hint":"Edge Function name (set this to: get-roast-by-id)"}'
+    - '// @input bool enableDebugLogs = true {"hint":"Enable debug logging"}'
