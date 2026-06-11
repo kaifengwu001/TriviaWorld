@@ -26,6 +26,9 @@
   ExportUid: 00000000-0000-0000-0000-000000000000
   PackagePolicy: CanBeUnpacked
   ScriptInputsHidden:
+    answerMarkerOffset: false
+    answerMarkerStackSpacing: false
+    answerMarkerTextSize: false
     correctText: false
     countdownText: false
     debugText: false
@@ -44,13 +47,14 @@
     questionText: false
     readyButton: false
     readyStatusText: false
+    responseText: false
     roastFetcherComponent: false
     roastText: false
-    roundDurationSeconds: false
     snapCloudRequirements: false
     statusText: false
     timerText: false
     topic: false
+    winScore: false
   ScriptTypesHidden:
     {}
   ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
@@ -74,14 +78,18 @@
       incorrectText: !<reference.Text> 00000000-0000-0000-0000-000000000000
       myScoreValueText: !<reference.Text> 00000000-0000-0000-0000-000000000000
       statusText: !<reference.Text> 00000000-0000-0000-0000-000000000000
+      responseText: !<reference.Text> 00000000-0000-0000-0000-000000000000
+      answerMarkerOffset: !<Vec3> {x: 6.000000, y: 0.000000, z: 0.000000}
+      answerMarkerStackSpacing: !<float> 3.000000
+      answerMarkerTextSize: !<float> 32.000000
       readyButton: !<MappingBased.AssignableType_4> 00000000-0000-0000-0000-000000000000
       readyStatusText: !<reference.Text> 00000000-0000-0000-0000-000000000000
       countdownText: !<reference.Text> 00000000-0000-0000-0000-000000000000
       debugText: !<reference.Text> 00000000-0000-0000-0000-000000000000
       opponentScoreValueText: !<reference.Text> 00000000-0000-0000-0000-000000000000
       timerText: !<reference.Text> 00000000-0000-0000-0000-000000000000
-      roundDurationSeconds: !<float> 15.000000
       nextRoundDelaySeconds: !<float> 5.000000
+      winScore: !<float> 30.000000
       enableDebugLogs: true
       roastFetcherComponent: !<reference.ScriptComponent> 00000000-0000-0000-0000-000000000000
       roastText: !<reference.Text> 00000000-0000-0000-0000-000000000000
@@ -103,14 +111,18 @@
     - // @input Component.Text incorrectText
     - // @input Component.Text myScoreValueText
     - // @input Component.Text statusText
+    - "// @input Component.Text responseText {\"hint\":\"Per-player response label (e.g. 'Too slow!', 'Nailed it!', 'Matchpoint!')\"}"
+    - '// @input vec3 answerMarkerOffset = {6,0,0} {"hint":"Local offset (x,y,z) of a marker from its option button"}'
+    - '// @input float answerMarkerStackSpacing = 3 {"hint":"Extra vertical gap when both players pick the same option"}'
+    - '// @input float answerMarkerTextSize = 32 {"hint":"Font size for the answer markers"}'
     - '// @input AssignableType_4 readyButton {"hint":"Button players tap to mark themselves ready in the lobby"}'
     - "// @input Component.Text readyStatusText {\"hint\":\"Text showing how many players are ready, e.g. '1/2 Ready'\"}"
     - '// @input Component.Text countdownText {"hint":"Large, centered Text used for the 3-2-1 start countdown"}'
     - '// @input Component.Text debugText {"hint":"Optional on-screen debug readout (role, phase, sync/store state)"}'
     - // @input Component.Text opponentScoreValueText
     - // @input Component.Text timerText
-    - // @input float roundDurationSeconds = 30
     - // @input float nextRoundDelaySeconds = 5
+    - '// @input float winScore = 30 {"hint":"Score needed to win the game"}'
     - // @input bool enableDebugLogs = true
     - '// @input Component.ScriptComponent roastFetcherComponent {"hint":"EdgeFunctionRoastById script component"}'
     - '// @input Component.Text roastText {"hint":"Text component to display the roast message on screen"}'

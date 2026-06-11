@@ -2340,11 +2340,11 @@
 - !<SceneObject/2a638d25-3b09-4728-b0e8-45340e1c1aae>
   PrefabRemaps:
     []
-  Name: Incorrect
+  Name: Me
   Enabled: true
   Layers: 1
   LocalTransform: !<TransformEntity>
-    Position: {x: 6.999999, y: -0.000001, z: 0.000008}
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
     Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
     Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
     HasSegmentScaleCompensation: false
@@ -6465,6 +6465,8 @@
     - !<own> 3469e9af-74a1-404c-9e9a-47dea3300f4f
     - !<own> 9c3c9f2f-8ff8-414b-93d6-7fb9dafc7e03
     - !<own> c6021d5f-22fc-4e71-87bf-154f751fc957
+    - !<own> 2a638d25-3b09-4728-b0e8-45340e1c1aae
+    - !<own> 927d0bde-8ad0-42f3-9e35-754d9819c9e0
   Components:
     []
 - !<ScriptComponent/88e92be0-2c94-4e70-849b-1966d873210f>
@@ -6867,11 +6869,11 @@
 - !<SceneObject/927d0bde-8ad0-42f3-9e35-754d9819c9e0>
   PrefabRemaps:
     []
-  Name: Correct
+  Name: Opponent
   Enabled: true
   Layers: 1
   LocalTransform: !<TransformEntity>
-    Position: {x: 6.999999, y: -0.000001, z: 0.000008}
+    Position: {x: 2.999999, y: 7.908666, z: 1.000015}
     Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
     Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
     HasSegmentScaleCompensation: false
@@ -8166,7 +8168,7 @@
   MeshShadowMode: None
   ShadowColor: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
   ShadowDensity: 1.000000
-  Text: Incorrect
+  Text: Me
   Editable: false
   ShowEditingPreview: true
   TouchHandler: !<reference> 00000000-0000-0000-0000-000000000000
@@ -8182,7 +8184,7 @@
   OverflowHorizontal: Overflow
   Fill: !<TextFill>
     Mode: Solid
-    Color: {x: 1.000000, y: 0.000000, z: 0.000000, w: 1.000000}
+    Color: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
     Texture: !<reference> 00000000-0000-0000-0000-000000000000
     ColorTint: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
     TileCount: 5.000000
@@ -10151,8 +10153,7 @@
     Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
     HasSegmentScaleCompensation: false
   Children:
-    - !<own> 2a638d25-3b09-4728-b0e8-45340e1c1aae
-    - !<own> 927d0bde-8ad0-42f3-9e35-754d9819c9e0
+    []
   Components:
     - !<own> 9aaa7da2-2def-4237-b8ec-17028c350ce8
 - !<ScriptComponent/cbb15420-16bb-403a-a7c3-d3af3f9d1b55>
@@ -10282,7 +10283,7 @@
   ShadowColor: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
   ShadowDensity: 1.000000
   Text: |
-    Correct
+    Opponent
 
   Editable: false
   ShowEditingPreview: true
@@ -10299,7 +10300,7 @@
   OverflowHorizontal: Overflow
   Fill: !<TextFill>
     Mode: Solid
-    Color: {x: 0.000000, y: 1.000000, z: 0.000000, w: 1.000000}
+    Color: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
     Texture: !<reference> 00000000-0000-0000-0000-000000000000
     ColorTint: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
     TileCount: 5.000000
@@ -11670,8 +11671,9 @@
   ScriptInputsDefault:
     object: true
     optionButtonChildTextName: true
-    roundDurationSeconds: true
+    answerMarkerStackSpacing: true
     nextRoundDelaySeconds: true
+    winScore: true
     enableDebugLogs: true
   ScriptTypesDefault:
     {}
@@ -11691,14 +11693,18 @@
       incorrectText: !<reference.Text> ac6d6d27-e0f4-4e99-a551-ae72d939a478
       myScoreValueText: !<reference.Text> b2ebfd8e-099c-4e31-9b96-2680d1bb875b
       statusText: !<reference.Text> 3b22a243-698a-47af-849a-be243a8f890d
+      responseText: !<reference.Text> 9aaa7da2-2def-4237-b8ec-17028c350ce8
+      answerMarkerOffset: !<Vec3> {x: 0.000000, y: 0.000000, z: 0.000000}
+      answerMarkerStackSpacing: !<float> 3.000000
+      answerMarkerTextSize: !<float> 200.000000
       readyButton: !<MappingBased.AssignableType_4> 57f91221-0e62-4deb-8a94-a9b75d57f9cd
       readyStatusText: !<reference.Text> d0e3bf0e-5e5a-4a4d-b5a7-6a11bb5f4f84
       countdownText: !<reference.Text> 21e68de8-0b70-45d2-bcb9-5b168ed32500
       debugText: !<reference.Text> 29904ca2-d586-4d58-b362-dfdcf791dfcb
       opponentScoreValueText: !<reference.Text> eb41a06a-30c7-4265-8845-eea55b035b49
       timerText: !<reference.Text> 94afcc15-9826-4e4f-8eb5-1a692855c8fb
-      roundDurationSeconds: !<float> 15.000000
       nextRoundDelaySeconds: !<float> 5.000000
+      winScore: !<float> 30.000000
       enableDebugLogs: true
       roastFetcherComponent: !<reference.ScriptComponent> fdce34fc-55e5-4367-b5a7-e37ffe929043
       roastText: !<reference.Text> 95b2d6d4-24d2-4f6f-a0f1-ccdb3ec5abd2

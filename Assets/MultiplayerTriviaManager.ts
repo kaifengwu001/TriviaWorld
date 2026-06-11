@@ -1,5 +1,34 @@
 /**
- * MultiplayerTriviaManager.ts — v2.4
+ * MultiplayerTriviaManager.ts — v2.6
+ *
+ * Changes from v2.5:
+ *   - Answer markers are now created by the script at runtime (no Text inputs).
+ *     They are parented to the chosen option button at conclusion.
+ *   - Race fairness / state fixes:
+ *       • Buzz timestamps use the SERVER clock (getServerTimeInSeconds) so the
+ *         two devices are actually comparable (was Date.now() per device).
+ *       • The host waits a short grace window after the first buzz so a slightly
+ *         later-arriving but earlier buzz isn't dropped due to network latency.
+ *       • The round conclusion (winner + both picks) is published in a SINGLE
+ *         synced prop (roundResult) and rendered from that one change. This fixes
+ *         the bug where both players briefly saw "Too slow!" because the separate
+ *         choice props hadn't synced when the REVEAL state arrived.
+ *
+ * Changes from v2.4:
+ *   - Removed the per-question timer. A question no longer expires: it ends only
+ *     when one player answers correctly OR both players answer wrong. The PAUSED
+ *     state and GUEST_RESUME flow are gone.
+ *   - Per-player response feedback. The response label now shows phrases from
+ *     each player's own perspective (e.g. "Too slow!", "They whiffed — steal it!",
+ *     "Nailed it!") instead of a shared correct/incorrect label.
+ *   - Answer markers. After a question concludes, each player's pick is marked
+ *     next to its option button: "Me" / "Opponent" in green (correct) or red
+ *     (wrong). Offset (x/y/z) and text size are configurable.
+ *   - Question text + answer buttons are hidden during the lobby/countdown and
+ *     only appear once a question loads.
+ *   - Configurable win score. The game ends and declares a winner when a score
+ *     reaches the goal. "Matchpoint!" is shown when a player is one correct
+ *     answer from winning.
  *
  * Changes from v2.3:
  *   - Deterministic game start: a LOBBY phase with a "Ready" button and an
@@ -46,7 +75,6 @@ interface TriviaRecord {
 }
 
 const MSG_GUEST_BUZZ   = 'GUEST_BUZZ'    // guest → host: "GUEST_BUZZ:timestamp:optionIndex"
-const MSG_GUEST_RESUME = 'GUEST_RESUME'  // guest → host: resume from PAUSED
 const MSG_HOST_ROAST   = 'HOST_ROAST'    // host → guest: "HOST_ROAST:questionId:roast1|roast2"
 const MSG_GUEST_READY  = 'GUEST_READY'   // guest → host: guest tapped the Ready button
 
@@ -54,6 +82,21 @@ const MSG_GUEST_READY  = 'GUEST_READY'   // guest → host: guest tapped the Rea
 const PHASE_LOBBY     = 'LOBBY'      // waiting for both players to ready up
 const PHASE_COUNTDOWN = 'COUNTDOWN'  // 3-2-1 before first question
 const PHASE_ACTIVE    = 'ACTIVE'     // normal round play
+const PHASE_GAMEOVER  = 'GAMEOVER'   // a player reached the win score
+
+// Per-player response phrases — short and punchy. Tweak freely to taste.
+const SAY_RACE         = 'Buzz in — first to answer wins!'
+const SAY_STEAL_YOURS  = 'They whiffed — steal it!'
+const SAY_OPP_STEALING = 'Ouch! Opponent gets a shot…'
+const SAY_WIN_ROUND    = 'Nailed it!'
+const SAY_ROBBED       = 'Robbed! They stole it.'
+const SAY_TOO_SLOW     = 'Too slow!'
+const SAY_BOTH_WRONG   = 'Nobody got it!'
+const SAY_MATCH_ME     = 'Matchpoint — win it!'
+const SAY_MATCH_OPP    = 'Matchpoint — defend!'
+const SAY_MATCH_BOTH   = 'Matchpoint!'
+const SAY_GAME_WIN     = 'You win!'
+const SAY_GAME_LOSE    = 'You lose!'
 
 @component
 export class MultiplayerTriviaManager extends BaseScriptComponent {
@@ -77,6 +120,23 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
   @input public myScoreValueText: Text
   @input public statusText: Text | null = null
 
+  @input
+  @hint("Per-player response label (e.g. 'Too slow!', 'Nailed it!', 'Matchpoint!')")
+  public responseText: Text | null = null
+
+  // ── Answer markers (script-created, shown after a question concludes) ───────
+  @input
+  @hint("Local offset (x,y,z) of a marker from its option button")
+  public answerMarkerOffset: vec3 = new vec3(6, 0, 0)
+
+  @input
+  @hint("Extra vertical gap when both players pick the same option")
+  public answerMarkerStackSpacing: number = 3
+
+  @input
+  @hint("Font size for the answer markers")
+  public answerMarkerTextSize: number = 32
+
   // ── Lobby / start coordination ─────────────────────────────────────────────
   @input
   @hint("Button players tap to mark themselves ready in the lobby")
@@ -96,8 +156,12 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
 
   @input public opponentScoreValueText: Text
   @input public timerText: Text
-  @input public roundDurationSeconds: number = 30
   @input public nextRoundDelaySeconds: number = 5
+
+  @input
+  @hint("Score needed to win the game")
+  public winScore: number = 30
+
   @input public enableDebugLogs: boolean = true
 
   // ── Roast integration ─────────────────────────────────────────────────────
@@ -113,13 +177,17 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
   private gameSyncEntity: SyncEntity | null = null
 
   private jsonQuestionProp        = StorageProperty.manualString('jsonQuestion', '')
-  private timerStartTokenProp     = StorageProperty.manualString('timerStartToken', '')
   private roundStateProp          = StorageProperty.manualString('roundState', 'PLAYING')
   private currentActiveBuzzerProp = StorageProperty.manualString('currentActiveBuzzer', 'NONE')
   private hostScoreProp           = StorageProperty.manualInt('hostScore', 0)
   private guestScoreProp          = StorageProperty.manualInt('guestScore', 0)
   private hostBuzzedTimeProp      = StorageProperty.manualString('hostBuzzedTime', '')
   private guestBuzzedTimeProp     = StorageProperty.manualString('guestBuzzedTime', '')
+
+  // Conclusion published atomically: "TYPE:hostPick:guestPick"
+  //   TYPE ∈ WIN_HOST | WIN_GUEST | BOTH_WRONG   (picks are 1-indexed, -1 = none)
+  private roundResultProp         = StorageProperty.manualString('roundResult', '')
+  private winnerProp              = StorageProperty.manualString('winner', '')
 
   // Lobby / start coordination (host-authoritative)
   private gamePhaseProp           = StorageProperty.manualString('gamePhase', PHASE_LOBBY)
@@ -145,14 +213,25 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
 
   private readonly START_COUNTDOWN_SECONDS = 3
 
+  // How long (server seconds) the host waits after the first buzz in a race so a
+  // slightly later-arriving but earlier buzz isn't dropped to network latency.
+  private readonly RACE_GRACE_SECONDS = 0.5
+
   private readonly REWARD_POINTS  = 10
   private readonly PENALTY_POINTS = 5
+
+  // Host-tracked picks for the current question (1-indexed option, -1 = none)
+  private hostPickThisRound: number  = -1
+  private guestPickThisRound: number = -1
+  private raceDeadline: number       = -1   // server time the host stops waiting
+
+  // Runtime-created answer markers (Text components)
+  private meMarker: Text | null  = null
+  private oppMarker: Text | null = null
 
   private optionTexts: (Text | null)[] = [null, null, null, null]
   private isHost: boolean              = false
   private localPlayerId: string        = ''
-  private localTimeRemaining: number   = 0
-  private timerActive: boolean         = false
 
   // ── Roast fetcher accessor ────────────────────────────────────────────────
   private get roastFetcher(): any {
@@ -175,12 +254,14 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
     if (this.roastText) this.roastText.enabled = false
 
     // Lobby UI: hide the text labels until the session is ready.
-    // NOTE: do NOT disable the ready button's SceneObject here — UIKit buttons
-    // wire up their tap handler in OnStartEvent, which never fires for an object
-    // that is disabled at startup. Disabling it now would permanently break
-    // onTriggerUp. Visibility is managed via applyGamePhaseUI after it inits.
+    // NOTE: do NOT disable the ready/option button SceneObjects here — UIKit
+    // buttons wire up their tap handler in OnStartEvent, which never fires for an
+    // object that is disabled at startup. Disabling them now would permanently
+    // break onTriggerUp. Their visibility is managed after the session is ready.
     if (this.countdownText) { this.countdownText.enabled = false; this.countdownText.text = '' }
     if (this.readyStatusText) this.readyStatusText.enabled = false
+    this.setResponse('')
+    this.hideAnswerMarkers()
 
     this.createEvent("UpdateEvent").bind(() => this.onUpdate())
     SessionController.getInstance().notifyOnReady(() => this.onSessionReady())
@@ -198,13 +279,14 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
       this,
       new StoragePropertySet([
         this.jsonQuestionProp,
-        this.timerStartTokenProp,
         this.roundStateProp,
         this.currentActiveBuzzerProp,
         this.hostScoreProp,
         this.guestScoreProp,
         this.hostBuzzedTimeProp,
         this.guestBuzzedTimeProp,
+        this.roundResultProp,
+        this.winnerProp,
         this.gamePhaseProp,
         this.readyCountProp,
         this.countdownStartTokenProp,
@@ -231,34 +313,12 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
       if (raw) this.parseAndApplyJson(raw)
     })
 
-    this.timerStartTokenProp.onAnyChange.add(() => {
-      const token = this.timerStartTokenProp.currentValue ?? ''
-      if (!token) return
-      const duration = parseFloat(token.split(':')[0])
-      if (duration > 0) {
-        this.localTimeRemaining = duration
-        this.timerActive = true
-        this.turnProcessed = false
-        this.nextRoundCountdownActive = false
-        this.log(`Timer started: ${duration}s`)
-      }
-    })
-
-    this.hostBuzzedTimeProp.onAnyChange.add(() => {
-      if (this.hostBuzzedTimeProp.currentValue) {
-        this.timerActive = false
-        this.log('Timer frozen: hostBuzzedTime')
-      }
-    })
-    this.guestBuzzedTimeProp.onAnyChange.add(() => {
-      if (this.guestBuzzedTimeProp.currentValue) {
-        this.timerActive = false
-        this.log('Timer frozen: guestBuzzedTime')
-      }
-    })
-
     this.roundStateProp.onAnyChange.add(() => this.handleRoundStateChange())
     this.currentActiveBuzzerProp.onAnyChange.add(() => this.handleBuzzerStateChange())
+    this.roundResultProp.onAnyChange.add(() => this.renderRoundResult())
+    this.winnerProp.onAnyChange.add(() => {
+      if (this.gamePhaseProp.currentOrPendingValue === PHASE_GAMEOVER) this.showGameOver()
+    })
 
     // ── Lobby / start coordination ───────────────────────────────────────────
     this.gamePhaseProp.onAnyChange.add(() => this.applyGamePhaseUI())
@@ -347,6 +407,10 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
     this.hostBuzzedTimeProp.setPendingValue('')
     this.guestBuzzedTimeProp.setPendingValue('')
     this.currentActiveBuzzerProp.setPendingValue('NONE')
+    this.roundResultProp.setPendingValue('')
+    this.winnerProp.setPendingValue('')
+    this.hostScoreProp.setPendingValue(0)
+    this.guestScoreProp.setPendingValue(0)
     this.roundStateProp.setPendingValue('PLAYING')
     this.gamePhaseProp.setPendingValue(PHASE_LOBBY)
   }
@@ -363,13 +427,6 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
       if (message === MSG_GUEST_READY) {
         this.guestReady = true
         this.updateReadyCount()
-        return
-      }
-
-      if (message === MSG_GUEST_RESUME) {
-        if (this.roundStateProp.currentValue === 'PAUSED') {
-          this.startNextRound()
-        }
         return
       }
 
@@ -476,12 +533,23 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
     } else if (phase === PHASE_COUNTDOWN) {
       this.setReadyButtonVisible(false)
       if (this.readyStatusText) this.readyStatusText.enabled = false
+      this.setGameElementsVisible(false)
 
     } else if (phase === PHASE_ACTIVE) {
       this.setReadyButtonVisible(false)
       if (this.readyStatusText) this.readyStatusText.enabled = false
       this.startCountdownActive = false
       if (this.countdownText) this.countdownText.enabled = false
+      // Board is shown when the question actually loads (parseAndApplyJson).
+
+    } else if (phase === PHASE_GAMEOVER) {
+      this.setReadyButtonVisible(false)
+      if (this.readyStatusText) this.readyStatusText.enabled = false
+      this.startCountdownActive = false
+      this.nextRoundCountdownActive = false
+      if (this.countdownText) this.countdownText.enabled = false
+      if (this.timerText) this.timerText.text = ''
+      this.showGameOver()
     }
   }
 
@@ -495,9 +563,11 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
       this.readyStatusText.text = `${count}/2 Ready`
     }
     if (this.countdownText) { this.countdownText.enabled = false; this.countdownText.text = '' }
-    if (this.questionText) this.questionText.text = ''
     this.startCountdownActive = false
+    this.setGameElementsVisible(false)
+    this.hideAnswerMarkers()
     this.hideAnswerFeedback()
+    this.setResponse('')
     this.setStatusText(this.localReadyDone
       ? 'Ready! Waiting for opponent…'
       : 'Tap Ready to start')
@@ -537,6 +607,9 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
     const roundState = this.roundStateProp.currentOrPendingValue ?? '?'
     const buzzer = this.currentActiveBuzzerProp.currentOrPendingValue ?? '?'
     const readyCount = this.readyCountProp.currentOrPendingValue ?? 0
+    const hostScore = this.hostScoreProp.currentOrPendingValue ?? 0
+    const guestScore = this.guestScoreProp.currentOrPendingValue ?? 0
+    const result = this.roundResultProp.currentOrPendingValue || '-'
 
     const lines = [
       `ROLE: ${role}   (cached isHost: ${this.isHost})`,
@@ -544,9 +617,9 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
       `store: ready=${storeReady} owns=${owns} canWrite=${canModify}`,
       `phase: ${phase}   round: ${roundState}   buzzer: ${buzzer}`,
       `ready: ${readyCount}/2   (host=${this.hostReady} guest=${this.guestReady} me=${this.localReadyDone})`,
-      `score: me=${this.localScore}   q.id=${this.currentQuestionId} ans=${this.correctAnswer}`,
-      `timer: ${this.timerActive ? this.localTimeRemaining.toFixed(1) + 's' : 'off'}` +
-        `   startCd: ${this.startCountdownActive ? this.startCountdown.toFixed(1) + 's' : 'off'}`,
+      `score: H=${hostScore} G=${guestScore} / goal ${this.winScore}`,
+      `q.id=${this.currentQuestionId} ans=${this.correctAnswer}   result: ${result}`,
+      `startCd: ${this.startCountdownActive ? this.startCountdown.toFixed(1) + 's' : 'off'}`,
     ]
 
     this.debugText.enabled = true
@@ -567,8 +640,13 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
 
   private startNextRound() {
     if (!this.isHost) return
+    this.turnProcessed = false
+    this.raceDeadline = -1
+    this.hostPickThisRound = -1
+    this.guestPickThisRound = -1
     this.hostBuzzedTimeProp.setPendingValue('')
     this.guestBuzzedTimeProp.setPendingValue('')
+    this.roundResultProp.setPendingValue('')
     this.currentActiveBuzzerProp.setPendingValue('NONE')
     this.roundStateProp.setPendingValue('PLAYING')
     this.fetchAndSync()
@@ -578,31 +656,48 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
   // Round state handlers
   // ───────────────────────────────────────────────────────────────────────────
 
+  // Scheduling only — the on-screen conclusion is driven by renderRoundResult so
+  // it can't race the roundState change across the network.
   private handleRoundStateChange() {
     const state = this.roundStateProp.currentValue
+    if (state !== 'REVEAL_CORRECT' && state !== 'REVEAL_INCORRECT') return
 
-    if (state === 'REVEAL_CORRECT') {
-      this.timerActive = false
-      this.hideAnswerFeedback()
-      if (this.correctText) this.correctText.enabled = true
-      this.nextRoundCountdown = this.nextRoundDelaySeconds
-      this.nextRoundCountdownActive = true
-      if (this.isHost) this.scheduleNextRound(this.nextRoundDelaySeconds)
+    this.hideAnswerFeedback()
 
-    } else if (state === 'REVEAL_INCORRECT') {
-      this.timerActive = false
-      this.hideAnswerFeedback()
-      if (this.incorrectText) this.incorrectText.enabled = true
-      this.nextRoundCountdown = this.nextRoundDelaySeconds
-      this.nextRoundCountdownActive = true
-      if (this.isHost) this.scheduleNextRound(this.nextRoundDelaySeconds)
+    // Don't queue another round if this answer just won the game.
+    if (this.gamePhaseProp.currentOrPendingValue === PHASE_GAMEOVER) return
 
-    } else if (state === 'PAUSED') {
-      this.timerActive = false
-      this.nextRoundCountdownActive = false
-      this.hideAnswerFeedback()
-      if (this.timerText) this.timerText.text = 'Paused'
-      this.setStatusText('No answer — tap any option to continue')
+    this.nextRoundCountdown = this.nextRoundDelaySeconds
+    this.nextRoundCountdownActive = true
+    if (this.isHost) this.scheduleNextRound(this.nextRoundDelaySeconds)
+  }
+
+  // Renders the conclusion (phrase + markers) from the single atomic result prop.
+  private renderRoundResult() {
+    const raw = this.roundResultProp.currentOrPendingValue || ''
+    if (!raw) { this.hideAnswerMarkers(); return }
+
+    const parts = raw.split(':')
+    const type = parts[0]
+    const hostChoice  = parseInt(parts[1] ?? '-1')
+    const guestChoice = parseInt(parts[2] ?? '-1')
+    const myChoice = this.isHost ? hostChoice : guestChoice
+
+    let phrase: string
+    if (type === 'BOTH_WRONG') {
+      phrase = SAY_BOTH_WRONG
+    } else {
+      const iWon = (type === 'WIN_HOST' && this.isHost) || (type === 'WIN_GUEST' && !this.isHost)
+      phrase = iWon ? SAY_WIN_ROUND : (myChoice > 0 ? SAY_ROBBED : SAY_TOO_SLOW)
+    }
+
+    this.showAnswerMarkers(hostChoice, guestChoice)
+
+    // On a game-winning answer the win/lose banner takes priority.
+    if (this.gamePhaseProp.currentOrPendingValue === PHASE_GAMEOVER) {
+      this.showGameOver()
+    } else {
+      this.setResponse(phrase)
     }
   }
 
@@ -610,18 +705,11 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
     const activeBuzzer = this.currentActiveBuzzerProp.currentValue
     this.localHasAnsweredPhase = false
 
+    if (activeBuzzer === 'NONE') return  // race prompt is set when the question loads
+
     const myStealTurn = (activeBuzzer === 'HOST_ONLY' && this.isHost)
                      || (activeBuzzer === 'GUEST_ONLY' && !this.isHost)
-
-    if (activeBuzzer === 'NONE') {
-      this.setStatusText('RACE! Buzz in first!')
-    } else if (myStealTurn) {
-      this.timerActive = true
-      this.setStatusText('Opponent missed! YOUR TURN to steal!')
-    } else {
-      this.timerActive = false
-      this.setStatusText('Opponent is answering…')
-    }
+    this.setResponse(myStealTurn ? SAY_STEAL_YOURS : SAY_OPP_STEALING)
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -638,14 +726,24 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
     const activeBuzzer = this.currentActiveBuzzerProp.currentValue
 
     if (activeBuzzer === 'NONE') {
-      if (!hostToken && !guestToken) return
+      if (!hostToken && !guestToken) { this.raceDeadline = -1; return }
 
-      const hostTime  = hostToken  ? parseInt(hostToken.split(':')[0])  : Infinity
-      const guestTime = guestToken ? parseInt(guestToken.split(':')[0]) : Infinity
+      // Wait a short grace window for the other player's buzz to arrive, so the
+      // genuinely-earlier buzz wins even if its network message lands later.
+      const now = this.serverNow()
+      if (this.raceDeadline < 0) this.raceDeadline = now + this.RACE_GRACE_SECONDS
+      const bothIn = !!hostToken && !!guestToken
+      if (!bothIn && now < this.raceDeadline) return
+
+      const hostTime  = hostToken  ? parseFloat(hostToken.split(':')[0])  : Infinity
+      const guestTime = guestToken ? parseFloat(guestToken.split(':')[0]) : Infinity
       const hostOpt   = hostToken  ? parseInt(hostToken.split(':')[1])  : -1
       const guestOpt  = guestToken ? parseInt(guestToken.split(':')[1]) : -1
+      if (hostToken)  this.hostPickThisRound  = hostOpt
+      if (guestToken) this.guestPickThisRound = guestOpt
 
       this.turnProcessed = true
+      this.raceDeadline = -1
       if (hostTime <= guestTime) {
         this.processTurnAuthoritative('HOST', hostOpt)
       } else {
@@ -662,9 +760,12 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
     }
   }
 
-  private processTurnAuthoritative(player: 'HOST' | 'GUEST', chosenOption: number) {
-    this.timerActive = false
+  private serverNow(): number {
+    const t = SessionController.getInstance().getServerTimeInSeconds()
+    return (t === null || t < 0) ? getTime() : t
+  }
 
+  private processTurnAuthoritative(player: 'HOST' | 'GUEST', chosenOption: number) {
     const isCorrect         = chosenOption === this.correctAnswer
     const currentHostScore  = this.hostScoreProp.currentValue  ?? 0
     const currentGuestScore = this.guestScoreProp.currentValue ?? 0
@@ -672,13 +773,23 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
 
     this.log(`Turn: player=${player} option=${chosenOption} correct=${isCorrect}`)
 
+    // Record what this player picked (covers the steal branch too).
+    if (player === 'HOST') this.hostPickThisRound = chosenOption
+    else                   this.guestPickThisRound = chosenOption
+
     if (isCorrect) {
-      if (player === 'HOST') {
-        this.hostScoreProp.setPendingValue(currentHostScore + this.REWARD_POINTS)
-      } else {
-        this.guestScoreProp.setPendingValue(currentGuestScore + this.REWARD_POINTS)
-      }
+      const newScore = (player === 'HOST' ? currentHostScore : currentGuestScore) + this.REWARD_POINTS
+      if (player === 'HOST') this.hostScoreProp.setPendingValue(newScore)
+      else                   this.guestScoreProp.setPendingValue(newScore)
+
+      this.publishRoundResult(player === 'HOST' ? 'WIN_HOST' : 'WIN_GUEST')
       this.roundStateProp.setPendingValue('REVEAL_CORRECT')
+
+      if (newScore >= this.winScore) {
+        this.winnerProp.setPendingValue(player)
+        this.gamePhaseProp.setPendingValue(PHASE_GAMEOVER)
+        this.log(`Game over — winner ${player} (${newScore})`)
+      }
 
     } else {
       if (player === 'HOST') {
@@ -694,15 +805,25 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
         this.hostBuzzedTimeProp.setPendingValue('')
         this.guestBuzzedTimeProp.setPendingValue('')
         this.turnProcessed = false
+        this.raceDeadline = -1
         const nextTarget = (player === 'HOST') ? 'GUEST_ONLY' : 'HOST_ONLY'
         this.currentActiveBuzzerProp.setPendingValue(nextTarget)
 
       } else {
-        // Steal attempt also failed — trigger roast for stealing player
+        // Steal attempt also failed — both wrong, conclude the question.
         this.triggerRoastForWrongAnswer(player, 'roast2')
+        this.publishRoundResult('BOTH_WRONG')
         this.roundStateProp.setPendingValue('REVEAL_INCORRECT')
       }
     }
+  }
+
+  // Publishes the conclusion as one atomic synced value so the phrase + markers
+  // render together (never half-synced like the old separate choice props).
+  private publishRoundResult(type: 'WIN_HOST' | 'WIN_GUEST' | 'BOTH_WRONG') {
+    this.roundResultProp.setPendingValue(
+      `${type}:${this.hostPickThisRound}:${this.guestPickThisRound}`
+    )
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -787,21 +908,6 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
       this.evaluateBuzzerRaceAuthoritative()
     }
 
-    if (this.timerActive) {
-      this.localTimeRemaining -= getDeltaTime()
-      if (this.localTimeRemaining <= 0) {
-        this.localTimeRemaining = 0
-        this.timerActive = false
-        if (this.timerText) this.timerText.text = ''
-        if (this.isHost) {
-          this.turnProcessed = true
-          this.roundStateProp.setPendingValue('PAUSED')
-        }
-      } else {
-        if (this.timerText) this.timerText.text = this.localTimeRemaining.toFixed(1) + 's'
-      }
-    }
-
     if (this.nextRoundCountdownActive) {
       this.nextRoundCountdown -= getDeltaTime()
       if (this.nextRoundCountdown <= 0) {
@@ -828,47 +934,24 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
   }
 
   private checkUserAnswer(index: number) {
-    // Ignore option taps until the game is actually live (lobby / countdown).
+    // Ignore option taps unless a question is actually live.
     if (this.gamePhaseProp.currentOrPendingValue !== PHASE_ACTIVE) return
-
-    const currentState = this.roundStateProp.currentValue
-
-    if (currentState === 'PAUSED') {
-      this.setStatusText('Resuming…')
-      if (this.isHost) {
-        this.startNextRound()
-      } else {
-        this.guestSendMessage(MSG_GUEST_RESUME)
-      }
-      return
-    }
-
     if (this.localHasAnsweredPhase) return
-    if (currentState !== 'PLAYING') return
+    if (this.roundStateProp.currentValue !== 'PLAYING') return
 
     const currentBuzzerState = this.currentActiveBuzzerProp.currentValue
     if (currentBuzzerState === 'GUEST_ONLY' && this.isHost)  return
     if (currentBuzzerState === 'HOST_ONLY'  && !this.isHost) return
 
     this.localHasAnsweredPhase = true
-    this.timerActive = false
-    this.hideAnswerFeedback()
+    this.setStatusText('Locked in…')
 
-    const isCorrect = index === this.correctAnswer
-    if (isCorrect) {
-      if (this.correctText) this.correctText.enabled = true
-      this.setStatusText('Correct! Syncing…')
-    } else {
-      if (this.incorrectText) this.incorrectText.enabled = true
-      this.setStatusText(currentBuzzerState === 'NONE'
-        ? 'Incorrect! Passing turn…'
-        : 'Incorrect! Round over.')
-    }
-
+    // Server time so the host can rank host vs guest buzzes on one shared clock.
+    const ts = this.serverNow()
     if (this.isHost) {
-      this.hostBuzzedTimeProp.setPendingValue(`${Date.now()}:${index}`)
+      this.hostBuzzedTimeProp.setPendingValue(`${ts}:${index}`)
     } else {
-      this.guestSendMessage(`${MSG_GUEST_BUZZ}:${Date.now()}:${index}`)
+      this.guestSendMessage(`${MSG_GUEST_BUZZ}:${ts}:${index}`)
     }
   }
 
@@ -904,7 +987,6 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
         const result = JSON.parse(response.body)
         if (result.ok === true && result.record) {
           this.jsonQuestionProp.setPendingValue(JSON.stringify(result.record))
-          this.timerStartTokenProp.setPendingValue(`${this.roundDurationSeconds}:${Date.now()}`)
         }
       } catch (e) {
         this.log(`Parse fault: ${e}`)
@@ -930,6 +1012,11 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
       this.localHasAnsweredPhase = false
       this.hideAnswerFeedback()
 
+      // Reveal the board (hidden during lobby/countdown) and clear last round.
+      this.setGameElementsVisible(true)
+      this.hideAnswerMarkers()
+      this.setResponse(this.questionStartResponse())
+
       // Clear roast from previous round
       if (this.roastText) {
         this.roastText.enabled = false
@@ -950,6 +1037,129 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
   private setStatusText(msg: string) {
     if (this.statusText) this.statusText.text = msg
     this.log(msg)
+  }
+
+  // ── Response label ─────────────────────────────────────────────────────────
+
+  private setResponse(msg: string) {
+    if (!this.responseText) return
+    this.responseText.text = msg
+    this.responseText.enabled = msg.length > 0
+  }
+
+  // Phrase shown when a fresh question appears: Matchpoint warning, else race.
+  private questionStartResponse(): string {
+    const hostScore  = this.hostScoreProp.currentOrPendingValue  ?? 0
+    const guestScore = this.guestScoreProp.currentOrPendingValue ?? 0
+    const myScore  = this.isHost ? hostScore : guestScore
+    const oppScore = this.isHost ? guestScore : hostScore
+
+    const meMatch  = myScore  + this.REWARD_POINTS >= this.winScore
+    const oppMatch = oppScore + this.REWARD_POINTS >= this.winScore
+
+    if (meMatch && oppMatch) return SAY_MATCH_BOTH
+    if (meMatch)  return SAY_MATCH_ME
+    if (oppMatch) return SAY_MATCH_OPP
+    return SAY_RACE
+  }
+
+  private showGameOver() {
+    const winner = this.winnerProp.currentOrPendingValue ?? ''
+    const iWon = (winner === 'HOST' && this.isHost) || (winner === 'GUEST' && !this.isHost)
+    this.setResponse(iWon ? SAY_GAME_WIN : SAY_GAME_LOSE)
+    this.setStatusText('Game over')
+  }
+
+  // ── Board visibility ───────────────────────────────────────────────────────
+
+  private setGameElementsVisible(visible: boolean) {
+    if (this.questionText) this.questionText.enabled = visible
+    this.setButtonObjVisible(this.optionButton1, visible)
+    this.setButtonObjVisible(this.optionButton2, visible)
+    this.setButtonObjVisible(this.optionButton3, visible)
+    this.setButtonObjVisible(this.optionButton4, visible)
+  }
+
+  private setButtonObjVisible(btn: RectangleButton, visible: boolean) {
+    if (!btn) return
+    const so = btn.getSceneObject()
+    if (so) so.enabled = visible
+  }
+
+  private optionButtonByIndex(index: number): RectangleButton | null {
+    switch (index) {
+      case 1: return this.optionButton1
+      case 2: return this.optionButton2
+      case 3: return this.optionButton3
+      case 4: return this.optionButton4
+      default: return null
+    }
+  }
+
+  // ── Answer markers (created by the script, positioned at the buttons) ───────
+
+  private showAnswerMarkers(hostChoice: number, guestChoice: number) {
+    const myChoice  = this.isHost ? hostChoice : guestChoice
+    const oppChoice = this.isHost ? guestChoice : hostChoice
+
+    this.meMarker  = this.ensureMarker(this.meMarker, 'AnswerMarker_Me')
+    this.oppMarker = this.ensureMarker(this.oppMarker, 'AnswerMarker_Opponent')
+
+    const sameButton = myChoice > 0 && myChoice === oppChoice
+    this.placeMarker(this.meMarker, 'Me', myChoice, false)
+    this.placeMarker(this.oppMarker, 'Opponent', oppChoice, sameButton)
+  }
+
+  // Lazily creates a Text SceneObject for a marker. No font is required — the
+  // engine renders new Text components with the default font.
+  private ensureMarker(existing: Text | null, name: string): Text {
+    if (existing) return existing
+    const obj = global.scene.createSceneObject(name)
+    obj.enabled = false
+    const t = obj.createComponent('Component.Text') as Text
+    t.horizontalAlignment = HorizontalAlignment.Left
+    t.verticalAlignment = VerticalAlignment.Center
+    return t
+  }
+
+  private placeMarker(marker: Text, label: string, choice: number, stacked: boolean) {
+    const markerSO = marker.getSceneObject()
+    if (!markerSO) return
+
+    if (choice < 1 || choice > 4) { markerSO.enabled = false; return }
+    const btn = this.optionButtonByIndex(choice)
+    const btnSO = btn ? btn.getSceneObject() : null
+    if (!btnSO) { markerSO.enabled = false; return }
+
+    markerSO.setParent(btnSO)
+    markerSO.layer = btnSO.layer   // draw on the same render layer as the button
+    const off = this.answerMarkerOffset || new vec3(6, 0, 0)
+    const y = stacked ? off.y - this.answerMarkerStackSpacing : off.y
+    const t = markerSO.getTransform()
+    t.setLocalPosition(new vec3(off.x, y, off.z))
+    t.setLocalRotation(quat.quatIdentity())
+
+    marker.text = label
+    marker.size = this.answerMarkerTextSize
+    marker.textFill.color = this.markerColor(choice === this.correctAnswer)
+    markerSO.enabled = true
+  }
+
+  private hideAnswerMarkers() {
+    if (this.meMarker) {
+      const so = this.meMarker.getSceneObject()
+      if (so) so.enabled = false
+    }
+    if (this.oppMarker) {
+      const so = this.oppMarker.getSceneObject()
+      if (so) so.enabled = false
+    }
+  }
+
+  private markerColor(correct: boolean): vec4 {
+    return correct
+      ? new vec4(0.25, 0.85, 0.35, 1.0)  // green
+      : new vec4(0.95, 0.30, 0.30, 1.0)  // red
   }
 
   private cacheOptionChildTextNodes() {
