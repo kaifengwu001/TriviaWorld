@@ -29,6 +29,7 @@ import { DynamicAudioOutput } from "RemoteServiceGateway.lspkg/Helpers/DynamicAu
 import { MicrophoneRecorder } from "RemoteServiceGateway.lspkg/Helpers/MicrophoneRecorder";
 import { AudioProcessor } from "RemoteServiceGateway.lspkg/Helpers/AudioProcessor";
 import { pcm16Rms, pcm16DurationSec } from "../AudioLevel";
+import { acquireMic, releaseMic, safeStartRecording, MicWatchdog } from "../MicHealth";
 import { BARGE_IN_INSTRUCTION, handleBargeIn } from "../VoiceBargeIn";
 import { CardDeckController } from "./CardDeckController";
 import { GlobeController } from "../Globe/GlobeController";
@@ -135,6 +136,7 @@ export class CardQueryVoiceAgent extends BaseScriptComponent {
   private connecting = false;
   private micWired = false;
   private listening = false;
+  private micWatchdog: MicWatchdog | null = null;
   // How long the user has been looking at the deck this dwell (for gaze-arm).
   private gazeDwell = 0;
 
@@ -183,10 +185,12 @@ export class CardQueryVoiceAgent extends BaseScriptComponent {
    * (CardVoiceAgent) can own the single live session. Re-entrant.
    */
   suspend(): void {
+    if (this.micWatchdog) this.micWatchdog.end();
     if (this.listening && this.microphoneRecorder) {
       try { this.microphoneRecorder.stopRecording(); } catch (e) {}
       this.listening = false;
     }
+    releaseMic(this);
     if (this.liveSession) {
       try { (this.liveSession as any).close?.(); } catch (e) {}
     }
@@ -301,6 +305,7 @@ export class CardQueryVoiceAgent extends BaseScriptComponent {
 
     if (message?.serverContent?.outputTranscription?.text) {
       this.logger.info("Agent: " + message.serverContent.outputTranscription.text);
+      (global as any).agentSubtitle?.pushText?.(message.serverContent.outputTranscription.text);
     }
     if (message?.serverContent?.inputTranscription?.text) {
       this.logger.info("User: " + message.serverContent.inputTranscription.text);
@@ -325,9 +330,23 @@ export class CardQueryVoiceAgent extends BaseScriptComponent {
 
   private startListening(): void {
     if (this.listening) return;
-    this.microphoneRecorder.startRecording();
+    // Shared-provider hygiene: claim the mic, cycle stop->start (recovers a latched
+    // dead provider), and watchdog it until non-empty frames arrive. See MicHealth.
+    acquireMic(this, "CardQueryVoiceAgent", () => this.releaseMicOnly());
+    safeStartRecording(this.microphoneRecorder);
+    if (!this.micWatchdog) {
+      this.micWatchdog = new MicWatchdog(this, this.microphoneRecorder, this, "CardQueryVoiceAgent");
+    }
+    this.micWatchdog.begin();
     this.listening = true;
     this.logger.info("Microphone listening started — say what cards you're looking for.");
+  }
+
+  /** Mic-only release for handoffs: stop capturing but leave the session open. */
+  private releaseMicOnly(): void {
+    if (this.micWatchdog) this.micWatchdog.end();
+    try { this.microphoneRecorder.stopRecording(); } catch (e) {}
+    this.listening = false;
   }
 
   // --- tool calls ------------------------------------------------------------
@@ -386,11 +405,16 @@ export class CardQueryVoiceAgent extends BaseScriptComponent {
     // blanks the lens on-device. The host's session closes after it announces the
     // user's interests, then gaze arms us normally.
     if (this.autoStart && !this.sessionReady && !this.connecting &&
-        !this.isHostVoiceActive() && this.cardDeck.isUserGazingAtCosmos()) {
+        !this.isOnboardingVoiceActive() && !this.isCardVoiceActive() &&
+        this.cardDeck.isUserGazingAtCosmos()) {
       this.gazeDwell += dt;
       if (this.gazeDwell >= GAZE_ACTIVATE_DWELL_SEC) {
         this.logger.info("User is looking at the deck — arming the query agent.");
         this.beginListening();
+        // Reset the dwell so a failed/closed connect can't re-fire beginListening()
+        // every frame (a connect + mic-acquire storm that overheats the device).
+        // A genuine retry then needs a fresh 1.5s dwell.
+        this.gazeDwell = 0;
       }
     } else {
       // Reset the dwell while the host holds the slot / we're not gazing, so a
@@ -406,11 +430,27 @@ export class CardQueryVoiceAgent extends BaseScriptComponent {
     return !!this.cardDeck && this.cardDeck.getSceneObject().isEnabledInHierarchy;
   }
 
-  // True while the WelcomeVoice still holds the single live session (from launch
-  // until it closes after announcing interests). We wait it out rather than evict
-  // it — opening a second session at launch blanks the lens on-device.
-  private isHostVoiceActive(): boolean {
+  // True while either onboarding voice still holds the single live session: the
+  // WelcomeVoice host (launch → Start) or the RecommendationVoiceAgent (Start → card
+  // pick). We wait them out rather than evict — opening a second session at launch
+  // blanks the lens on-device, and the gateway keeps only the newest alive anyway.
+  private isOnboardingVoiceActive(): boolean {
     const host = (global as any).hostVoice;
-    return !!host && typeof host.isActive === "function" && host.isActive();
+    const rec = (global as any).recommendationVoiceAgent;
+    const hostActive = !!host && typeof host.isActive === "function" && host.isActive();
+    const recActive = !!rec && typeof rec.isActive === "function" && rec.isActive();
+    return hostActive || recActive;
+  }
+
+  // True while a CardVoiceAgent card conversation holds the single live session.
+  // Prayer-gesture-discovered cards are engaged WHILE the user gazes at the cosmos,
+  // so without this gate the gaze-arming above would immediately steal the session
+  // back from the card the user just tapped — the two agents then thrash the one
+  // session (reconnect + mic re-acquire each cycle) and overheat the device. We
+  // stand down while a card is being discussed; the card's session later idle-closes,
+  // after which gaze re-arms the query agent normally.
+  private isCardVoiceActive(): boolean {
+    const cardAgent = (global as any).cardVoiceAgent;
+    return !!cardAgent && typeof cardAgent.isActive === "function" && cardAgent.isActive();
   }
 }

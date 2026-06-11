@@ -185,17 +185,21 @@ export class NudgeVoice extends BaseScriptComponent {
 
   /**
    * The conversational agent currently holding the single live session, or null.
-   * Prefers the card-query agent (the cosmos-view default) over the card agent.
-   * Both expose isActive()/speakIntent(), so the nudge can ride their session.
+   * Used as a boolean gate: while any agent is engaged the nudge is skipped entirely
+   * (we never open a competing session, and the user is already talking to someone).
    */
   private activeConversationalAgent(): any {
-    const query = (global as any).cardQueryVoiceAgent;
-    if (query && typeof query.isActive === "function" && query.isActive() && typeof query.speakIntent === "function") {
-      return query;
-    }
-    const card = (global as any).cardVoiceAgent;
-    if (card && typeof card.isActive === "function" && card.isActive() && typeof card.speakIntent === "function") {
-      return card;
+    // ANY agent holding the single gateway live session counts — opening our own
+    // session next to it would evict/zombify theirs. Only isActive() is required
+    // (the result is used as a boolean at both call sites).
+    const candidates = [
+      (global as any).cardQueryVoiceAgent,
+      (global as any).cardVoiceAgent,
+      (global as any).hostVoice,                // WelcomeVoice: live from launch until Start
+      (global as any).recommendationVoiceAgent, // live from Start until the card pick
+    ];
+    for (const agent of candidates) {
+      if (agent && typeof agent.isActive === "function" && agent.isActive()) return agent;
     }
     return null;
   }
@@ -263,6 +267,7 @@ export class NudgeVoice extends BaseScriptComponent {
         );
       } else if (message?.serverContent?.outputTranscription?.text) {
         this.logger.info("Spoke: " + message.serverContent.outputTranscription.text);
+        (global as any).agentSubtitle?.pushText?.(message.serverContent.outputTranscription.text);
       }
 
       // One-shot: once the nudge has been fully spoken, close the session so it

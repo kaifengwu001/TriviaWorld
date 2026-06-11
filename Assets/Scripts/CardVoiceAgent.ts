@@ -29,6 +29,7 @@ import { DynamicAudioOutput } from "RemoteServiceGateway.lspkg/Helpers/DynamicAu
 import { MicrophoneRecorder } from "RemoteServiceGateway.lspkg/Helpers/MicrophoneRecorder";
 import { AudioProcessor } from "RemoteServiceGateway.lspkg/Helpers/AudioProcessor";
 import { pcm16Rms, pcm16DurationSec } from "./AudioLevel";
+import { acquireMic, releaseMic, safeStartRecording, MicWatchdog } from "./MicHealth";
 import { BARGE_IN_INSTRUCTION, handleBargeIn } from "./VoiceBargeIn";
 import {
   CARD_EDIT_TOOL_DECLARATIONS,
@@ -127,6 +128,7 @@ export class CardVoiceAgent extends BaseScriptComponent {
   private connecting = false;
   private micWired = false;
   private listening = false;
+  private micWatchdog: MicWatchdog | null = null;
   // Latest card context waiting to be sent once the session is ready.
   private pendingCaption: string | null = null;
   // Last caption we sent context for, so repeated taps on the same card no-op.
@@ -279,6 +281,7 @@ export class CardVoiceAgent extends BaseScriptComponent {
       // Transcriptions: what the agent said, and what the user asked.
       if (message?.serverContent?.outputTranscription?.text) {
         this.logger.info("Agent: " + message.serverContent.outputTranscription.text);
+        (global as any).agentSubtitle?.pushText?.(message.serverContent.outputTranscription.text);
       }
       if (message?.serverContent?.inputTranscription?.text) {
         this.logger.info("User: " + message.serverContent.inputTranscription.text);
@@ -364,10 +367,12 @@ export class CardVoiceAgent extends BaseScriptComponent {
    * The next engageCard() reconnects from scratch via ensureStarted(). Re-entrant.
    */
   suspend(): void {
+    if (this.micWatchdog) this.micWatchdog.end();
     if (this.listening) {
       try { this.microphoneRecorder.stopRecording(); } catch (e) {}
       this.listening = false;
     }
+    releaseMic(this);
     if (this.liveSession) {
       try { (this.liveSession as any).close?.(); } catch (e) {}
     }
@@ -375,6 +380,13 @@ export class CardVoiceAgent extends BaseScriptComponent {
     this.connecting = false;
     this.setupStarted = false;
     this.currentCaption = null;
+  }
+
+  /** Mic-only release for handoffs: stop capturing but leave the session open. */
+  private releaseMicOnly(): void {
+    if (this.micWatchdog) this.micWatchdog.end();
+    try { this.microphoneRecorder.stopRecording(); } catch (e) {}
+    this.listening = false;
   }
 
   /**
@@ -478,7 +490,14 @@ export class CardVoiceAgent extends BaseScriptComponent {
   private sendCardContext(captionText: string): void {
     // Open the listening window the first time a card is engaged.
     if (!this.listening) {
-      this.microphoneRecorder.startRecording();
+      // Shared-provider hygiene: claim the mic, cycle stop->start (recovers a latched
+      // dead provider), and watchdog it until non-empty frames arrive. See MicHealth.
+      acquireMic(this, "CardVoiceAgent", () => this.releaseMicOnly());
+      safeStartRecording(this.microphoneRecorder);
+      if (!this.micWatchdog) {
+        this.micWatchdog = new MicWatchdog(this, this.microphoneRecorder, this, "CardVoiceAgent");
+      }
+      this.micWatchdog.begin();
       this.listening = true;
       this.logger.info("Microphone listening started");
     }
