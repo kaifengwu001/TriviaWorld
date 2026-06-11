@@ -1,5 +1,17 @@
 /**
- * MultiplayerTriviaManager.ts — v2.3
+ * MultiplayerTriviaManager.ts — v2.4
+ *
+ * Changes from v2.3:
+ *   - Deterministic game start: a LOBBY phase with a "Ready" button and an
+ *     "X/2 Ready" status replaces the old race-prone host auto-start. The first
+ *     question is only fetched once BOTH players have confirmed ready, which
+ *     guarantees both devices are joined + subscribed before jsonQuestion syncs
+ *     (fixes the empty / stuck first-question bug when the 2nd player joins).
+ *   - Once 2/2 ready, host drives a synced 3-2-1 countdown (large centered text)
+ *     and loads the first round for both devices at 0.
+ *   - New synced props: gamePhase (LOBBY/COUNTDOWN/ACTIVE), readyCount,
+ *     countdownStartToken. New message: GUEST_READY (guest → host).
+ *   - Answer buttons are gated to the ACTIVE phase.
  *
  * Changes from v2.2:
  *   - Fixed roast display for guest: host now sends MSG_HOST_ROAST message to guest
@@ -36,6 +48,12 @@ interface TriviaRecord {
 const MSG_GUEST_BUZZ   = 'GUEST_BUZZ'    // guest → host: "GUEST_BUZZ:timestamp:optionIndex"
 const MSG_GUEST_RESUME = 'GUEST_RESUME'  // guest → host: resume from PAUSED
 const MSG_HOST_ROAST   = 'HOST_ROAST'    // host → guest: "HOST_ROAST:questionId:roast1|roast2"
+const MSG_GUEST_READY  = 'GUEST_READY'   // guest → host: guest tapped the Ready button
+
+// Game lifecycle phases (synced via gamePhaseProp)
+const PHASE_LOBBY     = 'LOBBY'      // waiting for both players to ready up
+const PHASE_COUNTDOWN = 'COUNTDOWN'  // 3-2-1 before first question
+const PHASE_ACTIVE    = 'ACTIVE'     // normal round play
 
 @component
 export class MultiplayerTriviaManager extends BaseScriptComponent {
@@ -58,6 +76,23 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
   @input public incorrectText: Text
   @input public myScoreValueText: Text
   @input public statusText: Text | null = null
+
+  // ── Lobby / start coordination ─────────────────────────────────────────────
+  @input
+  @hint("Button players tap to mark themselves ready in the lobby")
+  public readyButton: RectangleButton | null = null
+
+  @input
+  @hint("Text showing how many players are ready, e.g. '1/2 Ready'")
+  public readyStatusText: Text | null = null
+
+  @input
+  @hint("Large, centered Text used for the 3-2-1 start countdown")
+  public countdownText: Text | null = null
+
+  @input
+  @hint("Optional on-screen debug readout (role, phase, sync/store state)")
+  public debugText: Text | null = null
 
   @input public opponentScoreValueText: Text
   @input public timerText: Text
@@ -86,6 +121,11 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
   private hostBuzzedTimeProp      = StorageProperty.manualString('hostBuzzedTime', '')
   private guestBuzzedTimeProp     = StorageProperty.manualString('guestBuzzedTime', '')
 
+  // Lobby / start coordination (host-authoritative)
+  private gamePhaseProp           = StorageProperty.manualString('gamePhase', PHASE_LOBBY)
+  private readyCountProp          = StorageProperty.manualInt('readyCount', 0)
+  private countdownStartTokenProp = StorageProperty.manualString('countdownStartToken', '')
+
   // ── Local state ───────────────────────────────────────────────────────────
   private correctAnswer: number             = 0
   private currentQuestionId: number         = 0
@@ -94,6 +134,16 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
   private turnProcessed: boolean            = false
   private nextRoundCountdown: number        = 0
   private nextRoundCountdownActive: boolean = false
+
+  // Lobby / start coordination
+  private hostReady: boolean                = false
+  private guestReady: boolean               = false
+  private localReadyDone: boolean           = false
+  private hostStartupDone: boolean          = false
+  private startCountdown: number            = 0
+  private startCountdownActive: boolean     = false
+
+  private readonly START_COUNTDOWN_SECONDS = 3
 
   private readonly REWARD_POINTS  = 10
   private readonly PENALTY_POINTS = 5
@@ -124,6 +174,14 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
     if (this.myScoreValueText) this.myScoreValueText.text = '0'
     if (this.roastText) this.roastText.enabled = false
 
+    // Lobby UI: hide the text labels until the session is ready.
+    // NOTE: do NOT disable the ready button's SceneObject here — UIKit buttons
+    // wire up their tap handler in OnStartEvent, which never fires for an object
+    // that is disabled at startup. Disabling it now would permanently break
+    // onTriggerUp. Visibility is managed via applyGamePhaseUI after it inits.
+    if (this.countdownText) { this.countdownText.enabled = false; this.countdownText.text = '' }
+    if (this.readyStatusText) this.readyStatusText.enabled = false
+
     this.createEvent("UpdateEvent").bind(() => this.onUpdate())
     SessionController.getInstance().notifyOnReady(() => this.onSessionReady())
   }
@@ -134,7 +192,6 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
     this.isHost = sc.isHost() === true
 
     this.log(`Session ready — isHost:${this.isHost} localId:${this.localPlayerId}`)
-    this.setStatusText(this.isHost ? 'Host — starting…' : 'Guest — waiting…')
 
     const gameNetworkId = { customNetworkId: 'triviaGameState', networkIdType: 'Custom' } as any
     this.gameSyncEntity = new SyncEntity(
@@ -148,6 +205,9 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
         this.guestScoreProp,
         this.hostBuzzedTimeProp,
         this.guestBuzzedTimeProp,
+        this.gamePhaseProp,
+        this.readyCountProp,
+        this.countdownStartTokenProp,
       ]),
       true, 'Session', gameNetworkId
     )
@@ -200,14 +260,95 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
     this.roundStateProp.onAnyChange.add(() => this.handleRoundStateChange())
     this.currentActiveBuzzerProp.onAnyChange.add(() => this.handleBuzzerStateChange())
 
+    // ── Lobby / start coordination ───────────────────────────────────────────
+    this.gamePhaseProp.onAnyChange.add(() => this.applyGamePhaseUI())
+    this.readyCountProp.onAnyChange.add(() => this.updateReadyStatusText())
+    this.countdownStartTokenProp.onAnyChange.add(() => {
+      const token = this.countdownStartTokenProp.currentValue ?? ''
+      if (!token) return
+      const secs = parseFloat(token.split(':')[0])
+      if (secs > 0) {
+        this.startCountdown = secs
+        this.startCountdownActive = true
+        this.setReadyButtonVisible(false)
+        if (this.readyStatusText) this.readyStatusText.enabled = false
+        this.log(`Start countdown: ${secs}s`)
+      }
+    })
+
+    this.readyButton?.onTriggerUp.add(() => this.onReadyTapped())
+
     // Both devices subscribe — each handles the messages relevant to their role
     sc.onMessageReceived.add(
       (_session, _userId, message, _senderInfo) => this.onMessageReceived(message)
     )
 
+    // Show the lobby immediately so the Ready button is always visible at start,
+    // independent of host-role timing or stale synced state from a prior run.
+    this.showLobbyLocally()
+
+    // Host role can settle AFTER the session reports ready (e.g. host migration
+    // after a preview reset can make both sides briefly look like guests). Re-
+    // evaluate whenever it changes so the real host runs startup and recovers.
+    sc.onHostUpdated.add(() => this.handleHostUpdated())
+
+    // When the store is ready, the host clears stale state and both render phase.
+    this.gameSyncEntity.notifyOnReady(() => this.handleStoreReady())
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Host-role resolution (robust to migration after a reset)
+  // ───────────────────────────────────────────────────────────────────────────
+
+  private handleStoreReady() {
+    this.isHost = SessionController.getInstance().isHost() === true
+    this.log(`Store ready — isHost:${this.isHost}`)
+    if (this.isHost) this.runHostStartup()
+    this.applyGamePhaseUI()
+  }
+
+  private handleHostUpdated() {
+    if (!this.gameSyncEntity) return
+    this.isHost = SessionController.getInstance().isHost() === true
+    this.log(`Host updated — isHost now ${this.isHost}`)
+
     if (this.isHost) {
-      this.scheduleNextRound(2)
+      this.runHostStartup()
+      // Recover a Ready press this device made before its host role settled.
+      if (this.localReadyDone && !this.hostReady) {
+        this.hostReady = true
+        this.updateReadyCount()
+      }
+    } else if (this.localReadyDone) {
+      // Re-assert our Ready to the (possibly new) host whose tally we missed.
+      this.guestSendMessage(MSG_GUEST_READY)
     }
+
+    this.applyGamePhaseUI()
+  }
+
+  // Host-only, runs once per session: wipe stale synced state for a clean start.
+  private runHostStartup() {
+    if (!this.isHost) return
+    if (this.hostStartupDone) return
+    this.hostStartupDone = true
+    this.resetToFreshLobby()
+  }
+
+  private resetToFreshLobby() {
+    this.log('Resetting to fresh lobby')
+
+    this.hostReady = false
+    this.guestReady = false
+
+    this.readyCountProp.setPendingValue(0)
+    this.countdownStartTokenProp.setPendingValue('')
+    this.jsonQuestionProp.setPendingValue('')
+    this.hostBuzzedTimeProp.setPendingValue('')
+    this.guestBuzzedTimeProp.setPendingValue('')
+    this.currentActiveBuzzerProp.setPendingValue('NONE')
+    this.roundStateProp.setPendingValue('PLAYING')
+    this.gamePhaseProp.setPendingValue(PHASE_LOBBY)
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -219,6 +360,12 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
 
     // ── Host handles guest input messages ───────────────────────────────────
     if (this.isHost) {
+      if (message === MSG_GUEST_READY) {
+        this.guestReady = true
+        this.updateReadyCount()
+        return
+      }
+
       if (message === MSG_GUEST_RESUME) {
         if (this.roundStateProp.currentValue === 'PAUSED') {
           this.startNextRound()
@@ -270,6 +417,140 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
     if (!session) { this.log('ERROR: session null'); return }
     session.sendMessage(message)
     this.log(`Host sent: ${message}`)
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Lobby / deterministic start
+  // ───────────────────────────────────────────────────────────────────────────
+
+  private onReadyTapped() {
+    if (!this.gameSyncEntity) return
+    if (this.gamePhaseProp.currentOrPendingValue !== PHASE_LOBBY) return
+    if (this.localReadyDone) return
+
+    this.localReadyDone = true
+    this.setReadyButtonVisible(false)
+    this.setStatusText('Ready! Waiting for opponent…')
+
+    if (this.isHost) {
+      this.hostReady = true
+      this.updateReadyCount()
+    } else {
+      this.guestSendMessage(MSG_GUEST_READY)
+    }
+  }
+
+  // Host-only: recompute ready count, sync it, and start the countdown at 2/2.
+  private updateReadyCount() {
+    if (!this.isHost) return
+    const count = (this.hostReady ? 1 : 0) + (this.guestReady ? 1 : 0)
+    this.log(`Ready count → ${count}/2`)
+    this.readyCountProp.setPendingValue(count)
+    this.updateReadyStatusText()
+    if (count >= 2) this.beginStartCountdown()
+  }
+
+  // Host-only: enter COUNTDOWN, sync the start token, and load round 1 at 0.
+  private beginStartCountdown() {
+    if (!this.isHost) return
+    if (this.gamePhaseProp.currentOrPendingValue !== PHASE_LOBBY) return
+
+    this.log('Both ready — beginning start countdown')
+    this.gamePhaseProp.setPendingValue(PHASE_COUNTDOWN)
+    this.countdownStartTokenProp.setPendingValue(`${this.START_COUNTDOWN_SECONDS}:${Date.now()}`)
+
+    const delayEvent = this.createEvent('DelayedCallbackEvent') as DelayedCallbackEvent
+    delayEvent.bind(() => {
+      this.gamePhaseProp.setPendingValue(PHASE_ACTIVE)
+      this.startNextRound()
+    })
+    delayEvent.reset(this.START_COUNTDOWN_SECONDS)
+  }
+
+  private applyGamePhaseUI() {
+    const phase = this.gamePhaseProp.currentOrPendingValue
+
+    if (phase === PHASE_LOBBY) {
+      this.showLobbyLocally()
+
+    } else if (phase === PHASE_COUNTDOWN) {
+      this.setReadyButtonVisible(false)
+      if (this.readyStatusText) this.readyStatusText.enabled = false
+
+    } else if (phase === PHASE_ACTIVE) {
+      this.setReadyButtonVisible(false)
+      if (this.readyStatusText) this.readyStatusText.enabled = false
+      this.startCountdownActive = false
+      if (this.countdownText) this.countdownText.enabled = false
+    }
+  }
+
+  // Renders the lobby on this device. Safe to call before the store/host settle,
+  // so the Ready button always appears at start regardless of network timing.
+  private showLobbyLocally() {
+    this.setReadyButtonVisible(!this.localReadyDone)
+    if (this.readyStatusText) {
+      this.readyStatusText.enabled = true
+      const count = this.readyCountProp.currentOrPendingValue ?? 0
+      this.readyStatusText.text = `${count}/2 Ready`
+    }
+    if (this.countdownText) { this.countdownText.enabled = false; this.countdownText.text = '' }
+    if (this.questionText) this.questionText.text = ''
+    this.startCountdownActive = false
+    this.hideAnswerFeedback()
+    this.setStatusText(this.localReadyDone
+      ? 'Ready! Waiting for opponent…'
+      : 'Tap Ready to start')
+  }
+
+  private updateReadyStatusText() {
+    if (!this.readyStatusText) return
+    if (this.gamePhaseProp.currentOrPendingValue !== PHASE_LOBBY) return
+    const count = this.readyCountProp.currentOrPendingValue ?? 0
+    this.readyStatusText.text = `${count}/2 Ready`
+  }
+
+  private setReadyButtonVisible(visible: boolean) {
+    if (!this.readyButton) return
+    const so = this.readyButton.getSceneObject()
+    if (so) so.enabled = visible
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Debug overlay
+  // ───────────────────────────────────────────────────────────────────────────
+
+  private updateDebugText() {
+    if (!this.debugText) return
+
+    const sc = SessionController.getInstance()
+    const liveIsHost = sc.isHost()
+    const role = liveIsHost === null ? 'UNKNOWN' : (liveIsHost ? 'HOST' : 'GUEST')
+
+    const entity = this.gameSyncEntity
+    const storeReady = entity ? entity.isSetupFinished : false
+    const owns = entity ? entity.doIOwnStore() : false
+    const canModify = entity ? entity.canIModifyStore() : false
+    const userCount = sc.getUsers ? sc.getUsers().length : -1
+
+    const phase = this.gamePhaseProp.currentOrPendingValue ?? '?'
+    const roundState = this.roundStateProp.currentOrPendingValue ?? '?'
+    const buzzer = this.currentActiveBuzzerProp.currentOrPendingValue ?? '?'
+    const readyCount = this.readyCountProp.currentOrPendingValue ?? 0
+
+    const lines = [
+      `ROLE: ${role}   (cached isHost: ${this.isHost})`,
+      `user: ${this.localPlayerId}   users: ${userCount}`,
+      `store: ready=${storeReady} owns=${owns} canWrite=${canModify}`,
+      `phase: ${phase}   round: ${roundState}   buzzer: ${buzzer}`,
+      `ready: ${readyCount}/2   (host=${this.hostReady} guest=${this.guestReady} me=${this.localReadyDone})`,
+      `score: me=${this.localScore}   q.id=${this.currentQuestionId} ans=${this.correctAnswer}`,
+      `timer: ${this.timerActive ? this.localTimeRemaining.toFixed(1) + 's' : 'off'}` +
+        `   startCd: ${this.startCountdownActive ? this.startCountdown.toFixed(1) + 's' : 'off'}`,
+    ]
+
+    this.debugText.enabled = true
+    this.debugText.text = lines.join('\n')
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -488,6 +769,20 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
   // ───────────────────────────────────────────────────────────────────────────
 
   private onUpdate() {
+    this.updateDebugText()
+
+    if (this.startCountdownActive) {
+      this.startCountdown -= getDeltaTime()
+      if (this.startCountdown <= 0) {
+        this.startCountdownActive = false
+        if (this.countdownText) { this.countdownText.text = ''; this.countdownText.enabled = false }
+        this.setStatusText('Loading…')
+      } else if (this.countdownText) {
+        this.countdownText.enabled = true
+        this.countdownText.text = String(Math.ceil(this.startCountdown))
+      }
+    }
+
     if (this.isHost) {
       this.evaluateBuzzerRaceAuthoritative()
     }
@@ -533,6 +828,9 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
   }
 
   private checkUserAnswer(index: number) {
+    // Ignore option taps until the game is actually live (lobby / countdown).
+    if (this.gamePhaseProp.currentOrPendingValue !== PHASE_ACTIVE) return
+
     const currentState = this.roundStateProp.currentValue
 
     if (currentState === 'PAUSED') {
