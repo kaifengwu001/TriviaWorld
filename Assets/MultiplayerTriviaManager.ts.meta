@@ -27,6 +27,8 @@
   PackagePolicy: CanBeUnpacked
   ScriptInputsHidden:
     correctText: false
+    countdownText: false
+    debugText: false
     enableDebugLogs: false
     functionName: false
     incorrectText: false
@@ -40,6 +42,8 @@
     optionButton4: false
     optionButtonChildTextName: false
     questionText: false
+    readyButton: false
+    readyStatusText: false
     roastFetcherComponent: false
     roastText: false
     roundDurationSeconds: false
@@ -70,6 +74,10 @@
       incorrectText: !<reference.Text> 00000000-0000-0000-0000-000000000000
       myScoreValueText: !<reference.Text> 00000000-0000-0000-0000-000000000000
       statusText: !<reference.Text> 00000000-0000-0000-0000-000000000000
+      readyButton: !<MappingBased.AssignableType_4> 00000000-0000-0000-0000-000000000000
+      readyStatusText: !<reference.Text> 00000000-0000-0000-0000-000000000000
+      countdownText: !<reference.Text> 00000000-0000-0000-0000-000000000000
+      debugText: !<reference.Text> 00000000-0000-0000-0000-000000000000
       opponentScoreValueText: !<reference.Text> 00000000-0000-0000-0000-000000000000
       timerText: !<reference.Text> 00000000-0000-0000-0000-000000000000
       roundDurationSeconds: !<float> 15.000000
@@ -95,6 +103,10 @@
     - // @input Component.Text incorrectText
     - // @input Component.Text myScoreValueText
     - // @input Component.Text statusText
+    - '// @input AssignableType_4 readyButton {"hint":"Button players tap to mark themselves ready in the lobby"}'
+    - "// @input Component.Text readyStatusText {\"hint\":\"Text showing how many players are ready, e.g. '1/2 Ready'\"}"
+    - '// @input Component.Text countdownText {"hint":"Large, centered Text used for the 3-2-1 start countdown"}'
+    - '// @input Component.Text debugText {"hint":"Optional on-screen debug readout (role, phase, sync/store state)"}'
     - // @input Component.Text opponentScoreValueText
     - // @input Component.Text timerText
     - // @input float roundDurationSeconds = 30
