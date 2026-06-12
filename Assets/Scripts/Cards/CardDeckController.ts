@@ -1155,8 +1155,8 @@ export class CardDeckController extends BaseScriptComponent {
       const slot = this.slots[idx]
       if (!slot) continue
       slot.isResult = false
-      this.restoreCosmosCardSize(slot) // back to its varied cosmos width
       this.applyWorldScale(slot, AUTHORED_WORLD_SCALE) // back to the resting (authored) scale
+      this.restoreCosmosCardSize(slot) // relayout at resting scale (after scale is restored)
       if (slot.card) slot.card.setRenderInFront(false)
     }
   }
@@ -1300,8 +1300,8 @@ export class CardDeckController extends BaseScriptComponent {
     const inc = this.slots[this.vIncoming]
     if (inc) {
       inc.isResult = false
-      this.restoreCosmosCardSize(inc) // back to its varied cosmos width
       this.applyWorldScale(inc, AUTHORED_WORLD_SCALE) // back to the resting (authored) scale
+      this.restoreCosmosCardSize(inc) // relayout at resting scale (after scale is restored)
       if (inc.card) inc.card.setRenderInFront(false)
     }
     this.vIncoming = -1
@@ -1334,8 +1334,8 @@ export class CardDeckController extends BaseScriptComponent {
     const out = this.slots[outgoing]
     if (out) {
       out.isResult = false
-      this.restoreCosmosCardSize(out) // back to its varied cosmos width
       this.applyWorldScale(out, AUTHORED_WORLD_SCALE) // back to the resting (authored) scale
+      this.restoreCosmosCardSize(out) // relayout at resting scale (after scale is restored)
       if (out.card) out.card.setRenderInFront(false)
     }
 
@@ -1376,8 +1376,8 @@ export class CardDeckController extends BaseScriptComponent {
       const s = this.slots[idx]
       if (!s) continue
       s.isResult = false
-      this.restoreCosmosCardSize(s) // back to its varied cosmos width
       this.applyWorldScale(s, AUTHORED_WORLD_SCALE) // back to the resting (authored) scale
+      this.restoreCosmosCardSize(s) // relayout at resting scale (after scale is restored)
       if (s.card) s.card.setRenderInFront(false)
     }
     this.verticalSlots = []

@@ -37,8 +37,9 @@
     swayFreqMin: true
     swayFreqMax: true
     searchSpinMultiplier: true
+    resultRowDepthVerticalCm: true
     resultRowRiseCm: true
-    resultCardSize: true
+    coverHorizontalImageWidthCm: true
     coverFoldStartDeg: true
     coverFoldStepDeg: true
     coverMaxFoldDeg: true
@@ -122,10 +123,10 @@
       swayFreqMax: 0.700000
       searchSpinMultiplier: 3.500000
       resultRowDepthCm: !<float> 100.000000
-      resultRowDepthVerticalCm: !<float> 140.000000
+      resultRowDepthVerticalCm: !<float> 100.000000
       resultRowRiseCm: !<float> 0.000000
-      resultCardSize: 0.500000
-      coverHorizontalImageWidthCm: !<float> 6.000000
+      resultCardSize: !<float> 1.000000
+      coverHorizontalImageWidthCm: !<float> 3.000000
       coverCenterGapCm: !<float> 30.000000
       coverSideSpacingCm: !<float> 12.000000
       coverDepthStepCm: !<float> 3.000000
@@ -140,10 +141,10 @@
       coverFlickThreshold: !<float> 25.000000
       coverInvertScrub: false
       coverInvertFold: false
-      coverVGapFrac: !<float> 1.000000
+      coverVGapFrac: 1.100000
       coverVStepFrac: 0.600000
       coverVFoldDeg: !<float> 30.000000
-      coverVerticalImageHeightCm: !<float> 6.000000
+      coverVerticalImageHeightCm: !<float> 3.000000
       enableLogging: false
       enableLoggingLifecycle: false
   ScriptTypes:

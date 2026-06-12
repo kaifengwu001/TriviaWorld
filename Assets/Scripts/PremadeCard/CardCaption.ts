@@ -22,6 +22,9 @@ export interface CaptionLayout {
   rotation: quat
   // Picture width in world centimetres (the wrap width before side padding).
   width: number
+  // Card root uniform world scale — gap is authored in root-local cm and must be
+  // converted to world cm when placing the caption (matches remeasureBorder).
+  rootScale: number
 }
 
 @component
@@ -141,8 +144,15 @@ export class CardCaption extends BaseScriptComponent {
     const localHalf = (innerWidth / textScale) * 0.5
     this.captionText.worldSpaceRect = Rect.create(-localHalf, localHalf, -10000, 0)
 
-    const pos = layout.bottomCenter.sub(layout.up.uniformScale(this.gap))
-    this.textTrans.setWorldPosition(pos)
-    this.textTrans.setWorldRotation(layout.rotation)
+    // Position the caption ROOT (this component's object), mirroring CaptionBehavior.
+    // Pinning the nested Text at a world position accumulated offset under the
+    // prefab's scaled AI-Caption parent whenever root scale changed.
+    const captionRoot = this.getSceneObject().getTransform()
+    const gapWorld = this.gap * (layout.rootScale > 0 ? layout.rootScale : 1)
+    const pos = layout.bottomCenter.sub(layout.up.uniformScale(gapWorld))
+    captionRoot.setWorldPosition(pos)
+    captionRoot.setWorldRotation(layout.rotation)
+    this.textTrans.setLocalPosition(vec3.zero())
+    this.textTrans.setLocalRotation(quat.quatIdentity())
   }
 }

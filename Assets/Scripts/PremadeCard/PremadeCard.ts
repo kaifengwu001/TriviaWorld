@@ -184,6 +184,9 @@ export class PremadeCard extends BaseScriptComponent {
   private contentLocalCX = 0
   private contentLocalCY = 0
   private contentMeasured = false
+  // Last root world scale we laid out at; triggers a re-sync when the deck animates
+  // card scale (gaze boost, CoverFlow easeWorldScale) without calling setImageWidth.
+  private lastLayoutRootScale = -1
 
   onAwake() {
     this.logger = new Logger("PremadeCard", this.enableLogging || this.enableLoggingLifecycle, true)
@@ -440,6 +443,10 @@ export class PremadeCard extends BaseScriptComponent {
       this.borderBubble.advance(dt)
     }
 
+    // Root scale changes (gaze boost, CoverFlow easeWorldScale) without a setImageWidth
+    // call used to leave caption + picture on diverging world-space anchors; re-sync.
+    this.syncLayoutIfScaleChanged()
+
     // While a measure pass is pending, the text is laid out invisibly. Once it
     // has settled, read its bounds, fit the border, and apply real visibility.
     if (this.measureCountdown > 0) {
@@ -557,6 +564,7 @@ export class PremadeCard extends BaseScriptComponent {
   private relayoutContent(): void {
     this.resizePicture()
     if (this.caption) this.caption.apply(this.pictureGeometryToCaption())
+    if (this.started) this.lastLayoutRootScale = this.trans.getWorldScale().x
     this.scheduleMeasure()
   }
 
@@ -565,13 +573,22 @@ export class PremadeCard extends BaseScriptComponent {
     const aspect = this.imageAspect()
     const width = this.imageWidth > 0 ? this.imageWidth : 1
     const height = width / aspect
-    const pTrans = this.pictureVisual.getSceneObject().getTransform()
+    const pObj = this.pictureVisual.getSceneObject()
+    const pTrans = pObj.getTransform()
+    const anchorObj = pObj.getParent()
+    const anchorTrans = anchorObj ? anchorObj.getTransform() : null
+
+    // Pin the picture center on the card root in ROOT-LOCAL space (origin). Reset the
+    // anchor chain each time so repeated setImageWidth / scale changes never accumulate
+    // world-space offsets (the old setWorldPosition approach drifted when root scale
+    // changed because picture and caption sit under different parent scales).
+    if (anchorTrans) {
+      anchorTrans.setLocalPosition(vec3.zero())
+      anchorTrans.setLocalRotation(quat.quatIdentity())
+    }
+    pTrans.setLocalPosition(vec3.zero())
+    pTrans.setLocalRotation(quat.quatIdentity())
     pTrans.setLocalScale(new vec3(width, height, 1))
-    // Center the picture on the card root in WORLD space. The picture may sit
-    // under a scaled/offset anchor in the prefab; setting world position here
-    // neutralizes that anchor offset so the picture (and the caption hung below
-    // it) are centered on the card instead of drifting to one side.
-    pTrans.setWorldPosition(this.trans.getWorldPosition())
   }
 
   private imageAspect(): number {
@@ -582,19 +599,38 @@ export class PremadeCard extends BaseScriptComponent {
     return w > 0 && h > 0 ? w / h : 1
   }
 
-  // Builds the world-space picture geometry CardCaption needs to place the text.
+  // Builds the picture geometry CardCaption needs. Derived from the card root and
+  // measured root-local footprint — NOT from the picture transform's world position,
+  // which drifts when root scale changes without a matching caption re-sync.
   private pictureGeometryToCaption() {
-    const pTrans = this.pictureVisual.getSceneObject().getTransform()
-    const pScale = pTrans.getWorldScale()
+    const pic = this.pictureLocalSize()
+    const halfH = pic.y * 0.5
+    const rootPos = this.trans.getWorldPosition()
     const up = this.trans.up
-    const bottomCenter = pTrans.getWorldPosition().sub(up.uniformScale(pScale.y * 0.5))
+    const rootScale = this.trans.getWorldScale().x
+    // pic is root-local cm; convert vertical offsets to world cm along the card up axis.
     return {
       text: this.currentText,
-      bottomCenter,
+      bottomCenter: rootPos.sub(up.uniformScale(halfH * rootScale)),
       up,
       rotation: this.trans.getWorldRotation(),
-      width: pScale.x,
+      width: pic.x * rootScale,
+      rootScale,
     }
+  }
+
+  // Re-lays picture + caption when the card root's world scale changes without a
+  // setImageWidth call (gaze boost, CoverFlow root-scale animation).
+  private syncLayoutIfScaleChanged(): void {
+    if (!this.started) return
+    const s = this.trans.getWorldScale().x
+    if (this.lastLayoutRootScale < 0) {
+      this.lastLayoutRootScale = s
+      return
+    }
+    if (Math.abs(s - this.lastLayoutRootScale) < 0.004) return
+    this.lastLayoutRootScale = s
+    this.relayoutContent()
   }
 
   private clonePictureMaterial(): void {
