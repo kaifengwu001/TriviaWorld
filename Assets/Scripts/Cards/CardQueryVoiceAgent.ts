@@ -397,6 +397,15 @@ export class CardQueryVoiceAgent extends BaseScriptComponent {
       return;
     }
 
+    // The deck just became the active view (it starts disabled and is switched on well
+    // after launch). Onboarding is therefore over: if the welcome host or the recommendation
+    // presenter is still holding the single live session + mic — e.g. the user pressed the
+    // Deck toggle before the recommendation agent self-suspended, or picked a recommendation
+    // card by hand (which never triggers its voice-pick self-suspend) — evict it now so the
+    // mic is free for this agent. Eviction is safe here (unlike at launch) because the deck
+    // is never present during onboarding.
+    this.evictOnboardingVoice();
+
     // Gaze-driven activation: arm when the user looks at the deck for the dwell.
     // Once active it stays active (no look-away suspend); CardVoiceAgent.suspend()
     // hands the mic off on a card tap, and looking back at the deck re-arms here.
@@ -440,6 +449,22 @@ export class CardQueryVoiceAgent extends BaseScriptComponent {
     const hostActive = !!host && typeof host.isActive === "function" && host.isActive();
     const recActive = !!rec && typeof rec.isActive === "function" && rec.isActive();
     return hostActive || recActive;
+  }
+
+  // Suspend any onboarding voice (welcome host / recommendation presenter) still holding the
+  // single live session once the deck is present, so its mic is released for this agent.
+  // Guarded by isActive() so it is a one-shot and a no-op once they have stood down.
+  private evictOnboardingVoice(): void {
+    const host = (global as any).hostVoice;
+    if (host && typeof host.isActive === "function" && host.isActive() &&
+        typeof host.suspend === "function") {
+      host.suspend();
+    }
+    const rec = (global as any).recommendationVoiceAgent;
+    if (rec && typeof rec.isActive === "function" && rec.isActive() &&
+        typeof rec.suspend === "function") {
+      rec.suspend();
+    }
   }
 
   // True while a CardVoiceAgent card conversation holds the single live session.
