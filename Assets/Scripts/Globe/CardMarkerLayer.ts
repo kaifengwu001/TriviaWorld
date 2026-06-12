@@ -116,6 +116,16 @@ export class CardMarkerLayer extends BaseScriptComponent {
   scatterRangeMiles: number = 5
 
   @input
+  @hint("City names (matched case-insensitively to City Data) that override the default Scatter Range Miles. Pair each entry with the same index in Scatter Override Miles.")
+  @allowUndefined
+  scatterOverrideCities: string[]
+
+  @input
+  @hint("Per-city scatter radius (miles), paired by index with Scatter Override Cities. A city listed here uses this radius instead of the default Scatter Range Miles.")
+  @allowUndefined
+  scatterOverrideMiles: number[]
+
+  @input
   @hint("Markers closer than this IN-SCENE distance (cm) merge into one marker at their average position. Never merges across cities.")
   mergeDistanceCm: number = 4
 
@@ -148,6 +158,10 @@ export class CardMarkerLayer extends BaseScriptComponent {
   @input
   @hint("Vertical position of the count label relative to the marker, in fractions of the marker size (0 = centered on the icon, +0.5 = half a marker-height up, negative = down).")
   countTextHeight: number = 0
+
+  @input
+  @hint("Depth offset of the count label toward the viewer, in fractions of the marker size (+ = closer to the camera so the label renders in front of the icon, - = behind).")
+  countTextDepth: number = 0.2
 
   @input
   @hint("Color (RGBA) of the merged-count label.")
@@ -296,7 +310,7 @@ export class CardMarkerLayer extends BaseScriptComponent {
         this.warnUnknownLocation(card.location)
         continue
       }
-      const range = Math.max(0, this.scatterRangeMiles)
+      const range = Math.max(0, this.scatterRangeForCity(city.name))
       const latLng = this.avoidOcean
         ? scatterLatLngOnLand(city.latLng, range, card.id, (ll) => isLandAt(city.name, ll))
         : scatterLatLng(city.latLng, range, card.id)
@@ -350,6 +364,31 @@ export class CardMarkerLayer extends BaseScriptComponent {
       }
     }
     return null
+  }
+
+  // Per-city scatter radius (miles): falls back to the global scatterRangeMiles
+  // when the city has no override entry. The override lookup is built once from
+  // the parallel Scatter Override Cities / Miles arrays and cached.
+  private scatterOverrides: { [name: string]: number } | null = null
+  private scatterRangeForCity(cityName: string): number {
+    if (!this.scatterOverrides) {
+      const map: { [name: string]: number } = {}
+      const names = this.scatterOverrideCities || []
+      const miles = this.scatterOverrideMiles || []
+      for (let i = 0; i < names.length; i++) {
+        const key = (names[i] ?? "").trim().toLowerCase()
+        if (!key) continue
+        const mi = miles[i]
+        if (typeof mi !== "number" || isNaN(mi)) {
+          this.logger.warn('Scatter override for "' + names[i] + '" has no matching miles value; ignoring.')
+          continue
+        }
+        map[key] = mi
+      }
+      this.scatterOverrides = map
+    }
+    const override = this.scatterOverrides[(cityName ?? "").trim().toLowerCase()]
+    return typeof override === "number" ? override : this.scatterRangeMiles
   }
 
   private warnUnknownLocation(location: string): void {
@@ -526,9 +565,10 @@ export class CardMarkerLayer extends BaseScriptComponent {
     this.ensurePool(clusters.length, ctrl)
 
     const camT = ctrl.cameraObject ? ctrl.cameraObject.getTransform() : null
-    // Camera-aligned billboard: the quad's +Z matches the camera's +Z (which
-    // points back at the viewer), so the texture always faces the user squarely.
-    const camRot = camT ? camT.getWorldRotation() : null
+    // Yaw-only billboard: the quad rotates around the world Y axis so its +Z
+    // faces the camera horizontally, but it stays upright (no pitch/roll). The
+    // per-marker facing is computed below from each marker's world position.
+    const camPos = camT ? camT.getWorldPosition() : null
     const gazedCity = ctrl.isOverview() ? ctrl.getGazedCityName() : null
 
     for (let i = 0; i < this.pool.length; i++) {
@@ -548,7 +588,16 @@ export class CardMarkerLayer extends BaseScriptComponent {
       v.root.enabled = true
       const t = v.root.getTransform()
       t.setWorldPosition(pos)
-      if (camRot) t.setWorldRotation(camRot)
+      if (camPos) {
+        // Horizontal direction from the marker to the camera; the quad's +Z is
+        // aimed along it so the marker faces the viewer while remaining upright.
+        const dx = camPos.x - pos.x
+        const dz = camPos.z - pos.z
+        if (dx * dx + dz * dz > 1e-6) {
+          const yaw = Math.atan2(dx, dz)
+          t.setWorldRotation(quat.angleAxis(yaw, vec3.up()))
+        }
+      }
       const s = this.markerSizeCm * (gazedCity === c.cityName ? this.highlightScale : 1)
       t.setWorldScale(new vec3(s * this.markerAspect(), s, s))
 
@@ -604,7 +653,7 @@ export class CardMarkerLayer extends BaseScriptComponent {
     // is uniformly scaled by markerSizeCm), and counter-scaled so countTextSize
     // reads in normal font points regardless of the marker's world size. The
     // highlight pop still scales text and icon together.
-    textObj.getTransform().setLocalPosition(new vec3(0, this.countTextHeight, 0.2))
+    textObj.getTransform().setLocalPosition(new vec3(0, this.countTextHeight, this.countTextDepth))
     const inv = 1 / Math.max(0.001, this.markerSizeCm)
     textObj.getTransform().setLocalScale(new vec3(inv, inv, inv))
     const text = textObj.createComponent("Component.Text") as Text

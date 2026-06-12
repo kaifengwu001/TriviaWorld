@@ -10030,7 +10030,6 @@
   Enabled: true
   ScriptAsset: !<reference> 41f437db-f3aa-41b6-80ce-64ef514ca6eb
   ScriptInputsDefault:
-    scatterRangeMiles: true
     avoidOcean: true
     tableLiftCm: true
     alwaysShowCityMarkers: true
@@ -10044,15 +10043,22 @@
       globeController: !<MappingBased.AssignableType> 05388fb0-0dde-44c7-a8c9-1f6a6bb35ced
       markerMaterial: !<reference.Material> fb942e39-cb39-45c9-a514-72ed8ef7bc4c
       markerTexture: !<reference.Texture> 1e005ef2-d83c-494b-a942-9127ad87a27f
-      scatterRangeMiles: !<float> 5.000000
+      scatterRangeMiles: !<float> 8.000000
+      scatterOverrideCities: !<string[]>
+        - Seattle
+        - Los Angeles
+      scatterOverrideMiles: !<float[]>
+        - 5.000000
+        - 0.500000
       mergeDistanceCm: !<float> 3.000000
       avoidOcean: true
       tableLiftCm: 1.500000
       visibleCircleFraction: 0.800000
       alwaysShowCityMarkers: true
       markerSizeCm: !<float> 6.000000
-      countTextSize: !<float> 45.000000
+      countTextSize: !<float> 40.000000
       countTextHeight: 0.150000
+      countTextDepth: !<float> 0.000000
       countTextColor: !<Vec4> {x: 1.000000, y: 0.100000, z: 0.100000, w: 1.000000}
       highlightScale: 1.150000
       markerRenderOrder: !<float> 500.000000
