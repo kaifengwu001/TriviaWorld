@@ -102,6 +102,48 @@ export function scatterLatLng(center: LatLng, rangeMiles: number, seedKey: strin
   };
 }
 
+/** True when a candidate coordinate is allowed (on land). See scatterLatLngOnLand. */
+export interface LandSampler {
+  (latLng: LatLng): boolean;
+}
+
+/**
+ * Like {@link scatterLatLng} but REJECTS spots that aren't on land, so markers
+ * never land in the ocean (Puget Sound, Tokyo Bay, the LA coastline). Draws from
+ * the SAME seeded stream as scatterLatLng, so:
+ *   - determinism/stability are preserved (same card -> same spot every run), and
+ *   - a card whose FIRST candidate is already on land keeps the exact position it
+ *     had before ocean-avoidance existed (only water-first cards relocate).
+ *
+ * It redraws up to `maxTries` times; if every candidate is water (astronomically
+ * unlikely unless a city is almost entirely sea), it returns the first candidate
+ * rather than dropping the card — a rare wet marker beats a missing one.
+ */
+export function scatterLatLngOnLand(
+  center: LatLng,
+  rangeMiles: number,
+  seedKey: string,
+  isLand: LandSampler,
+  maxTries: number = 24
+): LatLng {
+  if (rangeMiles <= 0) return { lat: center.lat, lng: center.lng };
+  const rand = makeRandom(hashString(seedKey));
+  const cosLat = Math.max(0.2, Math.cos(center.lat * DEG2RAD));
+  const tries = Math.max(1, Math.floor(maxTries));
+  let first: LatLng | null = null;
+  for (let i = 0; i < tries; i++) {
+    const r = rangeMiles * Math.sqrt(rand());
+    const theta = 2 * Math.PI * rand();
+    const cand: LatLng = {
+      lat: center.lat + (r * Math.sin(theta)) / MILES_PER_DEG_LAT,
+      lng: center.lng + (r * Math.cos(theta)) / (MILES_PER_DEG_LAT * cosLat),
+    };
+    if (first === null) first = cand;
+    if (isLand(cand)) return cand;
+  }
+  return first as LatLng;
+}
+
 // --- distances ----------------------------------------------------------------
 
 /**

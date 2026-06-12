@@ -62,7 +62,10 @@ import { SessionController }  from 'SpectaclesSyncKit.lspkg/Core/SessionControll
 import { SyncEntity }         from 'SpectaclesSyncKit.lspkg/Core/SyncEntity'
 import { StorageProperty }    from 'SpectaclesSyncKit.lspkg/Core/StorageProperty'
 import { StoragePropertySet } from 'SpectaclesSyncKit.lspkg/Core/StoragePropertySet'
-import { RectangleButton }    from 'SpectaclesUIKit.lspkg/Scripts/Components/Button/RectangleButton'
+// BaseButton is the abstract base of RectangleButton, RoundButton, CapsuleButton
+// (and any other UIKit button). Typing the inputs as BaseButton lets the manager
+// accept any button variant — they all expose onTriggerUp + getSceneObject().
+import { BaseButton }          from 'SpectaclesUIKit.lspkg/Scripts/Components/Button/BaseButton'
 
 interface ISnapCloudRequirements {
   isConfigured(): boolean
@@ -116,10 +119,10 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
   @input public topic:   string = ''
 
   @input public questionText: Text
-  @input public optionButton1: RectangleButton
-  @input public optionButton2: RectangleButton
-  @input public optionButton3: RectangleButton
-  @input public optionButton4: RectangleButton
+  @input public optionButton1: BaseButton
+  @input public optionButton2: BaseButton
+  @input public optionButton3: BaseButton
+  @input public optionButton4: BaseButton
   @input public optionButtonChildTextName: string = ''
 
   @input public correctText:   Text
@@ -147,7 +150,7 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
   // ── Lobby / start coordination ─────────────────────────────────────────────
   @input
   @hint("Button players tap to mark themselves ready in the lobby")
-  public readyButton: RectangleButton | null = null
+  public readyButton: BaseButton | null = null
 
   @input
   @hint("Text showing how many players are ready, e.g. '1/2 Ready'")
@@ -1093,13 +1096,13 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
     this.setButtonObjVisible(this.optionButton4, visible)
   }
 
-  private setButtonObjVisible(btn: RectangleButton, visible: boolean) {
+  private setButtonObjVisible(btn: BaseButton, visible: boolean) {
     if (!btn) return
     const so = btn.getSceneObject()
     if (so) so.enabled = visible
   }
 
-  private optionButtonByIndex(index: number): RectangleButton | null {
+  private optionButtonByIndex(index: number): BaseButton | null {
     switch (index) {
       case 1: return this.optionButton1
       case 2: return this.optionButton2
@@ -1182,7 +1185,7 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
     this.optionTexts[3] = this.findButtonChildText(this.optionButton4)
   }
 
-  private findButtonChildText(btn: RectangleButton): Text | null {
+  private findButtonChildText(btn: BaseButton): Text | null {
     if (!btn) return null
     const root = btn.getSceneObject()
     if (!root) return null

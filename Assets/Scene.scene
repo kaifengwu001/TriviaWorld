@@ -308,7 +308,7 @@
   Enabled: true
   Layers: 1
   LocalTransform: !<TransformEntity>
-    Position: {x: 0.000000, y: 4.219935, z: 5.000000}
+    Position: {x: 0.000000, y: -7.698629, z: 5.000000}
     Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
     Scale: {x: 2.000000, y: 2.000000, z: 2.000000}
     HasSegmentScaleCompensation: false
@@ -3116,7 +3116,7 @@
   Enabled: true
   Layers: 1
   LocalTransform: !<TransformEntity>
-    Position: {x: 0.000000, y: 0.500000, z: 0.000000}
+    Position: {x: 0.000000, y: 0.028256, z: 0.000000}
     Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
     Scale: {x: 0.500000, y: 0.500000, z: 0.500000}
     HasSegmentScaleCompensation: false
@@ -3549,7 +3549,7 @@
   PrefabRemaps:
     []
   Name: QuestionBox
-  Enabled: false
+  Enabled: true
   Layers: 1
   LocalTransform: !<TransformEntity>
     Position: {x: 0.000000, y: 0.000000, z: -150.000000}
@@ -3708,49 +3708,6 @@
     - !<own> 12d046c1-337c-44e4-9818-3268ffd7a1a2
   Components:
     []
-- !<ScriptComponent/57f91221-0e62-4deb-8a94-a9b75d57f9cd>
-  PrefabRemaps:
-    []
-  Name: RectangleButton
-  Enabled: true
-  ScriptAsset: !<reference> 173d7099-914c-4f24-ac1c-1b67a66ae138
-  ScriptInputsDefault:
-    _renderOrder: true
-    _inactive: true
-    _hasShadow: true
-    _shadowPositionOffset: true
-    _toggleable: true
-    _defaultToOn: true
-    addCallbacks: true
-    triggerUpCallbacks: true
-    triggerDownCallbacks: true
-    onValueChangeCallbacks: true
-    onFinishedCallbacks: true
-  ScriptTypesDefault:
-    {}
-  ScriptInputs:
-    "":
-      _renderOrder: 0
-      _size: !<Vec3> {x: 12.000000, y: 3.000000, z: 3.000000}
-      _inactive: false
-      _playAudio: true
-      _style: Special
-      _hasShadow: false
-      _shadowPositionOffset: !<Vec3> {x: 0.050000, y: -0.050000, z: -0.010000}
-      _toggleable: false
-      _defaultToOn: false
-      addCallbacks: false
-      triggerUpCallbacks:
-        []
-      triggerDownCallbacks:
-        []
-      onValueChangeCallbacks:
-        []
-      onFinishedCallbacks:
-        []
-  ScriptTypes:
-    "":
-      {}
 - !<SceneObject/580901eb-5721-44e1-9e89-9249bba7c292>
   PrefabRemaps:
     []
@@ -3917,6 +3874,7 @@
       scene2Objects: !<reference.SceneObject[]>
         - !<reference> 88f81952-1481-4cec-af46-2c6672cb056a
         - !<reference> cb4fbe84-dded-4fbc-8e0f-1b0d681d0d3d
+        - !<reference> 2c5bdb09-1ce9-4887-b36f-ace3dce5216d
       scene3Button: !<reference.SceneObject> e3c3b1c3-e457-4db2-a5ae-73c7c2b65c08
       scene3IconTexture: !<reference.Texture> 50b008de-d7e9-4841-9594-368680ecc836
       scene3Label: Battle
@@ -3933,10 +3891,10 @@
       labelSize: !<float> 28.000000
       enableTracking: true
       distanceFromCamera: !<float> 60.000000
-      heightOffset: !<float> -17.000000
+      heightOffset: -18.500000
       followSpeed: !<float> 6.000000
       rotateSpeed: !<float> 4.000000
-      positionDeadzone: 0.500000
+      positionDeadzone: 0.100000
       enableLogging: false
       enableLoggingLifecycle: false
   ScriptTypes:
@@ -4617,7 +4575,7 @@
   PrefabRemaps:
     []
   Name: Debugtext
-  Enabled: true
+  Enabled: false
   Layers: 1
   LocalTransform: !<TransformEntity>
     Position: {x: 0.000000, y: -26.000000, z: 1.999992}
@@ -7147,6 +7105,50 @@
     []
   Components:
     - !<own> 1ff9d132-0e28-48fa-96e0-2b64936a8b9b
+- !<ScriptComponent/baa45914-1113-4a97-9129-8c449367144d>
+  PrefabRemaps:
+    []
+  Name: RoundButton
+  Enabled: true
+  ScriptAsset: !<reference> ecf4e352-5db4-4239-8a5e-c4c517a0f03c
+  ScriptInputsDefault:
+    _renderOrder: true
+    _inactive: true
+    _playAudio: true
+    _hasShadow: true
+    _shadowPositionOffset: true
+    _toggleable: true
+    _defaultToOn: true
+    addCallbacks: true
+    triggerUpCallbacks: true
+    triggerDownCallbacks: true
+    onValueChangeCallbacks: true
+    onFinishedCallbacks: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      _renderOrder: 0
+      _inactive: false
+      _playAudio: false
+      _style: Special
+      _hasShadow: false
+      _shadowPositionOffset: !<Vec3> {x: 0.050000, y: -0.050000, z: -0.010000}
+      _toggleable: false
+      _defaultToOn: false
+      addCallbacks: false
+      triggerUpCallbacks:
+        []
+      triggerDownCallbacks:
+        []
+      onValueChangeCallbacks:
+        []
+      onFinishedCallbacks:
+        []
+      _width: !<float> 6.000000
+  ScriptTypes:
+    "":
+      {}
 - !<SceneObject/bba8fbaa-7e03-41a1-b20b-836861b95809>
   PrefabRemaps:
     []
@@ -7281,12 +7283,12 @@
   MeshShadowMode: None
   ShadowColor: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
   ShadowDensity: 1.000000
-  Text: Ready
+  Text: READY
   Editable: false
   ShowEditingPreview: true
   TouchHandler: !<reference> 00000000-0000-0000-0000-000000000000
   SizeToFit: false
-  FontSize: 60
+  FontSize: 80
   Font: !<reference> 709203b6-8b83-40d7-8dda-e5adc4fd2875
   LayoutRect:
     left: -7.500000
@@ -7581,7 +7583,7 @@
   Enabled: true
   Layers: 1
   LocalTransform: !<TransformEntity>
-    Position: {x: 0.000000, y: -10.000000, z: 3.000000}
+    Position: {x: 0.000000, y: -8.506144, z: 3.000000}
     Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
     Scale: {x: 3.000000, y: 3.000000, z: 3.000000}
     HasSegmentScaleCompensation: false
@@ -7589,7 +7591,7 @@
     - !<own> 4cb8765a-ccaf-4eac-9e5e-fbdfb30ad4e8
     - !<own> 4ab53fe1-e8b9-4670-8420-5bfd1347fb23
   Components:
-    - !<own> 57f91221-0e62-4deb-8a94-a9b75d57f9cd
+    - !<own> baa45914-1113-4a97-9129-8c449367144d
 - !<Text/c6c7a97a-1a17-4dad-99f5-efa71cdad347>
   PrefabRemaps:
     []
@@ -9452,7 +9454,6 @@
     answerMarkerStackSpacing: true
     nextRoundDelaySeconds: true
     winScore: true
-    enableDebugLogs: true
   ScriptTypesDefault:
     {}
   ScriptInputs:
@@ -9475,7 +9476,7 @@
       answerMarkerOffset: !<Vec3> {x: 0.000000, y: 0.000000, z: 0.000000}
       answerMarkerStackSpacing: !<float> 3.000000
       answerMarkerTextSize: !<float> 200.000000
-      readyButton: !<MappingBased.AssignableType_4> 57f91221-0e62-4deb-8a94-a9b75d57f9cd
+      readyButton: !<MappingBased.AssignableType_4> baa45914-1113-4a97-9129-8c449367144d
       readyStatusText: !<reference.Text> d0e3bf0e-5e5a-4a4d-b5a7-6a11bb5f4f84
       countdownText: !<reference.Text> 21e68de8-0b70-45d2-bcb9-5b168ed32500
       debugText: !<reference.Text> 29904ca2-d586-4d58-b362-dfdcf791dfcb
@@ -9483,7 +9484,7 @@
       timerText: !<reference.Text> 94afcc15-9826-4e4f-8eb5-1a692855c8fb
       nextRoundDelaySeconds: !<float> 5.000000
       winScore: !<float> 30.000000
-      enableDebugLogs: true
+      enableDebugLogs: false
       roastFetcherComponent: !<reference.ScriptComponent> fdce34fc-55e5-4367-b5a7-e37ffe929043
       roastText: !<reference.Text> 95b2d6d4-24d2-4f6f-a0f1-ccdb3ec5abd2
   ScriptTypes:
@@ -9995,9 +9996,9 @@
   ScriptAsset: !<reference> 41f437db-f3aa-41b6-80ce-64ef514ca6eb
   ScriptInputsDefault:
     scatterRangeMiles: true
+    avoidOcean: true
     tableLiftCm: true
     alwaysShowCityMarkers: true
-    highlightScale: true
     markerRenderOrder: true
     enableLogging: true
     enableLoggingLifecycle: true
@@ -10010,12 +10011,15 @@
       markerTexture: !<reference.Texture> 1e005ef2-d83c-494b-a942-9127ad87a27f
       scatterRangeMiles: !<float> 5.000000
       mergeDistanceCm: !<float> 3.000000
+      avoidOcean: true
       tableLiftCm: 1.500000
       visibleCircleFraction: 0.800000
       alwaysShowCityMarkers: true
       markerSizeCm: !<float> 6.000000
-      countTextSize: !<float> 55.000000
-      highlightScale: 1.350000
+      countTextSize: !<float> 45.000000
+      countTextHeight: 0.150000
+      countTextColor: !<Vec4> {x: 1.000000, y: 0.100000, z: 0.100000, w: 1.000000}
+      highlightScale: 1.150000
       markerRenderOrder: !<float> 500.000000
       enableLogging: false
       enableLoggingLifecycle: false

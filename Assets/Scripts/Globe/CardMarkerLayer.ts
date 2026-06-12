@@ -45,7 +45,9 @@ import {
   angularDistanceDeg,
   clusterByWorldDistance,
   scatterLatLng,
+  scatterLatLngOnLand,
 } from "./CardGeo";
+import { isLandAt } from "./waterMask";
 
 /** The slice of CardStore this layer reads (it lives on global.cropCardStore). */
 interface CardLike {
@@ -118,6 +120,10 @@ export class CardMarkerLayer extends BaseScriptComponent {
   mergeDistanceCm: number = 4
 
   @input
+  @hint("Keep scattered markers OFF the ocean by re-drawing a card's spot until it lands on land (uses the baked per-city water mask in waterMask.ts). Re-drawing stays seeded by the card id, so positions are still stable.")
+  avoidOcean: boolean = true
+
+  @input
   @hint("How far (cm) markers float above the ACTIVE surface — the globe AND the table use the same constant lift, so the dive handoff is height-continuous (markers never rise away as the globe scales up).")
   tableLiftCm: number = 1.5
 
@@ -138,6 +144,14 @@ export class CardMarkerLayer extends BaseScriptComponent {
   @input
   @hint("Font size (points) of the merged-count label drawn over the marker.")
   countTextSize: number = 24
+
+  @input
+  @hint("Vertical position of the count label relative to the marker, in fractions of the marker size (0 = centered on the icon, +0.5 = half a marker-height up, negative = down).")
+  countTextHeight: number = 0
+
+  @input
+  @hint("Color (RGBA) of the merged-count label.")
+  countTextColor: vec4 = new vec4(1.0, 1.0, 1.0, 1.0)
 
   @input
   @hint("Scale multiplier applied to a city's markers while the user gazes at it in OVERVIEW (mirrors the old pin highlight).")
@@ -275,20 +289,50 @@ export class CardMarkerLayer extends BaseScriptComponent {
     this.lastSyncKey = key
 
     const next: CardGeoEntry[] = []
+    let relocated = 0
     for (const card of store.getCards()) {
       const city = this.resolveCity(card.location, ctrl)
       if (!city) {
         this.warnUnknownLocation(card.location)
         continue
       }
-      next.push({
-        id: card.id,
-        cityName: city.name,
-        latLng: scatterLatLng(city.latLng, Math.max(0, this.scatterRangeMiles), card.id),
-      })
+      const range = Math.max(0, this.scatterRangeMiles)
+      const latLng = this.avoidOcean
+        ? scatterLatLngOnLand(city.latLng, range, card.id, (ll) => isLandAt(city.name, ll))
+        : scatterLatLng(city.latLng, range, card.id)
+      if (this.avoidOcean) {
+        const baseline = scatterLatLng(city.latLng, range, card.id)
+        if (baseline.lat !== latLng.lat || baseline.lng !== latLng.lng) relocated++
+      }
+      next.push({ id: card.id, cityName: city.name, latLng })
     }
     this.geo = next
     this.logger.info("Synced " + next.length + " card markers from the store (" + key + ").")
+    this.oceanProbe(next.length, relocated)
+  }
+
+  // One-shot loud diagnostic (uses print, so it shows WITHOUT toggling logging).
+  // Fires on the first NON-EMPTY sync (so it measures real cards, not the empty
+  // initial store) and reports, PER CITY: how many markers ended up, how many the
+  // mask STILL considers water after reject-sampling, and how many relocated.
+  // If "finalInWater" is 0 but the table still shows wet pins, the geo is correct
+  // and the bug is in the table rendering; if it's > 0, reject-sampling is failing.
+  private reportedOceanProbe: boolean = false
+  private oceanProbe(total: number, relocated: number): void {
+    if (this.reportedOceanProbe || total === 0) return
+    this.reportedOceanProbe = true
+    const perCity: { [name: string]: { n: number; wet: number } } = {}
+    for (const g of this.geo) {
+      const s = perCity[g.cityName] || (perCity[g.cityName] = { n: 0, wet: 0 })
+      s.n++
+      if (!isLandAt(g.cityName, g.latLng)) s.wet++
+    }
+    let summary = ""
+    for (const name in perCity) summary += " | " + name + ": " + perCity[name].n + " markers, " + perCity[name].wet + " STILL on water"
+    print(
+      "[CardMarkerLayer OCEAN-PROBE v3] avoidOcean=" + this.avoidOcean +
+      " total=" + total + " relocatedOffWater=" + relocated + summary
+    )
   }
 
   // Maps a card's free-form location string onto a resolved city: exact name
@@ -391,9 +435,11 @@ export class CardMarkerLayer extends BaseScriptComponent {
   }
 
   // A coordinate's world position on the docked table, from the live view bounds.
-  // East = the quad's +right; geographic NORTH on the displayed texture runs
-  // along the quad's +forward (verified against the live map: with -forward the
-  // pins tracked panning mirrored front/back while left/right was correct).
+  // East = the quad's +right; geographic NORTH is the quad's -forward — the SAME
+  // convention the controller uses to align the globe to the map during the dive
+  // (GlobeController: `mapNorth = tT.forward.uniformScale(-1)`). An earlier
+  // +forward flip made panning *feel* right but mirrored absolute placement
+  // north<->south, which slid LA's northern land pins into its southern harbor.
   // Also returns the planar distance from the table center (cm) for the
   // visible-circle clip.
   private tableWorldPos(
@@ -404,12 +450,17 @@ export class CardMarkerLayer extends BaseScriptComponent {
     const tT = this.tableTransform(ctrl)
     const size = Math.max(1e-3, ctrl.tableSizeCm)
     const span = Math.max(1e-6, view.spanDeg)
+    // Latitude and longitude are both mapped LINEARLY across `span`, matching
+    // GeoMath's square-in-degrees view model (the real placement bug was the
+    // inverted map V-convention, fixed at the root in GeoMath.uvToBounds).
     const dEast = ((latLng.lng - view.centerLatLng.lng) / span) * size
     const dNorth = ((latLng.lat - view.centerLatLng.lat) / span) * size
+    // North is -forward (see header + GlobeController.mapNorth), so a pin north of
+    // center moves along -forward to land on the map's northern features.
     const pos = tT
       .getWorldPosition()
       .add(tT.right.uniformScale(dEast))
-      .add(tT.forward.uniformScale(dNorth))
+      .add(tT.forward.uniformScale(-dNorth))
       .add(tT.up.uniformScale(this.tableLiftCm))
     return { pos, planarDistCm: Math.sqrt(dEast * dEast + dNorth * dNorth) }
   }
@@ -548,10 +599,12 @@ export class CardMarkerLayer extends BaseScriptComponent {
     const textObj = global.scene.createSceneObject("CardMarkerCount_" + index)
     textObj.setParent(obj)
     textObj.layer = obj.layer
-    // Nudged toward the viewer (the root billboards so +Z faces the camera) and
-    // counter-scaled so countTextSize reads in normal font points regardless of
-    // the marker's world size. The highlight pop still scales text and icon together.
-    textObj.getTransform().setLocalPosition(new vec3(0, 0, 0.2))
+    // Nudged toward the viewer (the root billboards so +Z faces the camera),
+    // raised by countTextHeight (in local marker-height fractions, since the root
+    // is uniformly scaled by markerSizeCm), and counter-scaled so countTextSize
+    // reads in normal font points regardless of the marker's world size. The
+    // highlight pop still scales text and icon together.
+    textObj.getTransform().setLocalPosition(new vec3(0, this.countTextHeight, 0.2))
     const inv = 1 / Math.max(0.001, this.markerSizeCm)
     textObj.getTransform().setLocalScale(new vec3(inv, inv, inv))
     const text = textObj.createComponent("Component.Text") as Text
@@ -559,7 +612,7 @@ export class CardMarkerLayer extends BaseScriptComponent {
     text.size = Math.max(1, Math.round(this.countTextSize))
     text.horizontalAlignment = HorizontalAlignment.Center
     text.verticalAlignment = VerticalAlignment.Center
-    text.textFill.color = new vec4(1, 1, 1, 1)
+    text.textFill.color = this.countTextColor
     ;(text as any).renderOrder = this.markerRenderOrder + 1
     textObj.enabled = false
 

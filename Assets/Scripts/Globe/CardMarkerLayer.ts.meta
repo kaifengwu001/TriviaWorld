@@ -27,6 +27,9 @@
   PackagePolicy: CanBeUnpacked
   ScriptInputsHidden:
     alwaysShowCityMarkers: false
+    avoidOcean: false
+    countTextColor: false
+    countTextHeight: false
     countTextSize: false
     enableLogging: false
     enableLoggingLifecycle: false
@@ -54,11 +57,14 @@
       markerTexture: !<reference.Texture> 00000000-0000-0000-0000-000000000000
       scatterRangeMiles: !<float> 5.000000
       mergeDistanceCm: !<float> 4.000000
+      avoidOcean: true
       tableLiftCm: 1.500000
       visibleCircleFraction: 0.950000
       alwaysShowCityMarkers: true
       markerSizeCm: !<float> 3.000000
       countTextSize: !<float> 24.000000
+      countTextHeight: !<float> 0.000000
+      countTextColor: !<Vec4> {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
       highlightScale: 1.350000
       markerRenderOrder: !<float> 500.000000
       enableLogging: false
@@ -77,6 +83,7 @@
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Placement</span>"}'
     - "// @input float scatterRangeMiles = 5 {\"hint\":\"Radius (miles) of the disk around a city's center that its cards are scattered in. Each card's spot is random but STABLE (seeded by its id).\"}"
     - '// @input float mergeDistanceCm = 4 {"hint":"Markers closer than this IN-SCENE distance (cm) merge into one marker at their average position. Never merges across cities."}'
+    - "// @input bool avoidOcean = true {\"hint\":\"Keep scattered markers OFF the ocean by re-drawing a card's spot until it lands on land (uses the baked per-city water mask in waterMask.ts). Re-drawing stays seeded by the card id, so positions are still stable.\"}"
     - '// @input float tableLiftCm = 1.5 {"hint":"How far (cm) markers float above the ACTIVE surface — the globe AND the table use the same constant lift, so the dive handoff is height-continuous (markers never rise away as the globe scales up)."}'
     - "// @input float visibleCircleFraction = 0.95 {\"hint\":\"Radius of the table's visible (feathered) circle as a fraction of its half-size. Markers past it disappear and reappear when panned back in.\"}"
     - "// @input bool alwaysShowCityMarkers = true {\"hint\":\"In OVERVIEW, always show a marker at each city's center even if it has no cards (keeps the 3-city minimum).\"}"
@@ -84,6 +91,8 @@
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Visuals</span>"}'
     - '// @input float markerSizeCm = 3 {"hint":"Marker quad size (cm). Constant world size; markers billboard toward the camera."}'
     - '// @input float countTextSize = 24 {"hint":"Font size (points) of the merged-count label drawn over the marker."}'
+    - '// @input float countTextHeight {"hint":"Vertical position of the count label relative to the marker, in fractions of the marker size (0 = centered on the icon, +0.5 = half a marker-height up, negative = down)."}'
+    - '// @input vec4 countTextColor = {1,1,1,1} {"hint":"Color (RGBA) of the merged-count label."}'
     - "// @input float highlightScale = 1.35 {\"hint\":\"Scale multiplier applied to a city's markers while the user gazes at it in OVERVIEW (mirrors the old pin highlight).\"}"
     - '// @input float markerRenderOrder = 500 {"hint":"Render order for the marker quads (count text draws one above). Keep above the globe/table so markers are never z-fought away."}'
     - '// @ui {"widget":"separator"}'

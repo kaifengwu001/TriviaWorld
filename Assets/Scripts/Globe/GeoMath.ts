@@ -191,12 +191,15 @@ export function aimEuler(lng: number, lat: number): { x: number; y: number; z: n
  * display `viewBounds` out of a texture that was captured to frame `texBounds`.
  *
  * Derivation (mapUV = windowUV * scale + offset):
- *   windowUV = 0 -> the view's LEFT/TOP edge; windowUV = 1 -> RIGHT/BOTTOM.
- *   In the texture's own UV space (u increases east, v increases south):
+ *   windowUV = 0 -> the view's LEFT/BOTTOM edge; windowUV = 1 -> RIGHT/TOP.
+ *   The table QUAD (MapViewport.buildQuadVisual) assigns texture v so that v = 1
+ *   is the map's NORTH (toward -Z) and v = 0 is SOUTH (toward +Z) — i.e. v
+ *   INCREASES NORTH. The mapping must match that quad, so latitude uses +dLat
+ *   (a view north of the texture center samples a HIGHER v). u increases east:
  *     uLeft  = 0.5 + (viewC.lng - texC.lng)/texSpan - viewSpan/(2*texSpan)
- *     vTop   = 0.5 - (viewC.lat - texC.lat)/texSpan - viewSpan/(2*texSpan)
+ *     vBot   = 0.5 + (viewC.lat - texC.lat)/texSpan - viewSpan/(2*texSpan)
  *     scale  = viewSpan / texSpan   (same in x and y; crops are square)
- *   offset = (uLeft, vTop).
+ *   offset = (uLeft, vBot).
  *
  * When `viewBounds == texBounds` this returns scale = 1, offset = 0 (the texture
  * exactly fills the pane) — the LOD "home" framing, by construction.
@@ -210,7 +213,7 @@ export function boundsToUv(texBounds: GeoBounds, viewBounds: GeoBounds): UvTrans
   return {
     offset: {
       x: 0.5 + dLng / texSpan - viewSpan / (2 * texSpan),
-      y: 0.5 - dLat / texSpan - viewSpan / (2 * texSpan),
+      y: 0.5 + dLat / texSpan - viewSpan / (2 * texSpan),
     },
     scale: { x: scale, y: scale },
   };
@@ -228,7 +231,10 @@ export function uvToBounds(texBounds: GeoBounds, uv: UvTransform): GeoBounds {
   const centerU = uv.offset.x + uv.scale.x / 2;
   const centerV = uv.offset.y + uv.scale.y / 2;
   const lng = texBounds.centerLatLng.lng + (centerU - 0.5) * texSpan;
-  const lat = texBounds.centerLatLng.lat - (centerV - 0.5) * texSpan;
+  // v INCREASES NORTH (quad: v=1 -> -Z/north), so a higher centerV is a more
+  // northern view. Must mirror boundsToUv's +dLat branch or the view-center
+  // latitude (read by CardMarkerLayer) drifts the wrong way when panning.
+  const lat = texBounds.centerLatLng.lat + (centerV - 0.5) * texSpan;
   return { centerLatLng: { lat, lng }, spanDeg: viewSpan };
 }
 
