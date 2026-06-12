@@ -90,6 +90,12 @@ export class AgentRing extends BaseScriptComponent {
   zGap: number = 0.05
 
   @ui.separator
+  @ui.label('<span style="color: #60A5FA;">Performance</span>')
+  @input
+  @hint("Stagger ring rebuilds (default ON): rebuild only ONE of the three discs per frame round-robin (each refreshes at ~20 Hz), cutting the per-frame mesh work to a third. Turn OFF to rebuild all three discs every frame (the pre-optimization behavior) — smoother undulation/color bloom at higher CPU cost.")
+  staggerRingUpdates: boolean = true
+
+  @ui.separator
   @ui.label('<span style="color: #60A5FA;">Amplitude Response</span>')
   @input
   @hint("Rim distortion when quiet (small = nearly a clean circle).")
@@ -306,15 +312,22 @@ export class AgentRing extends BaseScriptComponent {
     // (shaped by the exponent) so the per-layer seeds pull their noise times apart.
     const div = Math.pow(amp, Math.max(0.01, this.divergenceExponent)) * this.divergence
 
-    // Round-robin: rebuild ONE disc's mesh per frame instead of all three. Each
-    // disc then refreshes at ~20 Hz (60/3), imperceptible for the slow Perlin
-    // undulation, and the loudness-driven color bloom still reads within 3 frames
-    // since each disc samples the live sharedTime/distortion/divergence on its turn.
-    if (this.discs.length > 0) {
+    if (this.staggerRingUpdates) {
+      // Round-robin: rebuild ONE disc's mesh per frame instead of all three. Each
+      // disc then refreshes at ~20 Hz (60/3), imperceptible for the slow Perlin
+      // undulation, and the loudness-driven color bloom still reads within 3 frames
+      // since each disc samples the live sharedTime/distortion/divergence on its turn.
       const i = this.discCursor % this.discs.length
       const layerTime = this.sharedTime + LAYER_SEEDS[i] * div
       this.discs[i].render(layerTime, distortion, this.noiseScale)
       this.discCursor++
+    } else {
+      // Pre-optimization path: rebuild all three discs every frame for the
+      // smoothest undulation and instant color bloom, at higher CPU cost.
+      for (let i = 0; i < this.discs.length; i++) {
+        const layerTime = this.sharedTime + LAYER_SEEDS[i] * div
+        this.discs[i].render(layerTime, distortion, this.noiseScale)
+      }
     }
 
     this.updateEyes(dt)

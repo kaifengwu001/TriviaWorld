@@ -58,6 +58,7 @@
     radius: false
     selfBillboard: false
     showEyes: false
+    staggerRingUpdates: false
     zGap: false
   ScriptTypesHidden:
     {}
@@ -80,6 +81,7 @@
       numPoints: !<float> 64.000000
       noiseScale: 0.500000
       zGap: 0.050000
+      staggerRingUpdates: true
       quietDistortion: 1.500000
       loudDistortion: !<float> 7.000000
       quietSpeed: 0.150000
@@ -124,6 +126,9 @@
     - '// @input float numPoints = 64 {"hint":"Rim points per ring. Higher = smoother circle, more CPU. 48–72 is a good range."}'
     - '// @input float noiseScale = 0.5 {"hint":"Perlin sampling scale — higher = more, tighter wobbles around the rim."}'
     - "// @input float zGap = 0.05 {\"hint\":\"Z gap (cm) between adjacent layers so the planes don't z-fight. Tiny is fine.\"}"
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Performance</span>"}'
+    - '// @input bool staggerRingUpdates = true {"hint":"Stagger ring rebuilds (default ON): rebuild only ONE of the three discs per frame round-robin (each refreshes at ~20 Hz), cutting the per-frame mesh work to a third. Turn OFF to rebuild all three discs every frame (the pre-optimization behavior) — smoother undulation/color bloom at higher CPU cost."}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Amplitude Response</span>"}'
     - '// @input float quietDistortion = 1.5 {"hint":"Rim distortion when quiet (small = nearly a clean circle)."}'
