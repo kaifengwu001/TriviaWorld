@@ -23,7 +23,9 @@ continues beyond the crop).
 | `GlobeView.ts` | `@component`: the globe sphere. `aimAt` / `zoomTo` / `dockScaleForSpan` / `animate` / `animateToPose` / `setPose` / `show` / `hide` (world-pose dive + fade on a cloned material's `baseColor` alpha). |
 | `MapViewport.ts` | `@component`: the holodeck table. Single fixed mesh; `setLevel` / `pan` / `zoom` / `show` / `hide`, UV math from bounds, LOD dissolve. |
 | `GlobeController.ts` | `@component`: the guided state machine (OVERVIEW → ZOOMING_IN → DOCKED L0..L2 → ZOOMING_OUT). Wires gaze/pinch input to transitions. |
-| `CityMarker.ts` | `@component` (light): a tappable pin per city; holds the city name + a gaze highlight. |
+| `CityMarker.ts` | `@component` (light): an INVISIBLE logic-only selection target per city (collider + Interactable + gaze focus). The visible markers are drawn by `CardMarkerLayer`. |
+| `CardGeo.ts` | Pure math (no engine deps): stable seeded scatter of cards around their city center, mile→degree conversion, and same-city in-scene-distance clustering. |
+| `CardMarkerLayer.ts` | `@component`: textured billboard markers, one per CardStore card (merged with a count label when close in-scene). Re-mapped per frame onto the globe sphere or the docked table, so they pinpoint their coordinate through every zoom, pan, LOD step, and dive. |
 | `../../../tools/generate_map_textures.py` | Offline OSM-tile generator → `Assets/Textures/Globe/<city>_L<n>.png`. |
 
 ---
@@ -117,17 +119,36 @@ a textured globe mesh and the table's material graph.
    to `tableMaterial`. (You can still assign a pre-made `tableVisual` to opt out of
    code geometry.) Note: a flat table is edge-on from a head-on camera — tilt the
    editor camera **down** toward it, or place it lower/in front, to see its face.
-3. **City markers**: leave `GlobeController.markers[]` **empty** and keep
-   `autoCreateMarkers` on — the controller **creates and places one marker per
-   city** from its lat/lng (`GeoMath.lonLatToSpherePos`), parented to the globe so
-   they ride its rotation. Assign an optional `markerPrefab` for the visual (else
-   markers are invisible logic-only objects); tune `markerScale` /
-   `markerSurfaceOffset`. To place markers by hand instead, assign them to
-   `markers[]` and turn `autoCreateMarkers` off.
-4. **CityData**: drop the generated PNGs onto `tokyoLevels` / `seattleLevels` /
+3. **City markers (selection)**: leave `GlobeController.markers[]` **empty** and
+   keep `autoCreateMarkers` on — the controller **creates and places one
+   invisible logic-only marker per city** from its lat/lng
+   (`GeoMath.lonLatToSpherePos`), parented to the globe so they ride its
+   rotation. They carry the collider + Interactable for tap/gaze selection; the
+   *visible* markers come from `CardMarkerLayer` (below). To place selection
+   markers by hand instead, assign them to `markers[]` and turn
+   `autoCreateMarkers` off.
+4. **Card markers (visuals)**: add `CardMarkerLayer` to an empty object under the
+   globe scene root. Assign `markerTexture` (the pin icon) and an **Unlit
+   transparent** `markerMaterial` (cloned at runtime; `baseTex` is replaced by
+   the icon). The layer reads every card from `global.cropCardStore`, scatters
+   each inside `scatterRangeMiles` of its city center (seeded by card id, so a
+   card's spot **never moves**), and re-maps the markers every frame onto the
+   live surface (globe in OVERVIEW + dives, table while DOCKED):
+   - Markers closer than `mergeDistanceCm` **in-scene** merge into one marker at
+     their average position, with a count label when more than one card merged
+     (no label for a lone card). Merging never crosses cities, so the globe view
+     always shows ≥ 3 markers (Tokyo / Seattle / Los Angeles — LA and Seattle
+     can never merge), and `alwaysShowCityMarkers` pins a center marker for a
+     city with no cards.
+   - While docked, markers are clipped to the table's visible feathered circle
+     (`visibleCircleFraction`): they disappear past the rim and reappear when
+     panned back in.
+   - New cards captured during the session appear automatically (the layer polls
+     the store's count/version).
+5. **CityData**: drop the generated PNGs onto `tokyoLevels` / `seattleLevels` /
    `losAngelesLevels` **in L0..L2 order**, and the base Earth texture onto
    `globeBaseTexture`.
-5. **GlobeController**: wire `globeView`, `mapViewport`, `cityData`, and the
+6. **GlobeController**: wire `globeView`, `mapViewport`, `cityData`, and the
    `cameraObject` (scene camera — needed for gaze **and** touch selection).
    Optionally set `tableObject` (defaults to the MapViewport's object) and a
    `labelText`.

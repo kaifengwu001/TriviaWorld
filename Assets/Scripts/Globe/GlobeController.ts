@@ -70,13 +70,8 @@ export class GlobeController extends BaseScriptComponent {
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Markers (auto-created)</span>')
   @input
-  @hint("Create + place a marker per city from its lat/lng (parented to the globe). Turn off to use only the markers assigned above.")
+  @hint("Create + place a marker per city from its lat/lng (parented to the globe). Markers are INVISIBLE logic-only selection targets (collider + Interactable); the visible textured markers are drawn by CardMarkerLayer from the CardStore. Turn off to use only the markers assigned above.")
   autoCreateMarkers: boolean = true
-
-  @input
-  @hint("OPTIONAL prefab instantiated as each auto-created marker's visual. If empty, markers are created as logic-only (invisible) objects.")
-  @allowUndefined
-  markerPrefab: ObjectPrefab
 
   @input
   @hint("How far above the globe surface to place markers, as a fraction of the globe radius (1 = on the surface).")
@@ -456,12 +451,12 @@ export class GlobeController extends BaseScriptComponent {
       const city = this.cities[i]
       const aimed = this.applyTextureLonOffset(city.latLng)
       const p = lonLatToSpherePos(aimed.lng, aimed.lat, radius)
-      const obj = this.markerPrefab
-        ? this.markerPrefab.instantiate(globeObj)
-        : global.scene.createSceneObject("Marker_" + city.name)
-      if (!this.markerPrefab) obj.setParent(globeObj)
+      // Logic-only object: a selection target (collider + Interactable) with no
+      // visual of its own. The visible, TEXTURED markers are rendered separately
+      // by CardMarkerLayer from the CardStore, so selection and visuals can't drift.
+      const obj = global.scene.createSceneObject("Marker_" + city.name)
+      obj.setParent(globeObj)
       obj.layer = globeObj.layer
-      obj.name = "Marker_" + city.name
 
       const t = obj.getTransform()
       t.setLocalPosition(new vec3(p.x, p.y, p.z))
@@ -886,6 +881,25 @@ export class GlobeController extends BaseScriptComponent {
   /** True while a zoom transition is in flight (selectCity/back can't be issued). */
   isAnimating(): boolean {
     return this.state === "ZOOMING_IN" || this.state === "ZOOMING_OUT"
+  }
+
+  /** The city the user is gaze-highlighting in OVERVIEW, or null. Lets the
+   *  CardMarkerLayer pop the matching textured marker (the logic markers that
+   *  receive the gaze are invisible). */
+  getGazedCityName(): string | null {
+    return this.gazedMarker ? this.gazedMarker.getCityName() : null
+  }
+
+  /**
+   * The geographic point the current dive / dock is focused on: the live dive
+   * center while a handoff is active, else the active city. Null in OVERVIEW.
+   * Returns a NEW LatLng. Used by CardMarkerLayer to clip markers to the
+   * shrinking footprint during a dive.
+   */
+  getFocusLatLng(): LatLng | null {
+    if (this.diveMapActive) return { lat: this.diveCenter.lat, lng: this.diveCenter.lng }
+    if (this.activeCity) return { lat: this.activeCity.latLng.lat, lng: this.activeCity.latLng.lng }
+    return null
   }
 
   // --- Input (per frame) -----------------------------------------------------

@@ -24,6 +24,7 @@
     - !<own> 817d42af-833b-4a9e-aca6-84fe36f922c4
     - !<own> 54632fa9-d440-4f4f-b366-8861b86d5683
     - !<own> 1e986bef-9dc0-47f1-849a-2f0cd2a2882e
+    - !<own> 2c5bdb09-1ce9-4887-b36f-ace3dce5216d
   layers: !<Layers/267ee9a7-aff2-4f9d-9a49-f71214747d03>
     userLayers:
       []
@@ -601,9 +602,8 @@
       markers: !<MappingBased.AssignableType_3[]>
         []
       autoCreateMarkers: true
-      markerPrefab: !<reference.ObjectPrefab> 5944fc67-e5d2-469e-9886-2a3a91e1c40b
       markerSurfaceOffset: 1.040000
-      markerScale: 0.100000
+      markerScale: !<float> 10.000000
       textureLonOffsetDeg: 111.400002
       cameraObject: !<reference.SceneObject> 00000000-0000-0065-0000-000000000064
       tableObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
@@ -2071,6 +2071,21 @@
     CapitalizationOverride: None
   DepthTest: false
   TwoSided: false
+- !<SceneObject/2c5bdb09-1ce9-4887-b36f-ace3dce5216d>
+  PrefabRemaps:
+    []
+  Name: CardMarkerLayer
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> f4a23dfb-f99e-44b8-ae7c-63c1bf3fc38e
 - !<SceneObject/2d7a63b3-9535-478c-aa0d-af7e1ac4bcc7>
   PrefabRemaps:
     []
@@ -9972,6 +9987,41 @@
     CapitalizationOverride: None
   DepthTest: false
   TwoSided: false
+- !<ScriptComponent/f4a23dfb-f99e-44b8-ae7c-63c1bf3fc38e>
+  PrefabRemaps:
+    []
+  Name: CardMarkerLayer
+  Enabled: true
+  ScriptAsset: !<reference> 41f437db-f3aa-41b6-80ce-64ef514ca6eb
+  ScriptInputsDefault:
+    scatterRangeMiles: true
+    tableLiftCm: true
+    alwaysShowCityMarkers: true
+    highlightScale: true
+    markerRenderOrder: true
+    enableLogging: true
+    enableLoggingLifecycle: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      globeController: !<MappingBased.AssignableType> 05388fb0-0dde-44c7-a8c9-1f6a6bb35ced
+      markerMaterial: !<reference.Material> fb942e39-cb39-45c9-a514-72ed8ef7bc4c
+      markerTexture: !<reference.Texture> 1e005ef2-d83c-494b-a942-9127ad87a27f
+      scatterRangeMiles: !<float> 5.000000
+      mergeDistanceCm: !<float> 3.000000
+      tableLiftCm: 1.500000
+      visibleCircleFraction: 0.800000
+      alwaysShowCityMarkers: true
+      markerSizeCm: !<float> 6.000000
+      countTextSize: !<float> 55.000000
+      highlightScale: 1.350000
+      markerRenderOrder: !<float> 500.000000
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    "":
+      {}
 - !<RenderMeshVisual/f527e3f3-060b-465b-900d-e93fe3d4a6c5>
   PrefabRemaps:
     []

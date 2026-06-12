@@ -1,0 +1,92 @@
+- !<AssetImportMetadata/a583bc74-174f-48cf-b4b6-2a4ae0cf4713>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> 41f437db-f3aa-41b6-80ce-64ef514ca6eb
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> 41f437db-f3aa-41b6-80ce-64ef514ca6eb
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> 822e7889-6098-47b3-b70a-be95133e4236
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/822e7889-6098-47b3-b70a-be95133e4236>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: c9eb0ec9-2051-47c9-ab01-6a4b22bb4825
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    alwaysShowCityMarkers: false
+    countTextSize: false
+    enableLogging: false
+    enableLoggingLifecycle: false
+    globeController: false
+    highlightScale: false
+    markerMaterial: false
+    markerRenderOrder: false
+    markerSizeCm: false
+    markerTexture: false
+    mergeDistanceCm: false
+    scatterRangeMiles: false
+    tableLiftCm: false
+    visibleCircleFraction: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - globeController: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
+      markerMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
+      markerTexture: !<reference.Texture> 00000000-0000-0000-0000-000000000000
+      scatterRangeMiles: !<float> 5.000000
+      mergeDistanceCm: !<float> 4.000000
+      tableLiftCm: 1.500000
+      visibleCircleFraction: 0.950000
+      alwaysShowCityMarkers: true
+      markerSizeCm: !<float> 3.000000
+      countTextSize: !<float> 24.000000
+      highlightScale: 1.350000
+      markerRenderOrder: !<float> 500.000000
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - "// @ui {\"widget\":\"label\", \"label\":\"<span style=\\\"color: #60A5FA;\\\">CardMarkerLayer – textured card markers on the globe + map table</span><br/><span style=\\\"color: #94A3B8; font-size: 11px;\\\">One marker per CardStore card, scattered around its city, merged when close in-scene, clipped to the table's visible circle, persistent through every zoom + dive.</span>\"}"
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">References</span>"}'
+    - '// @input AssignableType globeController {"hint":"The GlobeController that owns the globe/table state machine. If unset, global.globeController is used."}'
+    - "// @input Asset.Material markerMaterial {\"hint\":\"Unlit transparent material for the marker quad (cloned at runtime; its baseTex is replaced by Marker Texture). Falls back to a clone of the globe's material if unset.\"}"
+    - '// @input Asset.Texture markerTexture {"hint":"The marker icon texture (drawn on a camera-billboarded quad)."}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Placement</span>"}'
+    - "// @input float scatterRangeMiles = 5 {\"hint\":\"Radius (miles) of the disk around a city's center that its cards are scattered in. Each card's spot is random but STABLE (seeded by its id).\"}"
+    - '// @input float mergeDistanceCm = 4 {"hint":"Markers closer than this IN-SCENE distance (cm) merge into one marker at their average position. Never merges across cities."}'
+    - '// @input float tableLiftCm = 1.5 {"hint":"How far (cm) markers float above the ACTIVE surface — the globe AND the table use the same constant lift, so the dive handoff is height-continuous (markers never rise away as the globe scales up)."}'
+    - "// @input float visibleCircleFraction = 0.95 {\"hint\":\"Radius of the table's visible (feathered) circle as a fraction of its half-size. Markers past it disappear and reappear when panned back in.\"}"
+    - "// @input bool alwaysShowCityMarkers = true {\"hint\":\"In OVERVIEW, always show a marker at each city's center even if it has no cards (keeps the 3-city minimum).\"}"
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Visuals</span>"}'
+    - '// @input float markerSizeCm = 3 {"hint":"Marker quad size (cm). Constant world size; markers billboard toward the camera."}'
+    - '// @input float countTextSize = 24 {"hint":"Font size (points) of the merged-count label drawn over the marker."}'
+    - "// @input float highlightScale = 1.35 {\"hint\":\"Scale multiplier applied to a city's markers while the user gazes at it in OVERVIEW (mirrors the old pin highlight).\"}"
+    - '// @input float markerRenderOrder = 500 {"hint":"Render order for the marker quads (count text draws one above). Keep above the globe/table so markers are never z-fought away."}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Logging</span>"}'
+    - '// @input bool enableLogging {"hint":"Enable general logging"}'
+    - '// @input bool enableLoggingLifecycle {"hint":"Enable lifecycle logging (onAwake, onStart, onUpdate, onDestroy)"}'

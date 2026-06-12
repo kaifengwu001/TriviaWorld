@@ -131,6 +131,10 @@ export class MapViewport extends BaseScriptComponent {
   private transitionSwitchSpan: number = 0.45 // span at/below which slot A shows sharp L0
   // Reverse keeps sharp L0 until a bit past home before swapping to wide L-1.
   private readonly REVERSE_SWITCH_RATIO = 1.3
+  // The exact geographic bounds shown by the LAST dive-handoff framing (after
+  // pan clamping), so marker overlays can pinpoint coordinates mid-dive. The
+  // docked `this.uv` is stale during a dive, hence this separate record.
+  private lastTransitionView: GeoBounds | null = null
 
   onAwake() {
     this.logger = new Logger("MapViewport", this.enableLogging || this.enableLoggingLifecycle, true)
@@ -276,6 +280,25 @@ export class MapViewport extends BaseScriptComponent {
     return uvToBounds(this.currentLevel.bounds, this.uv)
   }
 
+  /**
+   * The geographic bounds the table is showing RIGHT NOW, valid at every moment:
+   * during a dive handoff this is the live transition framing (which bypasses the
+   * docked uv state), otherwise the docked view bounds. Returns a NEW object.
+   * Used by CardMarkerLayer to pin markers through pans, zooms, AND dives.
+   */
+  getLiveViewBounds(): GeoBounds | null {
+    if (this.transitionActive && this.lastTransitionView) {
+      const v = this.lastTransitionView
+      return { centerLatLng: { lat: v.centerLatLng.lat, lng: v.centerLatLng.lng }, spanDeg: v.spanDeg }
+    }
+    return this.getViewBounds()
+  }
+
+  /** The table's current opacity (0..1), e.g. mid-crossfade against the globe. */
+  getOpacity(): number {
+    return this.currentAlpha
+  }
+
   /** The active level, or null. */
   getCurrentLevel(): LodLevel | null {
     return this.currentLevel
@@ -323,6 +346,7 @@ export class MapViewport extends BaseScriptComponent {
     this.transitionActive = true
     this.transitionWide = transitionLevel
     this.transitionSharp = l0Level
+    this.lastTransitionView = null
     const home = Math.max(1e-4, l0HomeSpan)
     this.transitionSwitchSpan = forward ? home : home * this.REVERSE_SWITCH_RATIO
     this.getSceneObject().enabled = true
@@ -371,7 +395,11 @@ export class MapViewport extends BaseScriptComponent {
           this.currentAlpha.toFixed(2)
       )
     }
-    this.applyUvA(this.framing(level.bounds, view))
+    const framed = this.framing(level.bounds, view)
+    this.applyUvA(framed)
+    // Record the EXACT displayed bounds (post pan-clamp) so getLiveViewBounds()
+    // reports what is truly on screen, not just what was requested.
+    this.lastTransitionView = uvToBounds(level.bounds, framed)
     this.setCrossfade(0)
   }
 
@@ -386,6 +414,7 @@ export class MapViewport extends BaseScriptComponent {
     this.transitionActive = false
     this.transitionWide = null
     this.transitionSharp = null
+    this.lastTransitionView = null
   }
 
   // boundsToUv for a view, pan-clamped into the texture (scale left as-is).

@@ -43,7 +43,6 @@
     labelText: false
     lodEnterZoom: false
     mapViewport: false
-    markerPrefab: false
     markerScale: false
     markerSurfaceOffset: false
     markers: false
@@ -75,7 +74,6 @@
       markers: !<MappingBased.AssignableType_3[]>
         []
       autoCreateMarkers: true
-      markerPrefab: !<reference.ObjectPrefab> 00000000-0000-0000-0000-000000000000
       markerSurfaceOffset: 1.040000
       markerScale: !<float> 1.000000
       textureLonOffsetDeg: !<float> 0.000000
@@ -117,8 +115,7 @@
     - "// @input AssignableType_3[] markers {\"hint\":\"OPTIONAL pre-placed markers (one per city). Leave empty to AUTO-CREATE + place them by code from each city's lat/lng.\"}"
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Markers (auto-created)</span>"}'
-    - '// @input bool autoCreateMarkers = true {"hint":"Create + place a marker per city from its lat/lng (parented to the globe). Turn off to use only the markers assigned above."}'
-    - "// @input Asset.ObjectPrefab markerPrefab {\"hint\":\"OPTIONAL prefab instantiated as each auto-created marker's visual. If empty, markers are created as logic-only (invisible) objects.\"}"
+    - '// @input bool autoCreateMarkers = true {"hint":"Create + place a marker per city from its lat/lng (parented to the globe). Markers are INVISIBLE logic-only selection targets (collider + Interactable); the visible textured markers are drawn by CardMarkerLayer from the CardStore. Turn off to use only the markers assigned above."}'
     - '// @input float markerSurfaceOffset = 1.04 {"hint":"How far above the globe surface to place markers, as a fraction of the globe radius (1 = on the surface)."}'
     - '// @input float markerScale = 1 {"hint":"Uniform local scale applied to each auto-created marker object."}'
     - "// @input float textureLonOffsetDeg {\"hint\":\"Longitude offset in degrees added to every city before placing its marker AND aiming the globe. Use this to line cities up with the globe base texture when the texture can't be shifted in Lens Studio (+ rotates cities east, - west).\"}"
