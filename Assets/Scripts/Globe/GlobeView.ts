@@ -157,8 +157,17 @@ export class GlobeView extends BaseScriptComponent {
     return Math.max(max.x - min.x, max.y - min.y, max.z - min.z) / 2
   }
 
-  /** Manually rotates the globe by yaw/pitch deltas (radians) in local space. */
+  /**
+   * Manually rotates the globe by yaw/pitch deltas (radians) in local space.
+   *
+   * Manual rotation is AUTHORITATIVE: any in-flight tween is finalized first so a
+   * still-running fade (e.g. the OVERVIEW crossfade enterOverview() starts after a
+   * return dive) can't overwrite the rotation each frame and "rubber band" the
+   * drag back. Finalizing snaps the tween to its end (alpha/scale/pose land
+   * correctly) before the user delta is applied.
+   */
   rotateBy(yawRad: number, pitchRad: number): void {
+    if (this.tween) this.finishTween()
     const delta = quat.angleAxis(yawRad, vec3.up()).multiply(quat.angleAxis(pitchRad, vec3.right()))
     this.transform.setLocalRotation(delta.multiply(this.transform.getLocalRotation()))
   }
