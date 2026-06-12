@@ -47,6 +47,11 @@
     likeIconOff: false
     likeIconOn: false
     profilePics: false
+    shareCount: false
+    shareIconOff: false
+    shareIconOn: false
+    sharePicSpacing: false
+    sharePics: false
     sideOffset: false
     verticalOffset: false
   ScriptTypesHidden:
@@ -63,13 +68,19 @@
       commentIconOff: !<reference.Texture> 00000000-0000-0000-0000-000000000000
       commentIconOn: !<reference.Texture> 00000000-0000-0000-0000-000000000000
       deleteIcon: !<reference.Texture> 00000000-0000-0000-0000-000000000000
+      shareIconOff: !<reference.Texture> 00000000-0000-0000-0000-000000000000
+      shareIconOn: !<reference.Texture> 00000000-0000-0000-0000-000000000000
       profilePics: !<reference.Texture[]>
+        []
+      sharePics: !<reference.Texture[]>
         []
       iconMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
       buttonPrefab: !<reference.ObjectPrefab> 00000000-0000-0000-0000-000000000000
       hideButtonVisual: true
       buttonWidth: !<float> 3.000000
       buttonSpacing: !<float> 1.000000
+      shareCount: !<float> 3.000000
+      sharePicSpacing: !<float> 1.000000
       sideOffset: 1.500000
       verticalOffset: 1.500000
       forwardOffset: 0.600000
@@ -86,7 +97,7 @@
     -
       {}
   InputLines:
-    - "// @ui {\"widget\":\"label\", \"label\":\"<span style=\\\"color: #60A5FA;\\\">CardActionButtonsController – profile/like/comment/delete rail per card</span><br/><span style=\\\"color: #94A3B8; font-size: 11px;\\\">Watches this object's child cards (Scanner captures OR ping PremadeCards) and spawns four RoundButtons hanging down from each card's top-right corner once it is ready. Profile picks a random avatar; comment mirrors the agent highlight; delete removes the card.</span>\"}"
+    - "// @ui {\"widget\":\"label\", \"label\":\"<span style=\\\"color: #60A5FA;\\\">CardActionButtonsController – profile/like/comment/share/delete rail per card</span><br/><span style=\\\"color: #94A3B8; font-size: 11px;\\\">Watches this object's child cards (Scanner captures OR ping PremadeCards) and spawns five RoundButtons hanging down from each card's top-right corner once it is ready. Profile picks a random avatar; comment mirrors the agent highlight; share opens a row of share-pics; delete removes the card.</span>\"}"
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Icons (hollow = off, solid = on)</span>"}'
     - '// @input Asset.Texture likeIconOff {"hint":"LIKE icon when toggled OFF (hollow version)."}'
@@ -94,7 +105,10 @@
     - '// @input Asset.Texture commentIconOff {"hint":"COMMENT icon when OFF (hollow). Shown solid when the agent highlights this card (caption load, card tap, or this button)."}'
     - '// @input Asset.Texture commentIconOn {"hint":"COMMENT icon when ON (solid version)."}'
     - '// @input Asset.Texture deleteIcon {"hint":"DELETE icon (single — delete is a momentary action, not a toggle)."}'
+    - '// @input Asset.Texture shareIconOff {"hint":"SHARE icon when toggled OFF (hollow version)."}'
+    - '// @input Asset.Texture shareIconOn {"hint":"SHARE icon when toggled ON / drawer open (solid version)."}'
     - '// @input Asset.Texture[] profilePics {"hint":"PROFILE-PIC pool (topmost button). One texture is picked at random per card when it spawns. Not a toggle, so no separate on/off icons."}'
+    - '// @input Asset.Texture[] sharePics {"hint":"SHARE-DRAWER pics, shown in list order when the Share button is toggled on. SEPARATE from the profile pool above, so the share row can use different images / a different order."}'
     - "// @input Asset.Material iconMaterial {\"hint\":\"Unlit, transparency-capable material the icons are drawn with. Cloned per icon (same material as SceneSwitcherPanel's icons works).\"}"
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Button Prefab</span>"}'
@@ -104,6 +118,8 @@
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Layout</span>"}'
     - '// @input float buttonWidth = 3 {"hint":"RoundButton width/height (cm)."}'
     - '// @input float buttonSpacing = 1 {"hint":"Vertical gap (cm) between buttons."}'
+    - "// @input float shareCount = 3 {\"hint\":\"How many share-pic buttons to spawn to the right of the Share button when it's toggled on (clamped to the number of Share Pics provided).\"}"
+    - "// @input float sharePicSpacing = 1 {\"hint\":\"Horizontal gap (cm) between adjacent spawned share-pic buttons. Independent of the rail's vertical button spacing.\"}"
     - "// @input float sideOffset = 1.5 {\"hint\":\"Gap (cm) between the card's right edge and the buttons.\"}"
     - "// @input float verticalOffset = 1.5 {\"hint\":\"Gap (cm) between the card's top edge and the topmost (profile) button.\"}"
     - '// @input float forwardOffset = 0.6 {"hint":"Distance (cm) to push the buttons toward the viewer along the card normal, so they clear the backdrop rect. Flip the sign if they land behind."}'

@@ -4636,6 +4636,7 @@
   ScriptAsset: !<reference> f0353738-c812-4585-83d4-4ee935ec3a9d
   ScriptInputsDefault:
     hideButtonVisual: true
+    sharePicSpacing: true
     forwardOffset: true
     iconForwardOffset: true
     labelColor: true
@@ -4652,21 +4653,31 @@
       commentIconOff: !<reference.Texture> 73eb4980-3655-404f-aaa8-cd4704d2a6e6
       commentIconOn: !<reference.Texture> d92d1591-6e33-443e-9983-e578af569c57
       deleteIcon: !<reference.Texture> 56a32ea0-6959-4240-9072-677ef75146a9
+      shareIconOff: !<reference.Texture> 07a6116b-e2e6-4b8b-a2e0-4b107ae2d940
+      shareIconOn: !<reference.Texture> 5e4e13b0-6ebc-44a2-8e16-bc3d96cd648a
       profilePics: !<reference.Texture[]>
         - !<reference> 9d74cedd-34ca-44a2-93a7-4834f25f05da
         - !<reference> d4f4c284-c54f-44aa-8f28-d8afb7060dac
-        - !<reference> 1a11bd61-9e49-4d9b-8001-f5027b46693a
         - !<reference> 3dd2a77c-0604-4e2a-956d-452bcd4c4890
         - !<reference> 69ce31ae-2cbf-4ed5-b170-9445e5e38e7e
         - !<reference> 7775ce41-39c2-4da6-97fa-bd4c2e34bc59
         - !<reference> 40464294-1788-4058-8ad7-cb12cc34a7a6
         - !<reference> a06d2788-d8a0-429b-a2e6-ab78906d7ae8
+        - !<reference> 1a11bd61-9e49-4d9b-8001-f5027b46693a
+      sharePics: !<reference.Texture[]>
+        - !<reference> 9d74cedd-34ca-44a2-93a7-4834f25f05da
+        - !<reference> d4f4c284-c54f-44aa-8f28-d8afb7060dac
+        - !<reference> 3dd2a77c-0604-4e2a-956d-452bcd4c4890
+        - !<reference> a06d2788-d8a0-429b-a2e6-ab78906d7ae8
+        - !<reference> 40464294-1788-4058-8ad7-cb12cc34a7a6
       iconMaterial: !<reference.Material> fb942e39-cb39-45c9-a514-72ed8ef7bc4c
       buttonPrefab: !<reference.ObjectPrefab> 9040e6d0-dd04-4b27-9c59-9c692a3aa1fb
       hideButtonVisual: true
       buttonWidth: 4.500000
       buttonSpacing: 0.100000
-      sideOffset: 0.200000
+      shareCount: !<float> 5.000000
+      sharePicSpacing: !<float> 1.000000
+      sideOffset: -0.600000
       verticalOffset: -0.300000
       forwardOffset: 0.600000
       iconSize: 2.500000
@@ -7699,13 +7710,23 @@
       commentIconOff: !<reference.Texture> 73eb4980-3655-404f-aaa8-cd4704d2a6e6
       commentIconOn: !<reference.Texture> d92d1591-6e33-443e-9983-e578af569c57
       deleteIcon: !<reference.Texture> 56a32ea0-6959-4240-9072-677ef75146a9
+      shareIconOff: !<reference.Texture> 07a6116b-e2e6-4b8b-a2e0-4b107ae2d940
+      shareIconOn: !<reference.Texture> 5e4e13b0-6ebc-44a2-8e16-bc3d96cd648a
       profilePics: !<reference.Texture[]>
         - !<reference> 1a11bd61-9e49-4d9b-8001-f5027b46693a
+      sharePics: !<reference.Texture[]>
+        - !<reference> 9d74cedd-34ca-44a2-93a7-4834f25f05da
+        - !<reference> d4f4c284-c54f-44aa-8f28-d8afb7060dac
+        - !<reference> 3dd2a77c-0604-4e2a-956d-452bcd4c4890
+        - !<reference> a06d2788-d8a0-429b-a2e6-ab78906d7ae8
+        - !<reference> 40464294-1788-4058-8ad7-cb12cc34a7a6
       iconMaterial: !<reference.Material> fb942e39-cb39-45c9-a514-72ed8ef7bc4c
       buttonPrefab: !<reference.ObjectPrefab> 9040e6d0-dd04-4b27-9c59-9c692a3aa1fb
       hideButtonVisual: true
       buttonWidth: !<float> 4.000000
       buttonSpacing: 0.100000
+      shareCount: !<float> 5.000000
+      sharePicSpacing: -0.600000
       sideOffset: 1.200000
       verticalOffset: -1.500000
       forwardOffset: 0.600000

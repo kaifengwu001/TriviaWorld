@@ -19,6 +19,9 @@
  *               card, which keeps working). Whichever path engages a card, that
  *               card's comment button toggles ON and every other card's toggles
  *               OFF (the agent highlights one card at a time).
+ *   - share   : toggles a horizontal row of "share to" profile pics off the
+ *               button's right (see ShareDrawer); picking one or clicking
+ *               elsewhere closes the row.
  *   - delete  : removes the card from the CardStore (if present) and destroys it.
  *
  * The card kind is reached only through CardButtonHost, so this controller is
@@ -37,7 +40,7 @@ type CardEntry = {
 
 @component
 export class CardActionButtonsController extends BaseScriptComponent {
-  @ui.label('<span style="color: #60A5FA;">CardActionButtonsController – profile/like/comment/delete rail per card</span><br/><span style="color: #94A3B8; font-size: 11px;">Watches this object\'s child cards (Scanner captures OR ping PremadeCards) and spawns four RoundButtons hanging down from each card\'s top-right corner once it is ready. Profile picks a random avatar; comment mirrors the agent highlight; delete removes the card.</span>')
+  @ui.label('<span style="color: #60A5FA;">CardActionButtonsController – profile/like/comment/share/delete rail per card</span><br/><span style="color: #94A3B8; font-size: 11px;">Watches this object\'s child cards (Scanner captures OR ping PremadeCards) and spawns five RoundButtons hanging down from each card\'s top-right corner once it is ready. Profile picks a random avatar; comment mirrors the agent highlight; share opens a row of share-pics; delete removes the card.</span>')
   @ui.separator
 
   @ui.label('<span style="color: #60A5FA;">Icons (hollow = off, solid = on)</span>')
@@ -67,9 +70,24 @@ export class CardActionButtonsController extends BaseScriptComponent {
   deleteIcon: Texture
 
   @input
+  @hint("SHARE icon when toggled OFF (hollow version).")
+  @allowUndefined
+  shareIconOff: Texture
+
+  @input
+  @hint("SHARE icon when toggled ON / drawer open (solid version).")
+  @allowUndefined
+  shareIconOn: Texture
+
+  @input
   @hint("PROFILE-PIC pool (topmost button). One texture is picked at random per card when it spawns. Not a toggle, so no separate on/off icons.")
   @allowUndefined
   profilePics: Texture[]
+
+  @input
+  @hint("SHARE-DRAWER pics, shown in list order when the Share button is toggled on. SEPARATE from the profile pool above, so the share row can use different images / a different order.")
+  @allowUndefined
+  sharePics: Texture[]
 
   @input
   @hint("Unlit, transparency-capable material the icons are drawn with. Cloned per icon (same material as SceneSwitcherPanel's icons works).")
@@ -95,6 +113,14 @@ export class CardActionButtonsController extends BaseScriptComponent {
   @input
   @hint("Vertical gap (cm) between buttons.")
   buttonSpacing: number = 1
+
+  @input
+  @hint("How many share-pic buttons to spawn to the right of the Share button when it's toggled on (clamped to the number of Share Pics provided).")
+  shareCount: number = 3
+
+  @input
+  @hint("Horizontal gap (cm) between adjacent spawned share-pic buttons. Independent of the rail's vertical button spacing.")
+  sharePicSpacing: number = 1
 
   @input
   @hint("Gap (cm) between the card's right edge and the buttons.")
@@ -165,6 +191,11 @@ export class CardActionButtonsController extends BaseScriptComponent {
     const children = this.sceneObject.children
     this.pruneRemoved(children)
     this.attachNew(children)
+    // Drive each rail's share-drawer animations (open / shrink / select fade).
+    const dt = getDeltaTime()
+    for (let i = 0; i < this.entries.length; i++) {
+      this.entries[i].buttons.update(dt)
+    }
   }
 
   // Drops entries whose card has left the hierarchy (deleted card, a too-small
@@ -204,6 +235,11 @@ export class CardActionButtonsController extends BaseScriptComponent {
       commentIconOff: this.commentIconOff ?? null,
       commentIconOn: this.commentIconOn ?? null,
       deleteIcon: this.deleteIcon ?? null,
+      shareIconOff: this.shareIconOff ?? null,
+      shareIconOn: this.shareIconOn ?? null,
+      sharePics: this.sharePics ?? [],
+      shareCount: this.shareCount,
+      sharePicSpacing: this.sharePicSpacing,
       profileIcons: this.profilePics ?? [],
       iconMaterial: this.iconMaterial ?? null,
       hideButtonVisual: this.hideButtonVisual,
