@@ -42,7 +42,6 @@
   ScriptAsset: !<reference> 6c013ed9-5070-426e-96d9-7da4cc246ac0
   ScriptInputsDefault:
     centerObject: true
-    gazeScaleEnabled: true
     topicWeight: true
     locationWeight: true
     dateWeight: true
@@ -124,7 +123,7 @@
       cardSizeMaxScale: 1.750000
       cardWidthCm: !<float> 10.000000
       cardHeightCm: !<float> 15.000000
-      gazeScaleEnabled: true
+      gazeScaleEnabled: false
       gazeScaleConeDeg: !<float> 10.000000
       gazeScaleMaxBoost: 1.300000
       gazeScaleEaseRate: !<float> 3.000000

@@ -512,6 +512,7 @@
     labelLine1: true
     labelColor: true
     allowRespawn: true
+    enableLogging: true
     enableLoggingLifecycle: true
   ScriptTypesDefault:
     {}
@@ -543,10 +544,10 @@
       showDistanceLabel: true
       labelLine1: Look to Open
       labelFontSize: !<float> 70.000000
-      labelVerticalOffset: !<float> 10.000000
+      labelVerticalOffset: !<float> 13.000000
       labelColor: !<Vec4> {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
       allowRespawn: false
-      enableLogging: true
+      enableLogging: false
       enableLoggingLifecycle: false
   ScriptTypes:
     "":
@@ -3891,7 +3892,8 @@
       heightOffset: -18.500000
       followSpeed: !<float> 6.000000
       rotateSpeed: !<float> 4.000000
-      positionDeadzone: !<float> 2.000000
+      positionDeadzone: !<float> 1.000000
+      rotationDeadzoneDeg: !<float> 8.000000
       enableLogging: false
       enableLoggingLifecycle: false
   ScriptTypes:
@@ -8789,7 +8791,7 @@
       baseMaterial: !<reference.Material> 539454c8-637b-438a-9281-722f5ace94c8
       palette: !<Vec4[]>
         []
-      bubbleCount: !<float> 60.000000
+      bubbleCount: !<float> 45.000000
       minDistance: !<float> 300.000000
       maxDistance: !<float> 1500.000000
       spawnOnWavefront: true
