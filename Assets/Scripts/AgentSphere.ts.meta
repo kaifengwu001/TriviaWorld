@@ -27,6 +27,7 @@
   PackagePolicy: CanBeUnpacked
   ScriptInputsHidden:
     audioLatency: false
+    billboardDeadzoneDeg: false
     cameraObj: false
     cardPadRight: false
     cardPadUp: false
@@ -67,6 +68,7 @@
       subtitleFovMarginCm: !<float> 3.000000
       moveSpeed: !<float> 4.000000
       rotateSpeed: !<float> 4.000000
+      billboardDeadzoneDeg: !<float> 20.000000
       idleBob: 0.400000
       speakPulse: 0.180000
       audioLatency: 0.200000
@@ -100,6 +102,7 @@
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Motion</span>"}'
     - '// @input float moveSpeed = 4 {"hint":"Position follow speed (lerp factor = moveSpeed * dt). Lower = lazier, laggier follow."}'
     - '// @input float rotateSpeed = 4 {"hint":"Rotation follow speed for the yaw-only billboard (slerp factor = rotateSpeed * dt)."}'
+    - '// @input float billboardDeadzoneDeg = 20 {"hint":"Rotational DEADZONE (degrees) for the yaw billboard: the orb only re-aims once the head has turned more than this from its current facing, then settles and holds again. Generous values (15-30) keep the orb visually rock-steady and skip the per-frame slerp while you look around. 0 = always track."}'
     - '// @input float idleBob = 0.5 {"hint":"Amplitude (cm) of the subtle idle bob (folded into the target so it stays smooth)."}'
     - '// @input float speakPulse = 0.18 {"hint":"Extra scale fraction applied while the agent is speaking."}'
     - '// @ui {"widget":"separator"}'

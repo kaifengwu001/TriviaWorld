@@ -26,7 +26,6 @@
     Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
     HasSegmentScaleCompensation: false
   Children:
-    - !<own> b698a2ce-e5fd-41b4-6669-6f03a021b3a8
     - !<own> 39f4f8da-92bc-4607-bd35-78434454aa71
   Components:
     - !<own> 9b8749b4-2eb5-42f5-53ee-6da35d05f7aa
@@ -45,26 +44,6 @@
     []
   Components:
     - !<own> 8849822f-cd83-4125-bb18-2e84f73b8675
-- !<RenderMeshVisual/6033befd-6af7-4735-5219-f03175a9ead3>
-  PrefabRemaps:
-    []
-  Name: Render Mesh Visual
-  Enabled: true
-  RenderOrder: 0
-  StretchMode: Stretch
-  VerticalAlignment: Center
-  HorizontalAlignment: Center
-  MeshShadowMode: None
-  ShadowColor: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
-  ShadowDensity: 1.000000
-  Materials:
-    - !<reference> 39c41230-4848-4655-99be-2f7445ed42b5
-  Mesh: !<reference> 89e3db36-d63f-43ce-957b-77db81b0a792
-  Skin: !<reference> 00000000-0000-0000-0000-000000000000
-  BlendShapesEnabled: true
-  BlendNormals: false
-  BlendShapes:
-    {}
 - !<ObjectPrefabAssetData/7adfaed3-02ad-4602-9f32-4151cb7b772f>
   Prototype: !<ObjectOwner/0ed3ecce-fb22-4693-8bd0-4345b95bc25e>
     PackagePath: ""
@@ -77,6 +56,7 @@
   Enabled: true
   ScriptAsset: !<reference> 49469d8c-58a7-4c56-a37e-47cd30dbcce2
   ScriptInputsDefault:
+    selfBillboard: true
     color0: true
     color1: true
     color2: true
@@ -93,6 +73,7 @@
     "":
       baseMaterial: !<reference.Material> 539454c8-637b-438a-9281-722f5ace94c8
       cameraObj: !<reference.SceneObject> 00000000-0000-0065-0000-000000000064
+      selfBillboard: false
       color0: !<Vec4> {x: 0.000000, y: 1.000000, z: 1.000000, w: 1.000000}
       color1: !<Vec4> {x: 1.000000, y: 0.000000, z: 1.000000, w: 1.000000}
       color2: !<Vec4> {x: 1.000000, y: 1.000000, z: 0.000000, w: 1.000000}
@@ -135,12 +116,10 @@
   ScriptInputsDefault:
     panelScreenPos: true
     panelDepth: true
-    homeScreenPos: true
     homeDepth: true
     cardPadUp: true
     cardPopOut: true
     orbRadiusCm: true
-    subtitleGapCm: true
     subtitleFovMarginCm: true
     moveSpeed: true
     rotateSpeed: true
@@ -155,16 +134,17 @@
       sphereObj: !<reference.SceneObject> 39f4f8da-92bc-4607-bd35-78434454aa71
       panelScreenPos: !<Vec2> {x: -0.500000, y: 0.500000}
       panelDepth: !<float> 120.000000
-      homeScreenPos: !<Vec2> {x: 0.550000, y: -0.550000}
+      homeScreenPos: !<Vec2> {x: -0.550000, y: -0.550000}
       homeDepth: !<float> 55.000000
       cardPadRight: !<float> 2.000000
       cardPadUp: !<float> 3.000000
       cardPopOut: !<float> 2.000000
       orbRadiusCm: !<float> 3.000000
-      subtitleGapCm: 1.500000
+      subtitleGapCm: !<float> 1.000000
       subtitleFovMarginCm: !<float> 3.000000
       moveSpeed: !<float> 4.000000
       rotateSpeed: !<float> 4.000000
+      billboardDeadzoneDeg: !<float> 8.000000
       idleBob: 0.400000
       speakPulse: 0.180000
       audioLatency: 0.300000
@@ -172,18 +152,3 @@
   ScriptTypes:
     "":
       {}
-- !<SceneObject/b698a2ce-e5fd-41b4-6669-6f03a021b3a8>
-  PrefabRemaps:
-    []
-  Name: SphereVisual
-  Enabled: false
-  Layers: 1
-  LocalTransform: !<TransformEntity>
-    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
-    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
-    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
-    HasSegmentScaleCompensation: false
-  Children:
-    []
-  Components:
-    - !<own> 6033befd-6af7-4735-5219-f03175a9ead3

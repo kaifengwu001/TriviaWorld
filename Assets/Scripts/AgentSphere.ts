@@ -104,8 +104,12 @@ export class AgentSphere extends BaseScriptComponent {
   moveSpeed: number = 4
 
   @input
-  @hint("Rotation follow speed for the yaw-only billboard (slerp factor = rotateSpeed * dt).")
+  @hint("Rotation follow speed for the billboard (slerp factor = rotateSpeed * dt).")
   rotateSpeed: number = 4
+
+  @input
+  @hint("Rotational DEADZONE (degrees) for the billboard: the orb only re-aims once the camera direction has changed more than this from its current facing, then settles and holds again. Generous values (15-30) keep the orb visually rock-steady and skip the per-frame slerp while you look around. 0 = always track.")
+  billboardDeadzoneDeg: number = 20
 
   @input
   @hint("Amplitude (cm) of the subtle idle bob (folded into the target so it stays smooth).")
@@ -142,6 +146,10 @@ export class AgentSphere extends BaseScriptComponent {
   // Smoothed current pose, seeded (snapped) on the first update.
   private currentPos: vec3 | null = null
   private currentRot: quat | null = null
+  // Rotational-deadzone hysteresis: once the target drifts past the deadzone we
+  // "chase" until we are almost re-aligned, then hold again. Prevents the orb
+  // from jittering at the deadzone boundary.
+  private rotChasing = false
   // Smoothed amplitude envelope (0..1) the ring/orb visual reads each frame.
   private audioLevel = 0
   // Playback schedule: per-frame loudness paired with the frame's playback
@@ -293,6 +301,13 @@ export class AgentSphere extends BaseScriptComponent {
     return Math.min(1, playing * LEVEL_GAIN);
   }
 
+  /** Angle (degrees) between two rotations, used for the rotational deadzone. */
+  private quatAngleDeg(a: quat, b: quat): number {
+    let dot = a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+    dot = Math.min(1, Math.abs(dot));
+    return (2 * Math.acos(dot) * 180) / Math.PI;
+  }
+
   /** Vertical FOV in radians (Camera.fov is radians), with a ~63.5° fallback. */
   private fovRad(): number {
     return this.camComp ? this.camComp.fov : 1.109;
@@ -400,11 +415,10 @@ export class AgentSphere extends BaseScriptComponent {
       vec3.up().uniformScale(this.idleBob * Math.sin(getTime() * 1.5))
     );
 
-    // Yaw-only billboard: face the user but ignore pitch, like FollowPosition.cs
-    // zeroing the look direction's vertical component.
+    // Full billboard: aim the orb's +Z normal straight at the camera POSITION,
+    // including pitch (so it also tilts up/down to face the viewer), not just yaw.
     const camPos = this.camTrans.getWorldPosition();
-    let dir = camPos.sub(this.currentPos ?? target);
-    dir = new vec3(dir.x, 0, dir.z);
+    const dir = camPos.sub(this.currentPos ?? target);
     const targetRot =
       dir.length > 1e-4 ? quat.lookAt(dir.normalize(), vec3.up()) : (this.currentRot ?? quat.quatIdentity());
 
@@ -412,10 +426,21 @@ export class AgentSphere extends BaseScriptComponent {
       // Snap to the target on the first frame (mirrors snapOnEnable).
       this.currentPos = target;
       this.currentRot = targetRot;
+      this.rotChasing = false;
     } else {
       // Plain frame-rate-scaled lerp/slerp (matches FollowPosition.cs).
       this.currentPos = vec3.lerp(this.currentPos, target, Math.min(1, this.moveSpeed * dt));
-      this.currentRot = quat.slerp(this.currentRot, targetRot, Math.min(1, this.rotateSpeed * dt));
+      // Generous rotational deadzone: only re-aim once the head has turned more
+      // than billboardDeadzoneDeg from the orb's current facing. Hysteresis keeps
+      // chasing until nearly re-aligned so it never chatters on the boundary, and
+      // a resting orb skips the slerp entirely.
+      const dz = Math.max(0, this.billboardDeadzoneDeg);
+      const angDeg = this.quatAngleDeg(this.currentRot, targetRot);
+      if (!this.rotChasing && angDeg > dz) this.rotChasing = true;
+      if (this.rotChasing) {
+        this.currentRot = quat.slerp(this.currentRot, targetRot, Math.min(1, this.rotateSpeed * dt));
+        if (angDeg <= dz * 0.15) this.rotChasing = false;
+      }
     }
 
     this.sphereTrans.setWorldPosition(this.currentPos);

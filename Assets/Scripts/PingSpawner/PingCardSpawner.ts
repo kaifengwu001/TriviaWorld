@@ -163,6 +163,10 @@ export class PingCardSpawner extends BaseScriptComponent {
   @hint("Half-angle (degrees) of the gaze cone that counts as 'looking at' a bubble.")
   gazeConeAngleDeg: number = 12
 
+  @input
+  @hint("Rotational DEADZONE (degrees) for each spawned card's billboard: a card holds its facing until the direction to the camera has changed by more than this, then re-aims. Generous values (8-20) keep the scattered field visually steady and skip the per-frame quat write. 0 = re-aim every frame.")
+  billboardDeadzoneDeg: number = 12
+
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Distance label</span>')
   @input
@@ -396,6 +400,7 @@ export class PingCardSpawner extends BaseScriptComponent {
   // and STAYS OPEN once expanded, billboarding to the camera, colored by topic.
   private dressCard(obj: SceneObject, card: PremadeCard, entry: CardDeckEntry, index: number): void {
     card.billboard = true
+    card.setBillboardDeadzone(this.billboardDeadzoneDeg) // generous deadzone: hold facing, skip per-frame re-aim
     card.startExpanded = false
     card.gazeToExpand = true
     card.collapseWhenGazeLost = false // once opened, stays opened

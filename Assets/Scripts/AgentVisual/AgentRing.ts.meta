@@ -56,6 +56,7 @@
     quietDistortion: false
     quietSpeed: false
     radius: false
+    selfBillboard: false
     showEyes: false
     zGap: false
   ScriptTypesHidden:
@@ -69,6 +70,7 @@
   DefaultScriptInputs:
     - baseMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
       cameraObj: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      selfBillboard: false
       color0: !<Vec4> {x: 0.000000, y: 1.000000, z: 1.000000, w: 1.000000}
       color1: !<Vec4> {x: 1.000000, y: 0.000000, z: 1.000000, w: 1.000000}
       color2: !<Vec4> {x: 1.000000, y: 1.000000, z: 0.000000, w: 1.000000}
@@ -108,6 +110,7 @@
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">References</span>"}'
     - '// @input Asset.Material baseMaterial {"hint":"Base material CLONED per layer (its baseColor/blend are overwritten — the asset is never mutated). Any unlit material works; an additive one is ideal."}'
     - '// @input SceneObject cameraObj {"hint":"Head camera object. Used to billboard the circle to fully face the viewer each frame. If unset, billboarding is disabled."}'
+    - '// @input bool selfBillboard {"hint":"Self-billboard this ring each frame. Default OFF: the ring is normally a child of the object AgentSphere already billboards (yaw-only), so re-orienting here is redundant work. Turn on only if the ring is NOT parented under a billboarding AgentSphere."}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Layer Colors (additive → white where they overlap)</span>"}'
     - "// @input vec4 color0 = {0,1,1,1}"

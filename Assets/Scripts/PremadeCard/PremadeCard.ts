@@ -144,6 +144,12 @@ export class PremadeCard extends BaseScriptComponent {
   private trans: Transform = null
   private camTrans: Transform = null
   private morph: CardMorph = null
+  // Rotational deadzone (deg) for the billboard: the card holds its facing until the
+  // direction to the camera has changed by more than this, then re-aims. 0 = re-aim
+  // every frame. Set per-instance via setBillboardDeadzone (e.g. by PingCardSpawner).
+  private billboardDeadzoneDeg = 0
+  // Last rotation actually written by the billboard, for the deadzone comparison.
+  private lastBillboardRot: quat | null = null
   private started = false
   private ownershipTaken = false
   private lastContentVisible = false
@@ -385,6 +391,16 @@ export class PremadeCard extends BaseScriptComponent {
   setCamera(camera: SceneObject): void {
     this.cameraObject = camera
     this.camTrans = camera ? camera.getTransform() : null
+  }
+
+  /**
+   * Sets the billboard's rotational deadzone (degrees): the card stops re-aiming
+   * every frame and instead holds its facing until the direction to the camera has
+   * changed by more than this angle. Generous values (8-20) make a field of cards
+   * visually steady and skip the per-frame quat write. 0 = re-aim every frame.
+   */
+  setBillboardDeadzone(deg: number): void {
+    this.billboardDeadzoneDeg = Math.max(0, deg)
   }
 
   /**
@@ -760,10 +776,28 @@ export class PremadeCard extends BaseScriptComponent {
     this.borderBubble.advance(0)
   }
 
+  // Orients the card so its +Z NORMAL points AT the camera position (a TRUE
+  // billboard). dir = camPos - cardPos — NOT the camera's forward axis, which only
+  // faces the viewer dead-ahead and skews cards placed off to the sides. A generous
+  // deadzone holds the facing until the camera direction has moved past it.
   private billboardNow(): void {
-    if (this.billboard && this.camTrans && this.trans) {
-      this.trans.setWorldRotation(quat.lookAt(this.camTrans.forward, vec3.up()))
+    if (!this.billboard || !this.camTrans || !this.trans) return
+    const dir = this.camTrans.getWorldPosition().sub(this.trans.getWorldPosition())
+    if (dir.length < 1e-4) return
+    const target = quat.lookAt(dir.normalize(), vec3.up())
+    const dz = this.billboardDeadzoneDeg
+    if (dz > 0 && this.lastBillboardRot && this.quatAngleDeg(this.lastBillboardRot, target) <= dz) {
+      return // within the deadzone: hold the current facing, skip the write
     }
+    this.trans.setWorldRotation(target)
+    this.lastBillboardRot = target
+  }
+
+  // Angle (degrees) between two rotations, for the billboard deadzone test.
+  private quatAngleDeg(a: quat, b: quat): number {
+    let dot = a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w
+    dot = Math.min(1, Math.abs(dot))
+    return (2 * Math.acos(dot) * 180) / Math.PI
   }
 
   private applyContentVisibility(visible: boolean): void {

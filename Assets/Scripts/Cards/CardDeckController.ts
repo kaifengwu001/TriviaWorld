@@ -91,6 +91,16 @@ interface DeckSlot {
   // Last render order pushed to the card while it's a CoverFlow result (-1 = unset),
   // so we only re-push on change instead of every frame.
   renderOrder: number
+  // Set when this plane card needs its (fixed) billboard re-applied: whenever it
+  // returns to the plane from a front deck. Cleared once re-applied. Plane cards are
+  // world-fixed on the cylinder, so we billboard ONCE and hold — no per-frame
+  // re-orient (the head turning doesn't move the cards).
+  needsBillboard: boolean
+  // The orientation captured at layout time (the card's initial billboard). A card
+  // pulled into the album/CoverFlow deck is re-oriented for the deck; on return we
+  // restore THIS remembered rotation rather than re-deriving it (which would give a
+  // different facing if the head moved while the deck was up). null until laid out.
+  baseRot: quat | null
 }
 
 @component
@@ -313,11 +323,9 @@ export class CardDeckController extends BaseScriptComponent {
   private camTrans: Transform = null
   // This object's transform, cached once (parent of every card slot).
   private selfTrans: Transform = null
-  // Per-frame caches recomputed at the top of update(): the shared billboard
-  // rotation (every card faces the camera the same way) and the parent world
-  // scale (used to convert target world scales to local). Computing these once
-  // instead of per slot removes ~37 quat.lookAt + getWorldScale calls per frame.
-  private frameBillboardRot: quat | null = null
+  // Per-frame cache recomputed at the top of update(): the parent world scale
+  // (used to convert target world scales to local). Computing it once instead of
+  // per slot removes ~37 getWorldScale calls per frame.
   private frameParentScale: vec3 | null = null
 
   // Premade deck + seeds are spawned exactly once (in onStart, which fires the
@@ -526,6 +534,8 @@ export class CardDeckController extends BaseScriptComponent {
       swayAmp: this.swayAmplitudeCm * this.rand(0.6, 1),
       isResult: false,
       renderOrder: -1,
+      needsBillboard: true,
+      baseRot: null,
     }
   }
 
@@ -701,10 +711,9 @@ export class CardDeckController extends BaseScriptComponent {
 
   private update(dt: number): void {
     if (this.slots.length === 0) return
-    // Recompute the per-frame caches once (used by buildWrappedLayout below and by
-    // every slot in the loops): the shared billboard rotation and the parent world
-    // scale. This replaces ~37 quat.lookAt + getWorldScale calls per frame with one.
-    this.frameBillboardRot = this.camTrans ? quat.lookAt(this.camTrans.forward, vec3.up()) : null
+    // Recompute the per-frame cache once (used by buildWrappedLayout below and by
+    // every slot in the loops): the parent world scale. This replaces ~37
+    // getWorldScale calls per frame with one.
     this.frameParentScale = this.getParentScale(true)
     // This only ticks while the deck is actually visible (UpdateEvent is gated by
     // hierarchy-enabled state), so polling here is how the deck "reads" the
@@ -754,7 +763,10 @@ export class CardDeckController extends BaseScriptComponent {
       }
       const cur = slot.trans.getWorldPosition()
       slot.trans.setWorldPosition(vec3.lerp(cur, target, Math.min(1, 5 * dt)))
-      this.billboardSlot(slot)
+      // Billboard ONCE and hold (the cards are world-fixed on the cylinder, so they
+      // don't need to re-orient every frame). Re-fired only when the card returns
+      // to the plane from a front deck (needsBillboard set by the clear/rebase paths).
+      if (slot.needsBillboard) this.billboardSlot(slot)
 
       // Gaze focus: grow cards near the view centre (biggest dead-centre), easing back
       // to resting size as the gaze moves off them. Held at resting size while a front
@@ -923,7 +935,7 @@ export class CardDeckController extends BaseScriptComponent {
       slot.azDeg = az / DEG2RAD
       slot.elDeg = v[i]
       slot.trans.setWorldPosition(slot.base)
-      this.billboardSlot(slot)
+      this.billboardSlot(slot, true) // capture this as the card's remembered baseRot
       if (u[i] < minU) minU = u[i]
       if (u[i] > maxU) maxU = u[i]
     }
@@ -1203,6 +1215,7 @@ export class CardDeckController extends BaseScriptComponent {
       const slot = this.slots[idx]
       if (!slot) continue
       slot.isResult = false
+      slot.needsBillboard = true // re-billboard once when it settles back on the plane
       this.applyWorldScale(slot, AUTHORED_WORLD_SCALE) // back to the resting (authored) scale
       this.restoreCosmosCardSize(slot) // relayout at resting scale (after scale is restored)
       if (slot.card) slot.card.setRenderInFront(false)
@@ -1350,6 +1363,7 @@ export class CardDeckController extends BaseScriptComponent {
     const inc = this.slots[this.vIncoming]
     if (inc) {
       inc.isResult = false
+      inc.needsBillboard = true // re-billboard once when it settles back on the plane
       this.applyWorldScale(inc, AUTHORED_WORLD_SCALE) // back to the resting (authored) scale
       this.restoreCosmosCardSize(inc) // relayout at resting scale (after scale is restored)
       if (inc.card) inc.card.setRenderInFront(false)
@@ -1384,6 +1398,7 @@ export class CardDeckController extends BaseScriptComponent {
     const out = this.slots[outgoing]
     if (out) {
       out.isResult = false
+      out.needsBillboard = true // re-billboard once when it settles back on the plane
       this.applyWorldScale(out, AUTHORED_WORLD_SCALE) // back to the resting (authored) scale
       this.restoreCosmosCardSize(out) // relayout at resting scale (after scale is restored)
       if (out.card) out.card.setRenderInFront(false)
@@ -1426,6 +1441,7 @@ export class CardDeckController extends BaseScriptComponent {
       const s = this.slots[idx]
       if (!s) continue
       s.isResult = false
+      s.needsBillboard = true // re-billboard once when it settles back on the plane
       this.applyWorldScale(s, AUTHORED_WORLD_SCALE) // back to the resting (authored) scale
       this.restoreCosmosCardSize(s) // relayout at resting scale (after scale is restored)
       if (s.card) s.card.setRenderInFront(false)
@@ -1763,12 +1779,30 @@ export class CardDeckController extends BaseScriptComponent {
     return (v !== undefined && v !== null && isFinite(v) && v > 0) ? v : fallback
   }
 
-  private billboardSlot(slot: DeckSlot): void {
+  // Orients the card so its +Z NORMAL points AT the camera position (a TRUE
+  // billboard), then clears needsBillboard so it isn't re-applied every frame.
+  // The cards wrap a cylinder around the head, so each one faces a different way —
+  // aiming at the camera's POSITION (dir = camPos - cardPos) is correct, whereas
+  // the old shared quat.lookAt(camera.forward, up) made every card screen-parallel
+  // and only looked right dead-ahead.
+  //
+  // recompute=true (layout): derive the facing from the card's current position and
+  // REMEMBER it as baseRot. recompute=false (return from a front deck): just restore
+  // the remembered baseRot, so a card always comes back to its original facing
+  // instead of the rotation it picked up in the album/CoverFlow deck.
+  private billboardSlot(slot: DeckSlot, recompute: boolean = false): void {
     if (!this.camTrans) return
-    // Reuse the rotation computed once this frame; fall back to a fresh compute
-    // for the rare off-frame caller (none currently).
-    const rot = this.frameBillboardRot ?? quat.lookAt(this.camTrans.forward, vec3.up())
+    if (!recompute && slot.baseRot) {
+      slot.trans.setWorldRotation(slot.baseRot)
+      slot.needsBillboard = false
+      return
+    }
+    const dir = this.camTrans.getWorldPosition().sub(slot.trans.getWorldPosition())
+    if (dir.length < 1e-4) return
+    const rot = quat.lookAt(dir.normalize(), vec3.up())
     slot.trans.setWorldRotation(rot)
+    slot.baseRot = rot
+    slot.needsBillboard = false
   }
 
   // The parent (this object's) world scale. Cached per frame in update(); pass

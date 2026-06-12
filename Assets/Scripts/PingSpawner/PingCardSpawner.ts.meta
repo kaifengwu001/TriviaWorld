@@ -27,6 +27,7 @@
   PackagePolicy: CanBeUnpacked
   ScriptInputsHidden:
     allowRespawn: false
+    billboardDeadzoneDeg: false
     bubbleFields: false
     cameraObject: false
     cardPrefab: false
@@ -87,6 +88,7 @@
       imageWidth: !<float> 0.000000
       gazeDwellSec: !<float> 1.000000
       gazeConeAngleDeg: !<float> 12.000000
+      billboardDeadzoneDeg: !<float> 12.000000
       showDistanceLabel: true
       labelLine1: Look to Open
       labelFontSize: !<float> 36.000000
@@ -133,6 +135,7 @@
     - "// @input float imageWidth {\"hint\":\"Displayed image width (cm) for each card; height follows the image aspect. 0 = keep the prefab's authored width.\"}"
     - '// @input float gazeDwellSec = 1 {"hint":"Seconds the player must gaze at a bubble before it expands into a card."}'
     - "// @input float gazeConeAngleDeg = 12 {\"hint\":\"Half-angle (degrees) of the gaze cone that counts as 'looking at' a bubble.\"}"
+    - "// @input float billboardDeadzoneDeg = 12 {\"hint\":\"Rotational DEADZONE (degrees) for each spawned card's billboard: a card holds its facing until the direction to the camera has changed by more than this, then re-aims. Generous values (8-20) keep the scattered field visually steady and skip the per-frame quat write. 0 = re-aim every frame.\"}"
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Distance label</span>"}'
     - '// @input bool showDistanceLabel = true {"hint":"Attach a two-line label under each closed bubble (1st line = the prompt, 2nd = live distance to the camera). It vanishes when the bubble expands into a card."}'

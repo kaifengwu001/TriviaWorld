@@ -28,6 +28,7 @@
   ScriptInputsHidden:
     alwaysShowCityMarkers: false
     avoidOcean: false
+    billboardDeadzoneDeg: false
     countTextColor: false
     countTextDepth: false
     countTextHeight: false
@@ -75,6 +76,7 @@
       countTextColor: !<Vec4> {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
       highlightScale: 1.350000
       markerRenderOrder: !<float> 500.000000
+      billboardDeadzoneDeg: !<float> 12.000000
       enableLogging: false
       enableLoggingLifecycle: false
   ScriptTypes:
@@ -106,6 +108,7 @@
     - '// @input vec4 countTextColor = {1,1,1,1} {"hint":"Color (RGBA) of the merged-count label."}'
     - "// @input float highlightScale = 1.35 {\"hint\":\"Scale multiplier applied to a city's markers while the user gazes at it in OVERVIEW (mirrors the old pin highlight).\"}"
     - '// @input float markerRenderOrder = 500 {"hint":"Render order for the marker quads (count text draws one above). Keep above the globe/table so markers are never z-fought away."}'
+    - "// @input float billboardDeadzoneDeg = 12 {\"hint\":\"Rotational DEADZONE (degrees) for each marker's yaw billboard: a marker only re-orients once its facing toward the camera has changed by more than this. Generous values (10-25) skip the per-frame quat write while the view barely moves. 0 = re-orient every frame.\"}"
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Logging</span>"}'
     - '// @input bool enableLogging {"hint":"Enable general logging"}'

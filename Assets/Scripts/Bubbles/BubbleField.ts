@@ -166,7 +166,7 @@ export class BubbleField extends BaseScriptComponent {
   cameraObject: SceneObject
 
   @input
-  @hint("Rotate every visible bubble to face the camera each frame (screen-aligned billboard).")
+  @hint("Billboard each bubble to face the camera. Applied ONCE when the bubble spawns (its +Z normal is aimed at the camera position) and then held — the bubbles are world-fixed, so re-orienting every frame is wasted work.")
   billboard: boolean = true
 
   @input
@@ -355,8 +355,24 @@ export class BubbleField extends BaseScriptComponent {
     // Largest shape the bubble ever occupies, used as the cone-test margin.
     this.bubbleCullRadius.push(Math.max(radius, targetWidth * 0.5, targetHeight * 0.5))
 
+    // Billboard ONCE at spawn and hold: the bubbles are world-fixed, so a true
+    // billboard (normal aimed at the camera position) computed now stays correct
+    // without a per-frame quat write.
+    this.billboardOnce(transform)
+
     if (pop) this.popIn(transform)
     return bubble
+  }
+
+  // Aims the bubble's +Z NORMAL at the camera's POSITION (a TRUE billboard), once.
+  // dir = camPos - bubblePos — NOT the camera's forward axis, which only faces the
+  // viewer dead-ahead and looks wrong for bubbles off to the sides of the pipe.
+  private billboardOnce(trans: Transform): void {
+    if (!this.billboard) return
+    const camT = this.cameraObject ? this.cameraObject.getTransform() : null
+    if (!camT) return
+    const dir = camT.getWorldPosition().sub(trans.getWorldPosition())
+    if (dir.length > 1e-4) trans.setWorldRotation(quat.lookAt(dir.normalize(), vec3.up()))
   }
 
   // Pops a bubble open from near-zero to its full scale for a "spawn" feel on the
@@ -412,7 +428,8 @@ export class BubbleField extends BaseScriptComponent {
     let advancedCount = 0
     let culledCount = 0
 
-    // Camera-derived billboard rotation + cull frame, computed once for all bubbles.
+    // Camera-derived cull frame, computed once for all bubbles. Billboarding is no
+    // longer done here — each bubble is billboarded ONCE at spawn (see billboardOnce).
     const camTransform = this.cameraObject ? this.cameraObject.getTransform() : null
     if (!camTransform && (this.billboard || this.fovCullEnabled) && !this.cameraMissingWarned) {
       // print() so this is visible even with general logging off — without a camera,
@@ -420,9 +437,6 @@ export class BubbleField extends BaseScriptComponent {
       print("[BubbleField] WARNING: no Camera Object assigned -> billboarding and FOV culling are DISABLED.")
       this.cameraMissingWarned = true
     }
-    // Match the project convention (see PictureBehavior): a bubble faces the viewer
-    // when its +Z aligns with the camera transform's forward.
-    const billboardRot = camTransform ? quat.lookAt(camTransform.forward, vec3.up()) : null
     // The camera LOOKS along -forward in this project (objects placed in front use
     // forward * negative), so the view direction is -forward.
     const camPos = camTransform ? camTransform.getWorldPosition() : null
@@ -439,10 +453,6 @@ export class BubbleField extends BaseScriptComponent {
       if (cullActive && !this.isInView(this.bubbleTransforms[i].getWorldPosition(), this.bubbleCullRadius[i], camPos, viewDir, cosHalfAngle)) {
         culledCount++
         continue
-      }
-
-      if (this.billboard && billboardRot) {
-        this.bubbleTransforms[i].setWorldRotation(billboardRot)
       }
 
       // Alternate-frame throttle: update only this frame's half (matched by index

@@ -73,6 +73,9 @@ interface MarkerVisual {
   image: Image;
   textObj: SceneObject;
   text: Text;
+  // Last yaw (radians) actually written to the transform, for the rotational
+  // deadzone. NaN until first applied so the very first frame always orients.
+  lastYaw: number;
 }
 
 /** Which surface the markers are mapped onto this frame. */
@@ -174,6 +177,10 @@ export class CardMarkerLayer extends BaseScriptComponent {
   @input
   @hint("Render order for the marker quads (count text draws one above). Keep above the globe/table so markers are never z-fought away.")
   markerRenderOrder: number = 500
+
+  @input
+  @hint("Rotational DEADZONE (degrees) for each marker's yaw billboard: a marker only re-orients once its facing toward the camera has changed by more than this. Generous values (10-25) skip the per-frame quat write while the view barely moves. 0 = re-orient every frame.")
+  billboardDeadzoneDeg: number = 12
 
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Logging</span>')
@@ -595,7 +602,14 @@ export class CardMarkerLayer extends BaseScriptComponent {
         const dz = camPos.z - pos.z
         if (dx * dx + dz * dz > 1e-6) {
           const yaw = Math.atan2(dx, dz)
-          t.setWorldRotation(quat.angleAxis(yaw, vec3.up()))
+          // Rotational deadzone: only re-orient once the yaw has drifted past the
+          // configured angle (cheap angular diff, wrapped to [-pi, pi]), so a
+          // near-static view skips the per-marker quat write each frame.
+          const dzRad = (Math.max(0, this.billboardDeadzoneDeg) * Math.PI) / 180
+          if (isNaN(v.lastYaw) || Math.abs(this.wrapAngle(yaw - v.lastYaw)) > dzRad) {
+            t.setWorldRotation(quat.angleAxis(yaw, vec3.up()))
+            v.lastYaw = yaw
+          }
         }
       }
       const s = this.markerSizeCm * (gazedCity === c.cityName ? this.highlightScale : 1)
@@ -665,7 +679,17 @@ export class CardMarkerLayer extends BaseScriptComponent {
     ;(text as any).renderOrder = this.markerRenderOrder + 1
     textObj.enabled = false
 
-    return { root: obj, image, textObj, text }
+    return { root: obj, image, textObj, text, lastYaw: NaN }
+  }
+
+  // Wraps an angle (radians) to [-pi, pi] so the deadzone comparison is correct
+  // across the +-pi seam (e.g. a marker oscillating around due-camera).
+  private wrapAngle(a: number): number {
+    const twoPi = Math.PI * 2
+    let r = a % twoPi
+    if (r > Math.PI) r -= twoPi
+    if (r < -Math.PI) r += twoPi
+    return r
   }
 
   // One cloned material shared by every marker (same icon everywhere; the count

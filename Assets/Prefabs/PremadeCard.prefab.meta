@@ -319,7 +319,7 @@
       radius: !<float> 4.000000
       noiseScale: 0.480000
       distortion: !<float> 4.000000
-      numPoints: !<float> 20.000000
+      numPoints: !<float> 16.000000
       referenceRadius: !<float> 0.000000
       undulateSpeed: 0.150000
       targetWidth: !<float> 12.000000

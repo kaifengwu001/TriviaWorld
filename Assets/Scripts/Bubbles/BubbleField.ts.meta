@@ -166,7 +166,7 @@
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Camera & Performance</span>"}'
     - '// @input SceneObject cameraObject {"hint":"The player camera object. Used to billboard bubbles toward the viewer and to cull off-screen updates. If unset, billboarding and FOV culling are disabled."}'
-    - '// @input bool billboard = true {"hint":"Rotate every visible bubble to face the camera each frame (screen-aligned billboard)."}'
+    - '// @input bool billboard = true {"hint":"Billboard each bubble to face the camera. Applied ONCE when the bubble spawns (its +Z normal is aimed at the camera position) and then held — the bubbles are world-fixed, so re-orienting every frame is wasted work."}'
     - "// @input bool fovCullEnabled = true {\"hint\":\"Skip per-frame mesh updates for bubbles outside the camera's field of view (they freeze until they come back into view).\"}"
     - '// @input float fovCullHalfAngleDeg = 70 {"hint":"Half-angle (degrees) of the view cone used for FOV culling. Generous values avoid culling bubbles near the screen edges; lower to cull more aggressively."}'
     - "// @input bool halfRateUpdate = true {\"hint\":\"Update only half the bubbles each frame (alternating halves), halving per-frame mesh compute. Wobble stays smooth because the skipped frame's time is folded into the next update.\"}"

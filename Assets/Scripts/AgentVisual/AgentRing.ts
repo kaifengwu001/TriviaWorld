@@ -50,6 +50,10 @@ export class AgentRing extends BaseScriptComponent {
   @allowUndefined
   cameraObj: SceneObject
 
+  @input
+  @hint("Self-billboard this ring each frame. Default OFF: the ring is normally a child of the object AgentSphere already billboards (yaw-only), so re-orienting here is redundant work. Turn on only if the ring is NOT parented under a billboarding AgentSphere.")
+  selfBillboard: boolean = false
+
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Layer Colors (additive → white where they overlap)</span>')
   @input
@@ -315,13 +319,17 @@ export class AgentRing extends BaseScriptComponent {
 
     this.updateEyes(dt)
 
-    // Billboard the whole ring (children inherit) to fully face the camera. The
-    // project convention: an object faces the viewer when its +Z aligns with the
-    // camera transform's forward (see PictureBehavior / BubbleField).
-    if (this.camTrans) {
-      this.selfTrans.setWorldRotation(
-        quat.lookAt(this.camTrans.forward, vec3.up())
-      )
+    // Billboard the whole ring (children inherit) so its +Z NORMAL points AT the
+    // camera. Default OFF: the ring usually rides an AgentSphere that already
+    // billboards, so this is redundant per-frame work (see selfBillboard).
+    // NOTE: a true billboard aims at the camera's POSITION (dir = camPos - ringPos),
+    // not at the camera's forward axis — the latter only faces the viewer on the
+    // view axis and looks wrong off-centre (e.g. the home corner of the FOV).
+    if (this.selfBillboard && this.camTrans) {
+      const dir = this.camTrans.getWorldPosition().sub(this.selfTrans.getWorldPosition())
+      if (dir.length > 1e-4) {
+        this.selfTrans.setWorldRotation(quat.lookAt(dir.normalize(), vec3.up()))
+      }
     }
   }
 

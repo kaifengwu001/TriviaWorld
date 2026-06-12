@@ -508,6 +508,7 @@
     imageWidth: true
     gazeDwellSec: true
     gazeConeAngleDeg: true
+    billboardDeadzoneDeg: true
     showDistanceLabel: true
     labelLine1: true
     labelColor: true
@@ -541,6 +542,7 @@
       imageWidth: !<float> 0.000000
       gazeDwellSec: !<float> 1.000000
       gazeConeAngleDeg: !<float> 12.000000
+      billboardDeadzoneDeg: !<float> 12.000000
       showDistanceLabel: true
       labelLine1: Look to Open
       labelFontSize: !<float> 70.000000
@@ -2746,6 +2748,7 @@
       subtitleFovMarginCm: !<float> 3.000000
       moveSpeed: !<float> 4.000000
       rotateSpeed: !<float> 4.000000
+      billboardDeadzoneDeg: !<float> 8.000000
       idleBob: 0.400000
       speakPulse: 0.180000
       audioLatency: 0.300000
@@ -3931,12 +3934,10 @@
     - !<own> 5172574b-13a1-43f5-b017-a9a319571872
 - !<SceneObject/5b25ffe0-9056-4935-b820-88a78173efbb>
   PrefabRemaps:
-    - 1eb376a6-a469-43c9-b736-2b6274ae8da3: 6033befd-6af7-4735-5219-f03175a9ead3
     - 3e3d8e2c-bd87-4ba3-b84f-4290d8bdeb22: 9b8749b4-2eb5-42f5-53ee-6da35d05f7aa
     - 5b25ffe0-9056-4935-b820-88a78173efbb: 2b684c58-b01a-4097-5172-03bd3baa3c74
     - 7078bb10-d01f-4bc5-95f2-81084478f04d: 39f4f8da-92bc-4607-bd35-78434454aa71
     - 82eae58a-8ca4-4db8-8e14-39e7b7743289: 8849822f-cd83-4125-bb18-2e84f73b8675
-    - e8513ef2-35ed-4238-bc44-1ddf3ab38052: b698a2ce-e5fd-41b4-6669-6f03a021b3a8
   Name: AgentSphere
   Enabled: true
   Layers: 1
@@ -4901,6 +4902,7 @@
   Enabled: true
   ScriptAsset: !<reference> 49469d8c-58a7-4c56-a37e-47cd30dbcce2
   ScriptInputsDefault:
+    selfBillboard: true
     color0: true
     color1: true
     color2: true
@@ -4917,6 +4919,7 @@
     "":
       baseMaterial: !<reference.Material> 539454c8-637b-438a-9281-722f5ace94c8
       cameraObj: !<reference.SceneObject> 00000000-0000-0065-0000-000000000064
+      selfBillboard: false
       color0: !<Vec4> {x: 0.000000, y: 1.000000, z: 1.000000, w: 1.000000}
       color1: !<Vec4> {x: 1.000000, y: 0.000000, z: 1.000000, w: 1.000000}
       color2: !<Vec4> {x: 1.000000, y: 1.000000, z: 0.000000, w: 1.000000}
@@ -10026,6 +10029,7 @@
     tableLiftCm: true
     alwaysShowCityMarkers: true
     markerRenderOrder: true
+    billboardDeadzoneDeg: true
     enableLogging: true
     enableLoggingLifecycle: true
   ScriptTypesDefault:
@@ -10054,6 +10058,7 @@
       countTextColor: !<Vec4> {x: 1.000000, y: 0.100000, z: 0.100000, w: 1.000000}
       highlightScale: 1.150000
       markerRenderOrder: !<float> 500.000000
+      billboardDeadzoneDeg: !<float> 12.000000
       enableLogging: false
       enableLoggingLifecycle: false
   ScriptTypes:
