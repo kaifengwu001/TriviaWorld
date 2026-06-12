@@ -7885,6 +7885,7 @@
   ScriptAsset: !<reference> 6c013ed9-5070-426e-96d9-7da4cc246ac0
   ScriptInputsDefault:
     centerObject: true
+    gazeScaleEnabled: true
     topicWeight: true
     locationWeight: true
     dateWeight: true
@@ -7962,14 +7963,19 @@
       globeView: !<MappingBased.AssignableType> 1537e6de-5cfe-42ea-873c-8c8719a6f4a4
       centerObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
       cardDistanceCm: !<float> 500.000000
+      cardDistanceVariationCm: !<float> 75.000000
       verticalCenterRiseCm: !<float> 20.000000
       canvasHeightCm: !<float> 175.000000
-      cardGapCm: !<float> 0.000000
+      cardGapCm: !<float> 8.000000
       cardImageWidthCm: 2.500000
       cardSizeMinScale: 0.600000
       cardSizeMaxScale: 1.750000
       cardWidthCm: !<float> 10.000000
       cardHeightCm: !<float> 15.000000
+      gazeScaleEnabled: true
+      gazeScaleConeDeg: !<float> 10.000000
+      gazeScaleMaxBoost: 1.300000
+      gazeScaleEaseRate: !<float> 3.000000
       topicWeight: 0.700000
       locationWeight: 0.200000
       dateWeight: 0.100000

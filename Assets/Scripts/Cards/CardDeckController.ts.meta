@@ -29,6 +29,7 @@
     cameraObject: false
     canvasHeightCm: false
     cardDistanceCm: false
+    cardDistanceVariationCm: false
     cardGapCm: false
     cardHeightCm: false
     cardImageWidthCm: false
@@ -58,6 +59,10 @@
     dateWeight: false
     enableLogging: false
     enableLoggingLifecycle: false
+    gazeScaleConeDeg: false
+    gazeScaleEaseRate: false
+    gazeScaleEnabled: false
+    gazeScaleMaxBoost: false
     globeView: false
     locationWeight: false
     placeholderImages: false
@@ -86,6 +91,7 @@
       globeView: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
       centerObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
       cardDistanceCm: !<float> 0.000000
+      cardDistanceVariationCm: !<float> 30.000000
       verticalCenterRiseCm: !<float> 15.000000
       canvasHeightCm: !<float> 220.000000
       cardGapCm: !<float> 6.000000
@@ -94,6 +100,10 @@
       cardSizeMaxScale: 1.600000
       cardWidthCm: !<float> 26.000000
       cardHeightCm: !<float> 34.000000
+      gazeScaleEnabled: true
+      gazeScaleConeDeg: !<float> 18.000000
+      gazeScaleMaxBoost: 1.600000
+      gazeScaleEaseRate: !<float> 8.000000
       topicWeight: 0.700000
       locationWeight: 0.200000
       dateWeight: 0.100000
@@ -139,6 +149,7 @@
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Wrap placement (cylinder around the head)</span>"}'
     - "// @input float cardDistanceCm {\"hint\":\"Radius (cm) of the cylinder the cards wrap on = how far the cards are from your head. 0 = auto (the globe's distance). Independent of card size now — size is the image width below; push this out to move the whole field farther away.\"}"
+    - '// @input float cardDistanceVariationCm = 30 {"hint":"Per-card depth spread (cm) by size: the BIGGEST card sits this much CLOSER than the cylinder radius and the SMALLEST this much FARTHER (a card mid-range stays on the radius). 0 = every card on the same cylinder. Size = its image-width multiplier (min/max below)."}'
     - '// @input float verticalCenterRiseCm = 20 {"hint":"How far (cm) ABOVE the globe top the field is vertically centred."}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Cylinder wall (wraps around the head, above the globe)</span>"}'
     - '// @input float canvasHeightCm = 20 {"hint":"Fixed HEIGHT (cm) of the cylinder-wall band. Vertical extent is fixed; cards spread sideways as needed to avoid overlap."}'
@@ -149,6 +160,12 @@
     - '// @input float cardSizeMaxScale = 1 {"hint":"Largest per-card size multiplier (variety): multiplies the base image width."}'
     - "// @input float cardWidthCm = 10 {\"hint\":\"FALLBACK card footprint WIDTH (cm), used only for a card that hasn't measured its real size (e.g. border auto-fit off). Measured cards ignore this.\"}"
     - "// @input float cardHeightCm = 15 {\"hint\":\"FALLBACK card footprint HEIGHT (cm), used only for a card that hasn't measured its real size. Measured cards ignore this.\"}"
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Gaze focus (cards near your view centre grow)</span>"}'
+    - "// @input bool gazeScaleEnabled = true {\"hint\":\"Grow resting cards that fall within a cone around the camera's view centre, biggest at the centre.\"}"
+    - '// @input float gazeScaleConeDeg = 18 {"hint":"Half-angle (degrees) of the gaze cone around the view centre. Cards inside it grow; cards outside stay at their resting size."}'
+    - '// @input float gazeScaleMaxBoost = 1.6 {"hint":"Scale multiplier applied to the card EXACTLY at the view centre (1 = no growth). Falls off smoothly to 1 at the cone edge."}'
+    - '// @input float gazeScaleEaseRate = 8 {"hint":"How quickly a card eases to its gaze-target size (higher = snappier)."}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Relevance (clustering)</span>"}'
     - '// @input float topicWeight = 0.7 {"hint":"Weight of shared topics in the relevance score (primary signal)."}'

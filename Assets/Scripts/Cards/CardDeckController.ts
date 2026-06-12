@@ -123,6 +123,10 @@ export class CardDeckController extends BaseScriptComponent {
   cardDistanceCm: number = 0
 
   @input
+  @hint("Per-card depth spread (cm) by size: the BIGGEST card sits this much CLOSER than the cylinder radius and the SMALLEST this much FARTHER (a card mid-range stays on the radius). 0 = every card on the same cylinder. Size = its image-width multiplier (min/max below).")
+  cardDistanceVariationCm: number = 30
+
+  @input
   @hint("How far (cm) ABOVE the globe top the field is vertically centred.")
   verticalCenterRiseCm: number = 20
 
@@ -155,6 +159,24 @@ export class CardDeckController extends BaseScriptComponent {
   @input
   @hint("FALLBACK card footprint HEIGHT (cm), used only for a card that hasn't measured its real size. Measured cards ignore this.")
   cardHeightCm: number = 15
+
+  @ui.separator
+  @ui.label('<span style="color: #60A5FA;">Gaze focus (cards near your view centre grow)</span>')
+  @input
+  @hint("Grow resting cards that fall within a cone around the camera's view centre, biggest at the centre.")
+  gazeScaleEnabled: boolean = true
+
+  @input
+  @hint("Half-angle (degrees) of the gaze cone around the view centre. Cards inside it grow; cards outside stay at their resting size.")
+  gazeScaleConeDeg: number = 18
+
+  @input
+  @hint("Scale multiplier applied to the card EXACTLY at the view centre (1 = no growth). Falls off smoothly to 1 at the cone edge.")
+  gazeScaleMaxBoost: number = 1.6
+
+  @input
+  @hint("How quickly a card eases to its gaze-target size (higher = snappier).")
+  gazeScaleEaseRate: number = 8
 
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Relevance (clustering)</span>')
@@ -677,7 +699,34 @@ export class CardDeckController extends BaseScriptComponent {
       const cur = slot.trans.getWorldPosition()
       slot.trans.setWorldPosition(vec3.lerp(cur, target, Math.min(1, 5 * dt)))
       this.billboardSlot(slot)
+
+      // Gaze focus: grow cards near the view centre (biggest dead-centre), easing back
+      // to resting size as the gaze moves off them. Held at resting size while a front
+      // deck is up so the frozen background never pulses.
+      if (this.gazeScaleEnabled) {
+        const targetScale = this.driftFrozen ? AUTHORED_WORLD_SCALE : this.gazeScaleFor(slot)
+        this.easeWorldScale(slot, targetScale, Math.min(1, this.num(this.gazeScaleEaseRate, 8) * dt))
+      }
     }
+  }
+
+  // Resting world scale for a card given the user's gaze: AUTHORED_WORLD_SCALE outside the
+  // cone, growing to AUTHORED_WORLD_SCALE * gazeScaleMaxBoost dead-centre, with a smooth
+  // (smoothstep) falloff to the cone edge. The project's camera looks along -forward.
+  private gazeScaleFor(slot: DeckSlot): number {
+    if (!this.camTrans) return AUTHORED_WORLD_SCALE
+    const camPos = this.camTrans.getWorldPosition()
+    const viewDir = this.camTrans.forward.uniformScale(-1)
+    const toCard = slot.trans.getWorldPosition().sub(camPos)
+    const dist = toCard.length
+    if (dist < 1e-3) return AUTHORED_WORLD_SCALE
+    const cosAngle = toCard.dot(viewDir) / dist
+    const coneCos = Math.cos(Math.max(1, this.gazeScaleConeDeg) * DEG2RAD)
+    if (cosAngle <= coneCos) return AUTHORED_WORLD_SCALE // outside the cone
+    let t = (cosAngle - coneCos) / Math.max(1e-4, 1 - coneCos) // 0 at edge -> 1 at centre
+    t = t * t * (3 - 2 * t) // smoothstep for a soft falloff
+    const boost = Math.max(1, this.gazeScaleMaxBoost)
+    return AUTHORED_WORLD_SCALE * (1 + (boost - 1) * t)
   }
 
   // True once every spawned card has auto-fit its border, so getContentLocalSize()
@@ -809,9 +858,12 @@ export class CardDeckController extends BaseScriptComponent {
         parentScale.y > 1e-4 ? targetWorld / parentScale.y : targetWorld,
         parentScale.z > 1e-4 ? targetWorld / parentScale.z : targetWorld,
       ))
+      // Azimuth uses the common radius R so the packed arc-length spacing is preserved;
+      // only the RADIAL distance varies per card (bigger = closer) for a depth effect.
       const az = u[i] / R // arc-length -> radians around world up
+      const Ri = this.cardRadius(R, slot.sizeScale)
       const horiz = Fh.uniformScale(Math.cos(az)).add(rightN.uniformScale(Math.sin(az)))
-      slot.base = head.add(horiz.uniformScale(R)).add(vec3.up().uniformScale(centerH + v[i]))
+      slot.base = head.add(horiz.uniformScale(Ri)).add(vec3.up().uniformScale(centerH + v[i]))
       slot.azDeg = az / DEG2RAD
       slot.elDeg = v[i]
       slot.trans.setWorldPosition(slot.base)
@@ -878,6 +930,23 @@ export class CardDeckController extends BaseScriptComponent {
     for (let i = 0; i < n; i++) c += u[i]
     c /= n
     for (let i = 0; i < n; i++) u[i] -= c
+  }
+
+  // Per-card cylinder radius: bigger cards (higher sizeScale) sit CLOSER than the base
+  // radius R, smaller cards farther, spread by cardDistanceVariationCm. The card's size
+  // is normalized within [cardSizeMinScale, cardSizeMaxScale] so a mid-range card stays
+  // on R. Returns R unchanged when variation is off or there is no size range. Clamped
+  // to stay safely in front of the head.
+  private cardRadius(R: number, sizeScale: number): number {
+    const variation = this.cardDistanceVariationCm
+    if (!(variation > 0)) return R
+    const min = this.cardSizeMinScale
+    const max = this.cardSizeMaxScale
+    let t = 0.5 // no size range -> everyone on the radius
+    if (max > min) t = Math.max(0, Math.min(1, (sizeScale - min) / (max - min)))
+    // t=1 (biggest) -> R - variation (closer); t=0 (smallest) -> R + variation (farther).
+    const Ri = R - (t - 0.5) * 2 * variation
+    return Math.max(R * 0.2, Ri)
   }
 
   // Relevance in [0,1]: topic Jaccard (primary) + same-location + date closeness.
