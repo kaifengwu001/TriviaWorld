@@ -4906,6 +4906,7 @@
     color0: true
     color1: true
     color2: true
+    staggerRingUpdates: true
     quietDistortion: true
     quietSpeed: true
     divergence: true
@@ -4929,7 +4930,7 @@
       numPoints: !<float> 32.000000
       noiseScale: !<float> 1.000000
       zGap: 0.100000
-      staggerRingUpdates: false
+      staggerRingUpdates: true
       quietDistortion: 1.500000
       loudDistortion: !<float> 6.000000
       quietSpeed: 0.150000

@@ -8,8 +8,11 @@
 import { Logger } from "Utilities.lspkg/Scripts/Utils/Logger";
 import { Frame } from "SpectaclesUIKit.lspkg/Scripts/Components/Frame/Frame";
 import { CapsuleButton } from "SpectaclesUIKit.lspkg/Scripts/Components/Button/CapsuleButton";
+import { RoundedRectangleVisual } from "SpectaclesUIKit.lspkg/Scripts/Visuals/RoundedRectangle/RoundedRectangleVisual";
+import { GradientParameters } from "SpectaclesUIKit.lspkg/Scripts/Visuals/RoundedRectangle/RoundedRectangle";
 import { InterestStore } from "./InterestStore";
 import { DEFAULT_TOPICS } from "./InterestTopics";
+import { colorForTopic } from "./TopicColors";
 
 // Button footprint requested by design: 7 x 3 x 1 cm.
 const BUTTON_SIZE = new vec3(7, 3, 1)
@@ -307,8 +310,50 @@ export class TopicSelectionPanel extends BaseScriptComponent {
     }
     button.initialize()
 
+    // Tint the selected (toggled) states to the topic's color. Only topic chips
+    // are toggleable; the confirm button keeps its theme style.
+    if (toggleable) {
+      this.applyTopicColor(button, label)
+    }
+
     this.addLabel(obj, label, size, labelScale)
     return button
+  }
+
+  /**
+   * Recolors the SELECTED (toggled) states of a CapsuleButton to its topic color,
+   * without touching the SpectaclesUIKit package. The default CapsuleButton theme
+   * drives its background/border via gradients (baseType "Gradient"), so the solid
+   * `baseColor` setters are ignored at runtime — we therefore assign a topic-tinted
+   * gradient to the toggled states. Unselected/hover looks stay as the theme defines.
+   */
+  private applyTopicColor(button: CapsuleButton, topic: string) {
+    const visual = button.visual as RoundedRectangleVisual
+    if (!visual) {
+      return
+    }
+    const fill = this.flatGradient(colorForTopic(topic, 1))
+    const border = this.flatGradient(colorForTopic(topic, 1))
+
+    visual.toggledDefaultGradient = fill
+    visual.toggledHoveredGradient = fill
+    visual.toggledTriggeredGradient = fill
+
+    visual.borderToggledDefaultGradient = border
+    visual.borderToggledHoveredGradient = border
+    visual.borderToggledTriggeredGradient = border
+  }
+
+  /** A flat, single-hue gradient (reads as a solid fill) built from one color. */
+  private flatGradient(color: vec4): GradientParameters {
+    return {
+      enabled: true,
+      type: "Linear",
+      start: new vec2(-2, 1),
+      end: new vec2(2, -1),
+      stop0: { enabled: true, percent: 0, color },
+      stop1: { enabled: true, percent: 1, color }
+    }
   }
 
   private addLabel(buttonObj: SceneObject, label: string, size: vec3, labelScale: number) {
