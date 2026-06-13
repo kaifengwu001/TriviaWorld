@@ -4185,7 +4185,6 @@
     horizontalGap: true
     verticalGap: true
     buttonDepthOffset: true
-    labelSize: true
     enableLogging: true
     enableLoggingLifecycle: true
   ScriptTypesDefault:
@@ -4201,7 +4200,7 @@
       horizontalGap: 1.500000
       verticalGap: !<float> 1.000000
       buttonDepthOffset: !<float> 1.000000
-      labelSize: !<float> 28.000000
+      labelSize: !<float> 42.000000
       startLabel: Start
       distanceFromCamera: !<float> 140.000000
       panelOffset: !<Vec3> {x: 0.000000, y: -2.000000, z: 0.000000}
@@ -5227,7 +5226,7 @@
   ShowEditingPreview: true
   TouchHandler: !<reference> 00000000-0000-0000-0000-000000000000
   SizeToFit: false
-  FontSize: 57
+  FontSize: 72
   Font: !<reference> 00000000-0000-0000-0000-000000000000
   LayoutRect:
     left: -7.500000
