@@ -501,6 +501,9 @@
   ScriptInputsDefault:
     placeholderImages: true
     location: true
+    customTopics: true
+    singleRepeatIndex: true
+    targetSpawnCount: true
     concentrateTowardFront: true
     wavefrontSpeedOverride: true
     revealOffsetSec: true
@@ -527,7 +530,27 @@
       renderLayerSource: !<reference.SceneObject> 00000000-0000-0065-0000-000000000064
       bubbleFields: !<MappingBased.AssignableType_1[]>
         - !<reference> d6415e26-4b5d-4fa7-ab71-93cc4876ccf1
+      useCustomContent: true
       location: Seattle
+      customImages: !<reference.Texture[]>
+        - !<reference> 3ed56e95-b1fb-4376-881e-2070ea2fc7ab
+        - !<reference> 9fed4c2e-3afe-45bf-81e6-7556b7cb7c87
+        - !<reference> c3c5a1d9-a4df-429d-9fb0-4ef6d133cd2c
+        - !<reference> 21dc679e-3361-43cb-a6c4-a6444c92436f
+      customTexts: !<string[]>
+        - |
+          A fish's "fishy" smell is bacteria converting odorless trimethylamine oxide into pungent trimethylamine; a squeeze of lemon kills it because citric acid binds the amine into a non-volatile salt. #Chemistry #Fish #FoodScience
+
+        - "Salmon don't make their famous omega-3 fatty acids themselves — microscopic marine algae synthesize them, and the oils accumulate up the food chain, meaning \"fish oil\" is really repackaged plant oil. #Botany #Salmon #Omega3 #MarineAlgae\""
+        - 'ISS astronauts sip espresso from a "Space Cup" whose wedge shape uses surface tension, not gravity, to wick coffee toward the lips — otherwise the liquid would float away as a drifting blob. #Space #Coffee #ISS'
+        - "Pike Place's covered cobblestones are prime busking turf, blocks from where young Jimi Hendrix grew up in Seattle — the same downtown street-performance culture his memorial statue now anchors. #Music #PikePlaceMarket #JimiHendrix #Busking\""
+      customTopics: !<string[]>
+        []
+      randomizeRepeats: true
+      singleRepeat: true
+      singleRepeatIndex: !<float> 0.000000
+      targetSpawnCount: !<float> 12.000000
+      randomizeBorderColors: true
       minDistance: !<float> 120.000000
       maxDistance: !<float> 240.000000
       floorHeight: !<float> -30.000000
@@ -4144,6 +4167,7 @@
   Enabled: true
   ScriptAsset: !<reference> dbe1d244-10d6-49c4-acda-7dac03f0eb03
   ScriptInputsDefault:
+    demoMode: true
     enableLogging: true
     enableLoggingLifecycle: true
   ScriptTypesDefault:
@@ -4151,17 +4175,17 @@
   ScriptInputs:
     "":
       scannerPrefab: !<reference.ObjectPrefab> c475918d-699f-44b3-bb86-b68c3360300d
-      demoMode: true
+      demoMode: false
       demoCaptions: !<string[]>
         - "Every banana you've ever eaten is a clone of the same banana - the Cavendish, with zero genetic variation. Its sweeter predecessor, the Gros Michel, was cloned the same way until a fungus wiped out the entire global crop in the 1950s. The Cavendish is now losing to the same disease. #Botany #GrosMichel #Monoculture"
-        - "Bananas are radioactive enough from the potassium inside them that scientists coined a real unit — the 'banana equivalent dose' — to talk about radiation. An astronaut on the ISS absorbs thousands of bananas' worth a day.  #Space #Radiation #ISS "
+        - "Bananas are radioactive enough from the potassium inside them that scientists coined a real unit — the 'banana equivalent dose' — to talk about radiation. An astronaut on the ISS absorbs thousands of bananas' worth a day.  #Space #Radiation #ISS"
         - "The most expensive Banana - In 2019 an artist duct-taped a banana to a gallery wall, called it 'Comedian,' and sold it for $120,000 — a later edition went for $6.2 million in 2024. #ArtHistory #Cattelan #ConceptualArt"
         - "Pigeons can be trained to tell a Monet from a Picasso — and they sort paintings they've never seen before, so they're reading style, not memorizing pictures. The 1995 study won an Ig Nobel Prize. #ArtHistory #Pigeons #Monet #Picasso"
       demoAgentPrompts: !<string[]>
         - "Start your next reply with something like \"Every single banana you've eaten is a clone\""
         - 'Start your next reply with something like "Did you know Bananas are radioactive?"'
         - 'Start your next reply with something like "The most expensive banana was 6.2 million dolalrs"'
-        - 'Start you next reply with something like "Pigeons are art connoisseurs too!"'
+        - 'Start you next reply with something like "Pigeons are art critics too!"'
       demoLoadingSeconds: 0.750000
       enableLogging: false
       enableLoggingLifecycle: false

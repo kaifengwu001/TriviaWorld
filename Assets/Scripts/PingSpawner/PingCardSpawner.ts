@@ -8,17 +8,27 @@
  * step with the visible ping.
  *
  * Pipeline:
- *   1. Filter CARD_DECK_DATA down to the entries whose `location` matches the
- *      `location` field (case-insensitive). EVERY matching card is spawned.
- *   2. Scatter each card at a random point inside a cylindrical "pipe" around
+ *   1. Build a list of spawn items from ONE of two content sources (toggle
+ *      `useCustomContent`):
+ *        a. cardDeckData — filter CARD_DECK_DATA to entries whose `location`
+ *           matches (case-insensitive); text+topics come from the deck, images
+ *           from the positional `placeholderImages` list (cycled).
+ *        b. Custom arrays — `customImages` / `customTexts` / `customTopics`,
+ *           paired BY INDEX and edited right here in Lens Studio.
+ *   2. Apply the spawn-count mode: spawn each item once (default); OR, with
+ *      `singleRepeat`, repeat just the card at `singleRepeatIndex`
+ *      `targetSpawnCount` times; OR, with `randomizeRepeats`, draw at random
+ *      (with repetition) until `targetSpawnCount` cards are produced.
+ *   3. Scatter each card at a random point inside a cylindrical "pipe" around
  *      this object — the same spawn-area shape as BubbleField.
- *   3. For each card, schedule its reveal at distance(origin -> card) / speed,
+ *   4. For each card, schedule its reveal at distance(origin -> card) / speed,
  *      where speed is read from the linked PingController so reveals stay in
  *      lockstep with the on-screen wavefront.
- *   4. Each card is a PremadeCard prefab instance dressed as a CLOSED BUBBLE that
+ *   5. Each card is a PremadeCard prefab instance dressed as a CLOSED BUBBLE that
  *      expands into a card on gaze and STAYS OPEN (collapseWhenGazeLost = false).
- *   5. The bubble/border color comes from TopicColors, keyed by the card's
- *      primary topic.
+ *   6. The bubble/border color is auto-detected from the card's primary topic via
+ *      TopicColors, OR (with `randomizeBorderColors`) a random preset-topic color
+ *      that ignores the card's real topic.
  *
  * This is independent of CardDeckController (the floating cosmos): it neither
  * reads nor writes the CardStore, it just instantiates visuals on demand. Trigger
@@ -33,7 +43,8 @@ import animate, { CancelSet } from "SpectaclesInteractionKit.lspkg/Utils/animate
 import { PremadeCard } from "../PremadeCard/PremadeCard"
 import { PingController } from "../PingController"
 import { CARD_DECK_DATA, CardDeckEntry } from "../Cards/cardDeckData"
-import { colorForTopics } from "../Interests/TopicColors"
+import { colorForTopic, colorForTopics } from "../Interests/TopicColors"
+import { DEFAULT_TOPICS } from "../Interests/InterestTopics"
 import { BubbleField } from "../Bubbles/BubbleField"
 
 // Fallback wavefront speed (cm/s) used only when no PingController is linked and
@@ -58,6 +69,24 @@ interface CardLabel {
   cardTrans: Transform
 }
 
+// Raw, pre-resolved content for one card, sourced from either cardDeckData or the
+// custom arrays, BEFORE the spawn-count mode and border color are applied.
+interface RawItem {
+  id: string
+  image?: Texture
+  text: string
+  topics: string[]
+}
+
+// A fully-resolved card ready to spawn: image + text + a FROZEN border color
+// (resolved once so the closed bubble never flickers between content-apply passes).
+interface SpawnItem {
+  id: string
+  image?: Texture
+  text: string
+  borderColor: vec4
+}
+
 @component
 export class PingCardSpawner extends BaseScriptComponent {
   @ui.label('<span style="color: #60A5FA;">PingCardSpawner – reveals location-filtered cards on the ping wavefront</span><br/><span style="color: #94A3B8; font-size: 11px;">Call spawnWave(origin) (e.g. from PrayerGestureBehavior). Filters cardDeckData by Location, scatters PremadeCard bubbles in a cylinder, and pops each one when the wavefront reaches it.</span>')
@@ -79,7 +108,7 @@ export class PingCardSpawner extends BaseScriptComponent {
   pingController: PingController
 
   @input
-  @hint("Placeholder image textures, assigned to the spawned cards in order (cycled). Fill the real images in later.")
+  @hint("cardDeckData path only (Use Custom Content OFF): image textures assigned to the spawned cards in order (cycled). Fill the real images in later.")
   @allowUndefined
   placeholderImages: Texture[]
 
@@ -94,10 +123,53 @@ export class PingCardSpawner extends BaseScriptComponent {
   bubbleFields: BubbleField[]
 
   @ui.separator
-  @ui.label('<span style="color: #60A5FA;">Selection</span>')
+  @ui.label('<span style="color: #60A5FA;">Content source</span>')
   @input
-  @hint("Only cards whose location matches this are spawned (case-insensitive). e.g. \"Seattle\" | \"Los Angeles\" | \"Tokyo\".")
+  @hint("OFF = spawn from cardDeckData filtered by Location (text + topics from the deck, images from Placeholder Images). ON = spawn from the Custom Content arrays below, edited right here in Lens Studio.")
+  useCustomContent: boolean = false
+
+  @input
+  @hint("cardDeckData path only (Use Custom Content OFF): only cards whose location matches this are spawned (case-insensitive). e.g. \"Seattle\" | \"Los Angeles\" | \"Tokyo\".")
   location: string = "Seattle"
+
+  @ui.separator
+  @ui.label('<span style="color: #60A5FA;">Custom content (Use Custom Content ON)</span>')
+  @input
+  @hint("One image texture per card, paired BY INDEX with Custom Texts (card 0 -> image 0 + text 0). Drag the real textures here.")
+  @allowUndefined
+  customImages: Texture[]
+
+  @input
+  @hint("One caption per card, paired BY INDEX with Custom Images. End each with a #hashtag line if you also want topic-based border colors.")
+  customTexts: string[]
+
+  @input
+  @hint("OPTIONAL topic per card (same index), e.g. \"Space\", used ONLY to pick the border color in auto-by-topic mode. Leave blank for a neutral border. Ignored when Randomize Border Colors is ON.")
+  customTopics: string[]
+
+  @ui.separator
+  @ui.label('<span style="color: #60A5FA;">Spawn count</span>')
+  @input
+  @hint("OFF = spawn each item in the content list exactly once. ON = randomly draw from the list (WITH repeats) until Target Spawn Count cards have spawned.")
+  randomizeRepeats: boolean = false
+
+  @input
+  @hint("OFF = use the whole list. ON = ignore the list and repeat ONLY the card (image+text pair) at Single Repeat Index, Target Spawn Count times. Takes priority over Randomize Repeats, and works with both border color modes.")
+  singleRepeat: boolean = false
+
+  @input
+  @hint("Single Repeat ON only: 0-based index in the content list of the card (image+text pair) to repeat. Clamped to the list range.")
+  singleRepeatIndex: number = 0
+
+  @input
+  @hint("How many cards to spawn for Randomize Repeats (random sampling with repetition) OR Single Repeat (copies of one card). Ignored when both are OFF.")
+  targetSpawnCount: number = 12
+
+  @ui.separator
+  @ui.label('<span style="color: #60A5FA;">Border color</span>')
+  @input
+  @hint("OFF = border color is auto-detected from the card's primary topic. ON = each card gets a RANDOM topic color from the preset palette, ignoring its real topic.")
+  randomizeBorderColors: boolean = false
 
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Spawn area (cylindrical pipe around this object)</span>')
@@ -255,9 +327,9 @@ export class PingCardSpawner extends BaseScriptComponent {
     // Bubbles ride the same wavefront origin; forward even when no cards match so
     // the bubble field still reacts to the ping.
     this.forwardWaveToBubbles(from)
-    const entries = this.entriesForLocation()
-    if (entries.length === 0) {
-      this.logger.info("No cards match location \"" + this.location + "\"; nothing to spawn.")
+    const items = this.buildSpawnItems()
+    if (items.length === 0) {
+      this.logger.info("No content to spawn (" + this.contentSourceLabel() + ").")
       this.spawned = true
       return
     }
@@ -272,16 +344,16 @@ export class PingCardSpawner extends BaseScriptComponent {
     const camPos = this.cameraObject ? this.cameraObject.getTransform().getWorldPosition() : from
     const acceptedDirs: vec3[] = []
 
-    for (let i = 0; i < entries.length; i++) {
+    for (let i = 0; i < items.length; i++) {
       const localPos = this.sampleSeparatedPosition(toWorld, camPos, acceptedDirs)
       const worldPos = toWorld.multiplyPoint(localPos)
       const dist = worldPos.distance(from)
       const delay = Math.max(0, dist / speed + this.revealOffsetSec)
-      this.scheduleSpawn(entries[i], i, localPos, delay)
+      this.scheduleSpawn(items[i], localPos, delay)
     }
 
     this.spawned = true
-    this.logger.info("Wave: " + entries.length + " card(s) for \"" + this.location + "\" at " + speed.toFixed(0) + " cm/s.")
+    this.logger.info("Wave: " + items.length + " card(s) (" + this.contentSourceLabel() + ") at " + speed.toFixed(0) + " cm/s.")
   }
 
   /** Destroys every spawned card and resets so a fresh wave can be fired. */
@@ -310,20 +382,20 @@ export class PingCardSpawner extends BaseScriptComponent {
 
   // Defers the actual instantiate to the moment the wavefront arrives, so the
   // card literally comes into existence on the band. Delay 0 spawns immediately.
-  private scheduleSpawn(entry: CardDeckEntry, index: number, localPos: vec3, delay: number): void {
+  private scheduleSpawn(item: SpawnItem, localPos: vec3, delay: number): void {
     if (delay <= 0) {
-      this.spawnOne(entry, index, localPos)
+      this.spawnOne(item, localPos)
       return
     }
     const ev = this.createEvent("DelayedCallbackEvent")
-    ev.bind(() => this.spawnOne(entry, index, localPos))
+    ev.bind(() => this.spawnOne(item, localPos))
     ev.reset(delay)
   }
 
-  private spawnOne(entry: CardDeckEntry, index: number, localPos: vec3): void {
+  private spawnOne(item: SpawnItem, localPos: vec3): void {
     const parent = this.getSceneObject()
     const obj = this.cardPrefab.instantiate(parent)
-    obj.name = "PingCard_" + entry.id
+    obj.name = "PingCard_" + item.id
     // The prefab is authored from a DISABLED scene instance, so instances spawn
     // disabled. Force-enable on spawn so the card (and its PremadeCard lifecycle)
     // actually runs and renders.
@@ -339,10 +411,10 @@ export class PingCardSpawner extends BaseScriptComponent {
 
     const card = obj.getComponent(PremadeCard.getTypeName()) as unknown as PremadeCard
     if (card) {
-      this.dressCard(obj, card, entry, index)
+      this.dressCard(obj, card, item)
       this.attachDistanceLabel(obj, card)
     } else {
-      this.logger.warn("Spawned card " + entry.id + " has no PremadeCard component.")
+      this.logger.warn("Spawned card " + item.id + " has no PremadeCard component.")
     }
 
     this.spawnedObjects.push(obj)
@@ -398,7 +470,7 @@ export class PingCardSpawner extends BaseScriptComponent {
 
   // Configures a freshly-instantiated card: a closed bubble that expands on gaze
   // and STAYS OPEN once expanded, billboarding to the camera, colored by topic.
-  private dressCard(obj: SceneObject, card: PremadeCard, entry: CardDeckEntry, index: number): void {
+  private dressCard(obj: SceneObject, card: PremadeCard, item: SpawnItem): void {
     card.billboard = true
     card.setBillboardDeadzone(this.billboardDeadzoneDeg) // generous deadzone: hold facing, skip per-frame re-aim
     card.startExpanded = false
@@ -416,21 +488,20 @@ export class PingCardSpawner extends BaseScriptComponent {
     // defaults) runs on enable — possibly AFTER this call. Re-applying once the
     // lifecycle has settled guarantees the card shows this entry's image/text, not
     // the prefab defaults. Content is hidden until gaze-expand, so there is no flash.
-    this.applyCardContent(card, entry, index)
+    this.applyCardContent(card, item)
     const ev = this.createEvent("DelayedCallbackEvent")
     ev.bind(() => {
       if (this.spawnedObjects.indexOf(obj) < 0) return // cleared/destroyed meanwhile
-      this.applyCardContent(card, entry, index)
+      this.applyCardContent(card, item)
     })
     ev.reset(0)
   }
 
-  private applyCardContent(card: PremadeCard, entry: CardDeckEntry, index: number): void {
+  private applyCardContent(card: PremadeCard, item: SpawnItem): void {
     if (this.imageWidth > 0) card.setImageWidth(this.imageWidth)
-    const tex = this.placeholderImageFor(index)
-    if (tex) card.setImage(tex)
-    card.setText(entry.text)
-    card.setBorderColor(colorForTopics(entry.topics))
+    if (item.image) card.setImage(item.image)
+    card.setText(item.text)
+    card.setBorderColor(item.borderColor)
   }
 
   // Pops the card open from near-zero to its authored scale for a "spawn" feel.
@@ -450,6 +521,103 @@ export class PingCardSpawner extends BaseScriptComponent {
       ended: null,
       cancelSet: cancel,
     })
+  }
+
+  // Builds the final, ready-to-spawn list from whichever content source is
+  // selected, applies the spawn-count mode, then freezes a stable border color +
+  // unique id on each card.
+  private buildSpawnItems(): SpawnItem[] {
+    const raw = this.useCustomContent ? this.customRawItems() : this.deckRawItems()
+    const expanded = this.applyCountMode(raw)
+    // Single repeat and random repeats both reuse ids, so suffix them to keep
+    // scene-object names unique. The border color is resolved per FINAL card, so
+    // random-color mode still gives each repeated copy its own hue.
+    const suffix = this.singleRepeat || this.randomizeRepeats
+    return expanded.map((r, i) => ({
+      id: suffix ? r.id + "_" + i : r.id,
+      image: r.image,
+      text: r.text,
+      borderColor: this.resolveBorderColor(r.topics),
+    }))
+  }
+
+  // Applies the spawn-count mode to the raw list. Single Repeat wins over
+  // Randomize Repeats; with both off the list is spawned once each.
+  private applyCountMode(raw: RawItem[]): RawItem[] {
+    if (raw.length === 0) return raw
+    if (this.singleRepeat) return this.repeatSingle(raw, this.singleRepeatIndex, this.targetSpawnCount)
+    if (this.randomizeRepeats) return this.expandByRandomSampling(raw, this.targetSpawnCount)
+    return raw
+  }
+
+  // Repeats ONLY the card at `index` (clamped to the list) `count` times.
+  private repeatSingle(base: RawItem[], index: number, count: number): RawItem[] {
+    const idx = Math.max(0, Math.min(Math.floor(index), base.length - 1))
+    const n = Math.max(0, Math.floor(count))
+    const item = base[idx]
+    const out: RawItem[] = []
+    for (let i = 0; i < n; i++) out.push(item)
+    return out
+  }
+
+  // cardDeckData path: every entry for this Location, image pulled from the
+  // positional Placeholder Images list (cycled) — unchanged from before.
+  private deckRawItems(): RawItem[] {
+    return this.entriesForLocation().map((e, i) => ({
+      id: e.id,
+      image: this.placeholderImageFor(i),
+      text: e.text,
+      topics: e.topics,
+    }))
+  }
+
+  // Custom path: paired BY INDEX from the Lens-Studio-editable arrays. Length is
+  // driven by whichever of images/texts is longer; a missing entry is tolerated.
+  private customRawItems(): RawItem[] {
+    const images = this.customImages ?? []
+    const texts = this.customTexts ?? []
+    const topics = this.customTopics ?? []
+    const count = Math.max(images.length, texts.length)
+    const out: RawItem[] = []
+    for (let i = 0; i < count; i++) {
+      const topic = (topics[i] ?? "").trim()
+      out.push({
+        id: "custom_" + (i + 1),
+        image: images[i],
+        text: texts[i] ?? "",
+        topics: topic.length > 0 ? [topic] : [],
+      })
+    }
+    return out
+  }
+
+  // Draws `count` items at random (WITH repetition) from the base list, so a small
+  // authored list can fill a large wave.
+  private expandByRandomSampling(base: RawItem[], count: number): RawItem[] {
+    const n = Math.max(0, Math.floor(count))
+    const out: RawItem[] = []
+    for (let i = 0; i < n; i++) {
+      out.push(base[Math.floor(Math.random() * base.length)])
+    }
+    return out
+  }
+
+  // Resolves a card's border color: by topic (auto) or a random preset-topic color
+  // that ignores the card's real topic. Called once per card so the closed bubble's
+  // color never flickers between the two content-apply passes.
+  private resolveBorderColor(topics: string[]): vec4 {
+    if (this.randomizeBorderColors) return colorForTopic(this.randomPresetTopic())
+    return colorForTopics(topics)
+  }
+
+  private randomPresetTopic(): string {
+    const list = DEFAULT_TOPICS
+    if (!list || list.length === 0) return ""
+    return list[Math.floor(Math.random() * list.length)]
+  }
+
+  private contentSourceLabel(): string {
+    return this.useCustomContent ? "custom content" : 'deck "' + this.location + '"'
   }
 
   private entriesForLocation(): CardDeckEntry[] {

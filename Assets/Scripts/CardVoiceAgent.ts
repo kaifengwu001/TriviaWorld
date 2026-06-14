@@ -527,10 +527,21 @@ export class CardVoiceAgent extends BaseScriptComponent {
       : "";
 
     if (this.activePrompt) {
+      const hasCaptionPlaceholder = this.activePrompt.indexOf("{caption}") >= 0;
       const injected = this.activePrompt
         .split("{caption}").join(captionText)
         .split("{interests}").join(interestLine);
-      return switchPreamble + injected;
+      // The agent never receives the captured image (only ChatGPT does, and demo
+      // mode skips it), so without the caption it has nothing real to talk about
+      // and will invent details or drift to a previous card. Always ground it in
+      // the caption: if the author placed {caption} themselves, respect that;
+      // otherwise append the caption as explicit grounding.
+      const grounding = hasCaptionPlaceholder
+        ? ""
+        : "\n\nThis card shows the following — keep everything you say grounded in it and do " +
+          "not invent unrelated details:\n" +
+          captionText;
+      return switchPreamble + injected + grounding;
     }
 
     return (
