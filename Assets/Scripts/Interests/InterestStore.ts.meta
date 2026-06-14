@@ -28,6 +28,8 @@
   ScriptInputsHidden:
     enableLogging: false
     enableLoggingLifecycle: false
+    nudgeDelaySeconds: false
+    skipOnboarding: false
   ScriptTypesHidden:
     {}
   ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
@@ -37,13 +39,19 @@
   Attachments:
     []
   DefaultScriptInputs:
-    - enableLogging: false
+    - skipOnboarding: false
+      nudgeDelaySeconds: !<float> 10.000000
+      enableLogging: false
       enableLoggingLifecycle: false
   ScriptTypes:
     -
       {}
   InputLines:
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">InterestStore – holds selected topics for the session</span><br/><span style=\"color: #94A3B8; font-size: 11px;\">Registered on global.cropInterestStore and read by ChatGPT when building the factoid prompt.</span>"}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Quick-Crop Mode (skip onboarding)</span>"}'
+    - "// @input bool skipOnboarding {\"hint\":\"Master toggle. When ON: no Welcome voice, no topic panel, no recommendation voice/cards — cropping (PictureController) is allowed immediately, and NudgeVoice runs after 'Nudge delay (skip mode)' seconds instead of its usual ~60s.\"}"
+    - "// @input float nudgeDelaySeconds = 10 {\"hint\":\"Skip-mode only: seconds after launch before NudgeVoice speaks (replaces NudgeVoice's own delay). Ignored when 'Skip onboarding' is OFF.\"}"
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Logging</span>"}'
     - '// @input bool enableLogging {"hint":"Enable general logging"}'

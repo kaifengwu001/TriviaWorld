@@ -2005,12 +2005,15 @@
   Enabled: true
   ScriptAsset: !<reference> d26e4964-92b0-4b9e-9642-72514d8ef8e4
   ScriptInputsDefault:
+    nudgeDelaySeconds: true
     enableLogging: true
     enableLoggingLifecycle: true
   ScriptTypesDefault:
     {}
   ScriptInputs:
     "":
+      skipOnboarding: true
+      nudgeDelaySeconds: !<float> 10.000000
       enableLogging: false
       enableLoggingLifecycle: false
   ScriptTypes:

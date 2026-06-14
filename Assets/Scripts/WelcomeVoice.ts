@@ -135,6 +135,15 @@ export class WelcomeVoice extends BaseScriptComponent {
   }
 
   private onStart(): void {
+    // Quick-crop mode: no welcome host at all. Bail before opening a session, so the
+    // mic/live slot stays free and isActive() stays false. (websocketRequirementsObj
+    // was already enabled in onAwake; NudgeVoice still needs the gateway.)
+    const store = (global as any).cropInterestStore;
+    if (store && typeof store.isSkippingOnboarding === "function" && store.isSkippingOnboarding()) {
+      this.logger.info("Quick-crop mode ON — welcome voice disabled.");
+      return;
+    }
+
     if (!this.dynamicAudioOutput) {
       this.logger.error("dynamicAudioOutput not assigned — assign the prefab's DynamicAudioOutput.");
       return;

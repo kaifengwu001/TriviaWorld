@@ -117,6 +117,18 @@ export class TopicSelectionPanel extends BaseScriptComponent {
   }
 
   private build() {
+    // Quick-crop mode: don't build/show the panel. Because the recommendation
+    // cards + recommendation voice agent only ever fire from onStart() (the panel's
+    // Start), skipping the build also skips those entirely. Hide the frame in case
+    // it would otherwise show itself.
+    const store = this.resolveStore()
+    if (store && typeof (store as any).isSkippingOnboarding === "function" && (store as any).isSkippingOnboarding()) {
+      const existing = this.resolveFrame()
+      if (existing) existing.getSceneObject().enabled = false
+      this.logger.info("Quick-crop mode ON — topic panel not built.")
+      return
+    }
+
     const frame = this.resolveFrame()
     if (!frame) {
       this.logger.error("No Frame found; assign one or add a Frame component to this object.")

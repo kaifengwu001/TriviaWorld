@@ -14,6 +14,16 @@ export class InterestStore extends BaseScriptComponent {
   @ui.label('<span style="color: #60A5FA;">InterestStore – holds selected topics for the session</span><br/><span style="color: #94A3B8; font-size: 11px;">Registered on global.cropInterestStore and read by ChatGPT when building the factoid prompt.</span>')
   @ui.separator
 
+  @ui.label('<span style="color: #60A5FA;">Quick-Crop Mode (skip onboarding)</span>')
+  @input
+  @hint("Master toggle. When ON: no Welcome voice, no topic panel, no recommendation voice/cards — cropping (PictureController) is allowed immediately, and NudgeVoice runs after 'Nudge delay (skip mode)' seconds instead of its usual ~60s.")
+  skipOnboarding: boolean = false;
+
+  @input
+  @hint("Skip-mode only: seconds after launch before NudgeVoice speaks (replaces NudgeVoice's own delay). Ignored when 'Skip onboarding' is OFF.")
+  nudgeDelaySeconds: number = 10;
+
+  @ui.separator
   @ui.label('<span style="color: #60A5FA;">Logging</span>')
   @input
   @hint("Enable general logging")
@@ -35,6 +45,23 @@ export class InterestStore extends BaseScriptComponent {
     this.logger = new Logger("InterestStore", this.enableLogging || this.enableLoggingLifecycle, true);
     if (this.enableLoggingLifecycle) this.logger.debug("LIFECYCLE: onAwake()");
     (global as any).cropInterestStore = this
+    // In quick-crop mode there's no topic panel to confirm interests, so open the
+    // crop gate immediately (PictureController checks isReady). Set in onAwake so
+    // it's true before any other component's OnStart reads it.
+    if (this.skipOnboarding) {
+      this.ready = true
+      this.logger.info("Quick-crop mode ON — onboarding skipped, cropping enabled immediately.")
+    }
+  }
+
+  /** True when quick-crop mode is on (onboarding skipped). Read by other scripts. */
+  isSkippingOnboarding(): boolean {
+    return this.skipOnboarding
+  }
+
+  /** Skip-mode nudge delay in seconds (clamped to >= 0). */
+  getNudgeDelaySeconds(): number {
+    return Math.max(0, this.nudgeDelaySeconds)
   }
 
   /**

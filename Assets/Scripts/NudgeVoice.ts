@@ -124,11 +124,20 @@ export class NudgeVoice extends BaseScriptComponent {
       return;
     }
 
+    // In quick-crop mode the nudge fires much sooner (a customizable delay on the
+    // InterestStore) since there's no onboarding ahead of it; otherwise use this
+    // script's own delaySeconds.
+    const store = (global as any).cropInterestStore;
+    const skipping = store && typeof store.isSkippingOnboarding === "function" && store.isSkippingOnboarding();
+    const delaySeconds = skipping && typeof store.getNudgeDelaySeconds === "function"
+      ? store.getNudgeDelaySeconds()
+      : this.delaySeconds;
+
     // Schedule the lazy-connect moment: open the connection connectLeadSec
     // seconds before we need to speak. The actual speak is scheduled from there.
-    const lead = Math.min(Math.max(0, this.connectLeadSec), Math.max(0, this.delaySeconds));
-    const connectAt = Math.max(0, this.delaySeconds) - lead;
-    this.logger.info(`Nudge scheduled at ${this.delaySeconds}s (connecting at ${connectAt}s)`);
+    const lead = Math.min(Math.max(0, this.connectLeadSec), Math.max(0, delaySeconds));
+    const connectAt = Math.max(0, delaySeconds) - lead;
+    this.logger.info(`Nudge scheduled at ${delaySeconds}s (connecting at ${connectAt}s)`);
 
     const connectEvent = this.createEvent("DelayedCallbackEvent");
     connectEvent.bind(() => this.onConnectTime(lead));
