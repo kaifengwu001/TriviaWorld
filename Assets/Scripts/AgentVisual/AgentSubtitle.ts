@@ -12,8 +12,9 @@
  * Layout rules (driven by AgentSphere via place()):
  *   - one rendered line (incl. padding) = HALF the orb's height, so a full 2-line
  *     block equals the orb's height.
- *   - at most 2 lines, rolling: as new words type in at the end, the oldest words
- *     scroll off the front (live-caption style).
+ *   - at most 2 lines, row-rolling: text fills 2 lines, then when a new word would
+ *     overflow onto a 3rd line the whole top row scrolls off as a unit — the 2nd row
+ *     becomes the 1st and the new word starts a fresh 2nd row (no per-word sliding).
  *   - wraps to a caller-supplied width (FOV-bounded in home, card-width on a card).
  *
  * Pattern mirrors CaptionBehavior's world-space wrap (worldSpaceRect in local units,
@@ -104,12 +105,14 @@ export class AgentSubtitle extends BaseScriptComponent {
   private accumulated = ""     // everything the agent has said this turn (target)
   private revealed = 0         // float count of chars revealed from `accumulated`
   private displayStart = 0     // first char index shown (front of the 2-line window)
+  private row2Start = -1       // index where the 2nd visible row begins (-1 if ≤ 1 row)
   private idleAfterDone = 0    // seconds since fully revealed + silent (for linger clear)
   private silentSeconds = 0    // seconds with no new text and no audibly-draining audio
   private lastSpeakSecs = 0    // previous frame's speakingSecondsRemaining (stuck detection)
 
-  // Calibration: local-space height of a 2-line block at scale 1 (font-dependent).
+  // Calibration: local-space height of a 2-line / 1-line block at scale 1 (font-dependent).
   private twoLineLocalH = 0
+  private oneLineLocalH = 0
   private frames = 0
   private loggedShow = false
 
@@ -194,6 +197,7 @@ export class AgentSubtitle extends BaseScriptComponent {
     this.accumulated = ""
     this.revealed = 0
     this.displayStart = 0
+    this.row2Start = -1
     this.idleAfterDone = 0
     this.silentSeconds = 0
     this.lastRenderStart = -1
@@ -219,12 +223,18 @@ export class AgentSubtitle extends BaseScriptComponent {
     this.text.textFill.color = new vec4(c.r, c.g, c.b, 0)
     this.text.verticalOverflow = VerticalOverflow.Overflow
     this.text.text = "Ag\nAg"
-    const h = this.text.getBoundingBox().getSize().y
-    if (h > 0) {
-      this.twoLineLocalH = h
-      this.logger.info("calibrated twoLineLocalH=" + h)
+    const h2 = this.text.getBoundingBox().getSize().y
+    this.text.text = "Ag"
+    const h1 = this.text.getBoundingBox().getSize().y
+    if (h2 > 0) {
+      this.twoLineLocalH = h2
+      // Single-line height feeds the 1→2 row-wrap detection; fall back to half the
+      // two-line block if the single measure didn't return for some reason.
+      this.oneLineLocalH = h1 > 0 ? h1 : h2 * 0.5
+      this.logger.info("calibrated twoLineLocalH=" + h2 + " oneLineLocalH=" + this.oneLineLocalH)
     } else if (this.frames > 30) {
       this.twoLineLocalH = Math.max(1, MEASURE_FONT_SIZE * 2.6)
+      this.oneLineLocalH = Math.max(1, MEASURE_FONT_SIZE * 1.3)
       this.logger.warn("calibration fell back to " + this.twoLineLocalH)
     }
     this.text.text = ""
@@ -352,7 +362,13 @@ export class AgentSubtitle extends BaseScriptComponent {
     this.text.worldSpaceRect = Rect.create(left, right, bottom, top)
   }
 
-  /** Shows accumulated[displayStart..revealed], trimming the front to fit 2 lines. */
+  /**
+   * Shows accumulated[displayStart..revealed], row-rolling to stay within 2 lines:
+   * the text fills 2 rows, then when a new word overflows onto a 3rd row the whole top
+   * row scrolls off as a unit (the 2nd row becomes the 1st, the new word starts a fresh
+   * 2nd row). `row2Start` marks where the 2nd visible row begins; it's recorded the
+   * frame the window first wraps onto a 2nd line and consumed when the roll fires.
+   */
   private renderRolling(): void {
     const end = Math.floor(this.revealed)
     if (this.displayStart > end) this.displayStart = end
@@ -363,17 +379,33 @@ export class AgentSubtitle extends BaseScriptComponent {
 
     this.text.text = this.accumulated.slice(this.displayStart, end)
 
-    // Fit to 2 lines, measuring at most ONCE per frame (getBoundingBox is rate-limited
-    // to a few calls/frame — a per-frame loop throws). If too tall, drop a single
-    // leading word; the slow typewriter reveal (~1-2 chars/frame) means one word/frame
-    // keeps pace, so the window stays within 2 lines without ever looping.
-    const ref = this.twoLineLocalH > 0 ? this.twoLineLocalH : Math.max(1, MEASURE_FONT_SIZE * 2.6)
-    if (this.text.getBoundingBox().getSize().y > ref * 1.05) {
-      const nextSpace = this.accumulated.indexOf(" ", this.displayStart)
-      if (nextSpace >= 0 && nextSpace < end - 1) {
-        this.displayStart = nextSpace + 1
+    // Measure at most ONCE per frame (getBoundingBox is rate-limited to a few calls/frame
+    // — a per-frame loop throws). The re-slice on a roll does NOT re-measure; the next
+    // frame re-measures and re-records row2Start.
+    const twoRef = this.twoLineLocalH > 0 ? this.twoLineLocalH : Math.max(1, MEASURE_FONT_SIZE * 2.6)
+    const oneRef = this.oneLineLocalH > 0 ? this.oneLineLocalH : Math.max(1, MEASURE_FONT_SIZE * 1.3)
+    const h = this.text.getBoundingBox().getSize().y
+
+    if (h > twoRef * 1.05) {
+      // Overflowed onto a 3rd row → roll: drop the whole top row by jumping to row 2.
+      if (this.row2Start > this.displayStart && this.row2Start <= end) {
+        this.displayStart = this.row2Start
+        this.row2Start = -1
         this.text.text = this.accumulated.slice(this.displayStart, end)
+      } else {
+        // Fallback (row2Start unknown — e.g. one word taller than a row): drop a single
+        // leading word so the caption can never get stuck.
+        const nextSpace = this.accumulated.indexOf(" ", this.displayStart)
+        if (nextSpace >= 0 && nextSpace < end - 1) {
+          this.displayStart = nextSpace + 1
+          this.text.text = this.accumulated.slice(this.displayStart, end)
+        }
       }
+    } else if (this.row2Start < 0 && h > oneRef * 1.05) {
+      // Just wrapped onto a 2nd row. The reveal is ~1-2 chars/frame, so the word that
+      // triggered the wrap is the newest one — its start is the last space in the window.
+      const sp = this.accumulated.lastIndexOf(" ", end - 1)
+      if (sp >= this.displayStart) this.row2Start = sp + 1
     }
 
     this.lastRenderEnd = end
@@ -383,6 +415,7 @@ export class AgentSubtitle extends BaseScriptComponent {
     if (this.displayStart > 4000) {
       this.accumulated = this.accumulated.slice(this.displayStart)
       this.revealed -= this.displayStart
+      if (this.row2Start >= 0) this.row2Start -= this.displayStart
       this.displayStart = 0
       // The window indices were rebased; force a re-render next frame.
       this.lastRenderEnd = -1
