@@ -28,6 +28,13 @@
   ScriptAsset: !<reference> 56fa1134-87f2-4aed-9ce5-acb4e424450e
   ScriptInputsDefault:
     cardHeadings: true
+    cardPitches: true
+    cardDistancesM: true
+    distanceLabelColor: true
+    distanceLabelSize: true
+    distanceLabelDropCm: true
+    tuningMode: true
+    tuningScreenX: true
     rowRiseCm: true
     flyInDuration: true
     selectHoldSeconds: true
@@ -36,7 +43,6 @@
     arrowDistanceCm: true
     arrowSizeCm: true
     arrowYawOffsetDeg: true
-    arrowKeepFlat: true
   ScriptTypesDefault:
     {}
   ScriptInputs:
@@ -52,6 +58,22 @@
         - -40.000000
         - 0.000000
         - 40.000000
+      cardPitches: !<float[]>
+        - 0.000000
+        - 0.000000
+        - 0.000000
+      cardDistancesM: !<float[]>
+        - 100.000000
+        - 100.000000
+        - 100.000000
+      distanceLabelColor: !<Vec4> {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+      distanceLabelSize: !<float> 36.000000
+      distanceLabelDropCm: !<float> 6.000000
+      tuningMode: false
+      tuningScreenX: !<float[]>
+        - -0.500000
+        - 0.000000
+        - 0.500000
       rowDepthCm: !<float> 200.000000
       rowRiseCm: !<float> 0.000000
       cardSpacingCm: !<float> 60.000000
@@ -63,7 +85,6 @@
       arrowDistanceCm: !<float> 100.000000
       arrowSizeCm: !<float> 8.000000
       arrowYawOffsetDeg: !<float> 0.000000
-      arrowKeepFlat: true
       enableLogging: true
   ScriptTypes:
     "":

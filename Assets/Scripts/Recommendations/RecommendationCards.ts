@@ -52,6 +52,20 @@ interface RecCard {
   scaleCancel: CancelSet;
 }
 
+/** A live direction arrow + its "XX m" distance label. */
+interface RecArrow {
+  obj: SceneObject;
+  trans: Transform;
+  target: vec3; // world-fixed point the arrow points at
+  cardIndex: number; // which recommendation card this arrow is for
+  screenX: number; // horizontal FoV fraction for head-locking (0 = centre)
+  labelObj: SceneObject;
+  labelText: Text;
+  appliedScale: number; // world scale applied to the arrow mesh
+  centerLocal: vec3; // arrow mesh's local AABB centre (pivot is off-centre) so the
+  // label can sit under the arrow's VISIBLE centre, not its pivot.
+}
+
 @component
 export class RecommendationCards extends BaseScriptComponent {
   @ui.label('<span style="color: #60A5FA;">RecommendationCards – fly-in cards → pinch-select → direction arrow</span>')
@@ -75,9 +89,47 @@ export class RecommendationCards extends BaseScriptComponent {
   @allowUndefined
   cardImages: Texture[]
 
+  @ui.separator
+  @ui.label('<span style="color: #60A5FA;">Arrow direction (per card)</span>')
   @input
   @hint("Per-card heading in degrees (yaw about world-up, relative to the user's forward at selection). One per card; the arrow points along this direction.")
   cardHeadings: number[] = [-40, 0, 40]
+
+  @input
+  @hint("Per-card pitch in degrees (positive tilts the arrow UP, e.g. toward an upper floor). One per card. Requires 'Keep arrow flat' off.")
+  cardPitches: number[] = [0, 0, 0]
+
+  @input
+  @hint("Per-card distance in METRES. Drives how far out the world-fixed target sits AND the 'XX m' label beneath the arrow. One per card.")
+  cardDistancesM: number[] = [100, 100, 100]
+
+  @ui.separator
+  @ui.label('<span style="color: #60A5FA;">Distance label</span>')
+  @input
+  @hint("Colour of the 'XX m' text beneath the arrow.")
+  distanceLabelColor: vec4 = new vec4(1, 1, 1, 1)
+
+  @input
+  @hint("Font size of the 'XX m' label.")
+  distanceLabelSize: number = 64
+
+  @input
+  @hint("Bold the 'XX m' label (faux-bold via a same-colour outline that thickens the strokes).")
+  distanceLabelBold: boolean = true
+
+  @input
+  @hint("How far (cm) beneath the arrow the 'XX m' label sits. Smaller = closer to the arrow.")
+  distanceLabelDropCm: number = 2
+
+  @ui.separator
+  @ui.label('<span style="color: #60A5FA;">Tuning</span>')
+  @input
+  @hint("When ON, skip the card flow and spawn all 3 arrows at once at launch so you can tune cardHeadings / cardPitches / cardDistancesM live in the inspector.")
+  tuningMode: boolean = false
+
+  @input
+  @hint("Horizontal FoV fractions (-1 left .. +1 right) used to spread the 3 tuning arrows so they don't overlap. One per card.")
+  tuningScreenX: number[] = [-0.5, 0, 0.5]
 
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Layout</span>')
@@ -129,10 +181,6 @@ export class RecommendationCards extends BaseScriptComponent {
   @hint("Yaw correction (deg) for the imported arrow mesh's natural axis. Tune so the arrow tip points along the heading.")
   arrowYawOffsetDeg: number = 0
 
-  @input
-  @hint("Keep the arrow flat (yaw-only): project the pointing direction onto the horizontal plane.")
-  arrowKeepFlat: boolean = true
-
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Logging</span>')
   @input
@@ -150,24 +198,31 @@ export class RecommendationCards extends BaseScriptComponent {
   private selected: boolean = false
   private shown: boolean = false
 
-  // Arrow state.
-  private arrowObj: SceneObject | null = null
-  private arrowTrans: Transform | null = null
-  private arrowTarget: vec3 = vec3.zero()
-  private arrowActive: boolean = false
-  // World scale actually applied to the arrow (derived from arrowSizeCm + mesh bounds).
-  private arrowAppliedScale: number = 1
+  // Arrow state. One entry in normal flow (the selected card), three in tuning mode.
+  private arrows: RecArrow[] = []
+  private selectedTarget: vec3 = vec3.zero() // captured at onSelect, used by cardToArrow
+  // Tuning mode: spawn all 3 arrows at launch and re-aim them live from the inspector.
+  private tuning: boolean = false
+  private tuningBaseFwd: vec3 = vec3.zero() // frozen view direction at tuning start
+  private tuningOrigin: vec3 = vec3.zero() // frozen head position at tuning start
 
   onAwake() {
     this.logger = new Logger("RecommendationCards", this.enableLogging, true)
     ;(global as any).recommendationCards = this
     this.createEvent("UpdateEvent").bind((ev) => this.update(ev.getDeltaTime()))
+    if (this.tuningMode) {
+      // Defer to the first frame so the camera transform is settled.
+      const ev = this.createEvent("DelayedCallbackEvent")
+      ev.bind(() => this.startTuning())
+      ev.reset(0)
+    }
   }
 
   // --- public API ------------------------------------------------------------
 
   /** Spawns the three cards and flies them into a row in front of the user. */
   show(): void {
+    if (this.tuning) return // tuning mode owns the arrows; skip the card flow
     if (this.shown) return
     if (!this.cardPrefab) {
       this.logger.error("cardPrefab not assigned")
@@ -274,19 +329,17 @@ export class RecommendationCards extends BaseScriptComponent {
   // --- selection -------------------------------------------------------------
 
   private onSelect(index: number): void {
+    if (this.tuning) return // tuning mode: arrows are spawned upfront, not by selection
     if (this.selected || !this.shown) return
     if (index < 0 || index >= this.cards.length) return
     this.selected = true
 
-    // Capture a world-fixed target along the card's heading (yaw about world-up
-    // from the user's current forward), pushed far out so it reads as a direction.
-    const heading = this.cardHeadings && this.cardHeadings.length > index ? this.cardHeadings[index] : 0
-    const viewDir = this.camTrans.forward.uniformScale(-1)
-    const flat = new vec3(viewDir.x, 0, viewDir.z)
-    const baseDir = flat.length > 1e-4 ? flat.normalize() : viewDir
-    const rot = quat.angleAxis(heading * DEG2RAD, vec3.up())
-    const dir = rot.multiplyVec3(baseDir).normalize()
-    this.arrowTarget = this.camTrans.getWorldPosition().add(dir.uniformScale(500))
+    // Capture a world-fixed target along the card's heading + pitch, at its distance.
+    this.selectedTarget = this.targetFor(
+      index,
+      this.camTrans.getWorldPosition(),
+      this.camTrans.forward.uniformScale(-1)
+    )
 
     const chosen = this.cards[index]
     // Centre the chosen card.
@@ -313,70 +366,151 @@ export class RecommendationCards extends BaseScriptComponent {
       )
     }
 
-    // Spawn the arrow as the card dissipates.
-    if (this.arrowPrefab) {
-      this.arrowObj = this.arrowPrefab.instantiate(this.getSceneObject())
-      this.arrowObj.name = "RecArrow"
-      this.arrowTrans = this.arrowObj.getTransform()
-      // Scale the arrow so its largest dimension ≈ arrowSizeCm, derived from the
-      // mesh's local AABB (same approach as GlobeView.getLocalRadiusCm). This makes
-      // the on-screen size predictable regardless of the imported model's units.
-      this.arrowAppliedScale = this.scaleForArrowSize(this.arrowObj)
-      this.arrowTrans.setWorldScale(
-        new vec3(this.arrowAppliedScale, this.arrowAppliedScale, this.arrowAppliedScale)
-      )
-      this.arrowActive = true
-
+    // Spawn the arrow (centred, screenX 0) as the card dissipates, then schedule its dismiss.
+    const arrow = this.spawnArrow(index, 0, this.selectedTarget)
+    if (arrow) {
       const life = this.createEvent("DelayedCallbackEvent")
-      life.bind(() => this.dismissArrow())
+      life.bind(() => this.dismissArrows())
       life.reset(this.arrowLifetimeSeconds)
-    } else {
-      this.logger.error("arrowPrefab not assigned")
     }
   }
 
-  private dismissArrow(): void {
-    if (!this.arrowTrans || !this.arrowObj) return
-    const from = this.arrowAppliedScale
-    const obj = this.arrowObj
-    const trans = this.arrowTrans
-    const cancel = new CancelSet()
-    animate({
-      easing: "ease-in-quad",
-      duration: 0.4,
-      update: (t: number) => {
-        const s = from * (1 - t)
-        trans.setWorldScale(new vec3(s, s, s))
-      },
-      ended: () => this.destroyObj(obj),
-      cancelSet: cancel,
-    })
-    this.arrowActive = false
-    this.arrowObj = null
-    this.arrowTrans = null
+  // Instantiates the arrow prefab + a white "XX m" distance label, sized and registered
+  // for per-frame head-locking in update(). Returns the entry, or null if no prefab.
+  private spawnArrow(cardIndex: number, screenX: number, target: vec3): RecArrow | null {
+    if (!this.arrowPrefab) {
+      this.logger.error("arrowPrefab not assigned")
+      return null
+    }
+    const obj = this.arrowPrefab.instantiate(this.getSceneObject())
+    obj.name = "RecArrow_" + cardIndex
+    const trans = obj.getTransform()
+    // Scale the arrow so its largest dimension ≈ arrowSizeCm, derived from the mesh's
+    // local AABB (same approach as GlobeView.getLocalRadiusCm). This makes the on-screen
+    // size predictable regardless of the imported model's units.
+    const appliedScale = this.scaleForArrowSize(obj)
+    trans.setWorldScale(new vec3(appliedScale, appliedScale, appliedScale))
+    const centerLocal = this.arrowCenterLocal(obj)
+
+    // The "XX m" label is a SEPARATE object (not a child of the arrow) so it doesn't
+    // inherit the arrow's pointing rotation — update() positions + billboards it.
+    const labelObj = global.scene.createSceneObject("RecArrowLabel_" + cardIndex)
+    labelObj.layer = obj.layer
+    const labelText = labelObj.createComponent("Component.Text") as Text
+    labelText.horizontalAlignment = HorizontalAlignment.Center
+    labelText.verticalAlignment = VerticalAlignment.Center
+    labelText.size = Math.max(1, Math.round(this.distanceLabelSize))
+    labelText.textFill.color = this.distanceLabelColor
+    if (this.distanceLabelBold) {
+      // Faux-bold: a same-colour outline thickens the glyph strokes (the Text component
+      // has no weight/bold property — real bold needs a bold font asset).
+      labelText.outlineSettings.enabled = true
+      labelText.outlineSettings.fill.color = this.distanceLabelColor
+      labelText.outlineSettings.size = 0.4
+    }
+    labelText.text = this.distanceLabelFor(cardIndex)
+
+    const arrow: RecArrow = {
+      obj, trans, target, cardIndex, screenX, labelObj, labelText, appliedScale, centerLocal,
+    }
+    this.arrows.push(arrow)
+    return arrow
+  }
+
+  // Tween every live arrow (+ its label) to scale 0 and destroy. Used by the normal-flow
+  // lifetime timer; tuning-mode arrows have no timer and persist.
+  private dismissArrows(): void {
+    const arrows = this.arrows
+    this.arrows = []
+    for (const a of arrows) {
+      const from = a.appliedScale
+      const trans = a.trans
+      const obj = a.obj
+      const labelObj = a.labelObj
+      const cancel = new CancelSet()
+      animate({
+        easing: "ease-in-quad",
+        duration: 0.4,
+        update: (t: number) => {
+          const s = from * (1 - t)
+          trans.setWorldScale(new vec3(s, s, s))
+        },
+        ended: () => {
+          this.destroyObj(obj)
+          this.destroyObj(labelObj)
+        },
+        cancelSet: cancel,
+      })
+    }
   }
 
   // --- per-frame: head-lock the arrow ---------------------------------------
 
   private update(_dt: number): void {
-    if (!this.arrowActive || !this.arrowTrans || !this.camTrans) return
+    if (this.arrows.length === 0 || !this.camTrans) return
 
-    // Position: low in the FoV, sticking to the head (recomputed each frame).
     const camPos = this.camTrans.getWorldPosition()
     const viewDir = this.camTrans.forward.uniformScale(-1)
+    const up = this.camTrans.up
+    const right = this.camTrans.right
     const halfV = this.arrowDistanceCm * Math.tan(this.fovRad() * 0.5)
-    const pos = camPos
-      .add(viewDir.uniformScale(this.arrowDistanceCm))
-      .add(this.camTrans.up.uniformScale(this.arrowScreenY * halfV))
-    this.arrowTrans.setWorldPosition(pos)
+    const halfH = halfV * this.aspect()
+    // Labels face the camera, upright (same expression the cards use).
+    const labelRot = quat.lookAt(this.camTrans.forward, vec3.up())
+    const yawOffset = quat.angleAxis(this.arrowYawOffsetDeg * DEG2RAD, vec3.up())
 
-    // Rotation: point toward the world-fixed target (stable as the head turns).
-    let dir = this.arrowTarget.sub(pos)
-    if (this.arrowKeepFlat) dir = new vec3(dir.x, 0, dir.z)
-    if (dir.length > 1e-4) {
-      const look = quat.lookAt(dir.normalize(), vec3.up())
-      const offset = quat.angleAxis(this.arrowYawOffsetDeg * DEG2RAD, vec3.up())
-      this.arrowTrans.setWorldRotation(offset.multiply(look))
+    for (const a of this.arrows) {
+      // In tuning mode, re-aim every frame from the (frozen) base so live inspector
+      // edits to heading/pitch/distance move the arrow immediately.
+      if (this.tuning) {
+        a.target = this.targetFor(a.cardIndex, this.tuningOrigin, this.tuningBaseFwd)
+      }
+
+      // Position: low in the FoV, spread by screenX, sticking to the head.
+      const pos = camPos
+        .add(viewDir.uniformScale(this.arrowDistanceCm))
+        .add(up.uniformScale(this.arrowScreenY * halfV))
+        .add(right.uniformScale(a.screenX * halfH))
+      a.trans.setWorldPosition(pos)
+
+      // Rotation: aim the arrow's tip straight at the world-fixed target with a single
+      // lookAt on the FULL 3D direction. Because lookAt points the tip exactly along the
+      // given vector, the arrow's heading equals the target's azimuth by construction —
+      // pitch (the target's elevation, set per card via dirFor) can never leak into
+      // left/right. The target is world-fixed, so the aim stays put as the head turns.
+      const dir = a.target.sub(pos)
+      if (dir.length > 1e-4) {
+        const look = quat.lookAt(dir.normalize(), vec3.up())
+        a.trans.setWorldRotation(yawOffset.multiply(look))
+      }
+
+      // Label: centred under the arrow's VISIBLE centre (the mesh pivot is off-centre,
+      // so use the rotated+scaled AABB centre), billboarded upright; text refreshed so
+      // tuning edits to cardDistancesM update the number live.
+      const visibleCentre = pos.add(
+        a.trans.getWorldRotation().multiplyVec3(a.centerLocal.uniformScale(a.appliedScale))
+      )
+      const labelTrans = a.labelObj.getTransform()
+      labelTrans.setWorldPosition(visibleCentre.add(up.uniformScale(-this.distanceLabelDropCm)))
+      labelTrans.setWorldRotation(labelRot)
+      a.labelText.text = this.distanceLabelFor(a.cardIndex)
+    }
+  }
+
+  /** Spawns all 3 arrows at once for inspector-driven tuning (no card flow, no lifetime). */
+  private startTuning(): void {
+    this.resolveCamera()
+    if (!this.camTrans) {
+      this.logger.error("cameraObject not assigned (tuning mode)")
+      return
+    }
+    this.tuning = true
+    this.tuningOrigin = this.camTrans.getWorldPosition()
+    this.tuningBaseFwd = this.camTrans.forward.uniformScale(-1)
+    for (let i = 0; i < 3; i++) {
+      const screenX = this.tuningScreenX && this.tuningScreenX.length > i ? this.tuningScreenX[i] : 0
+      const target = this.targetFor(i, this.tuningOrigin, this.tuningBaseFwd)
+      this.spawnArrow(i, screenX, target)
     }
   }
 
@@ -394,6 +528,19 @@ export class RecommendationCards extends BaseScriptComponent {
       if (nativeDim > 1e-4) return this.arrowSizeCm / nativeDim
     }
     return this.arrowSizeCm
+  }
+
+  // The arrow mesh's local AABB centre. The imported Arrowgeo pivot is off-centre, so
+  // the visible arrow sits offset from its SceneObject position; this lets update()
+  // place the label under the arrow's centre rather than its pivot. vec3.zero() if no mesh.
+  private arrowCenterLocal(obj: SceneObject): vec3 {
+    const visual = this.findRenderMesh(obj)
+    if (visual) {
+      const min = visual.localAabbMin()
+      const max = visual.localAabbMax()
+      return min.add(max).uniformScale(0.5)
+    }
+    return vec3.zero()
   }
 
   // Finds the first RenderMeshVisual on this object or any descendant (an imported
@@ -418,6 +565,39 @@ export class RecommendationCards extends BaseScriptComponent {
 
   private fovRad(): number {
     return this.camComp ? this.camComp.fov : 1.109
+  }
+
+  // Horizontal:vertical FoV ratio, used to spread the tuning arrows across the view.
+  private aspect(): number {
+    const a = this.camComp ? (this.camComp as any).aspect : 0
+    return a && a > 1e-3 ? a : 1.4
+  }
+
+  // Direction along a heading (yaw about world-up) then a pitch (about the horizontal
+  // axis perpendicular to that heading; positive pitch tilts up), from a base forward.
+  private dirFor(headingDeg: number, pitchDeg: number, baseForward: vec3): vec3 {
+    const flat = new vec3(baseForward.x, 0, baseForward.z)
+    const base = flat.length > 1e-4 ? flat.normalize() : baseForward
+    const yaw = quat.angleAxis(headingDeg * DEG2RAD, vec3.up())
+    const dirH = yaw.multiplyVec3(base).normalize()
+    const pitchAxis = dirH.cross(vec3.up()).normalize() // horizontal right of dirH
+    const pitch = quat.angleAxis(pitchDeg * DEG2RAD, pitchAxis)
+    return pitch.multiplyVec3(dirH).normalize()
+  }
+
+  // World-fixed target for card i: origin + dir(heading,pitch) * distance(m → cm).
+  private targetFor(i: number, originPos: vec3, baseForward: vec3): vec3 {
+    const h = this.cardHeadings && this.cardHeadings.length > i ? this.cardHeadings[i] : 0
+    const p = this.cardPitches && this.cardPitches.length > i ? this.cardPitches[i] : 0
+    const dM = this.cardDistancesM && this.cardDistancesM.length > i ? this.cardDistancesM[i] : 100
+    const dir = this.dirFor(h, p, baseForward)
+    return originPos.add(dir.uniformScale(Math.max(1, dM) * 100))
+  }
+
+  // The "XX m" label text for card i, from its inspector distance.
+  private distanceLabelFor(i: number): string {
+    const dM = this.cardDistancesM && this.cardDistancesM.length > i ? this.cardDistancesM[i] : 100
+    return Math.round(dM) + " m"
   }
 
   private tweenPos(

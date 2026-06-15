@@ -27,23 +27,30 @@
   PackagePolicy: CanBeUnpacked
   ScriptInputsHidden:
     arrowDistanceCm: false
-    arrowKeepFlat: false
     arrowLifetimeSeconds: false
     arrowPrefab: false
     arrowScreenY: false
     arrowSizeCm: false
     arrowYawOffsetDeg: false
     cameraObject: false
+    cardDistancesM: false
     cardHeadings: false
     cardImageWidthCm: false
     cardImages: false
+    cardPitches: false
     cardPrefab: false
     cardSpacingCm: false
+    distanceLabelBold: false
+    distanceLabelColor: false
+    distanceLabelDropCm: false
+    distanceLabelSize: false
     enableLogging: false
     flyInDuration: false
     rowDepthCm: false
     rowRiseCm: false
     selectHoldSeconds: false
+    tuningMode: false
+    tuningScreenX: false
   ScriptTypesHidden:
     {}
   ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
@@ -62,6 +69,23 @@
         - -40.000000
         - 0.000000
         - 40.000000
+      cardPitches: !<float[]>
+        - 0.000000
+        - 0.000000
+        - 0.000000
+      cardDistancesM: !<float[]>
+        - 100.000000
+        - 100.000000
+        - 100.000000
+      distanceLabelColor: !<Vec4> {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+      distanceLabelSize: !<float> 36.000000
+      distanceLabelBold: true
+      distanceLabelDropCm: !<float> 6.000000
+      tuningMode: false
+      tuningScreenX: !<float[]>
+        - -0.500000
+        - 0.000000
+        - 0.500000
       rowDepthCm: !<float> 60.000000
       rowRiseCm: !<float> 0.000000
       cardSpacingCm: !<float> 22.000000
@@ -73,7 +97,6 @@
       arrowDistanceCm: !<float> 100.000000
       arrowSizeCm: !<float> 8.000000
       arrowYawOffsetDeg: !<float> 0.000000
-      arrowKeepFlat: true
       enableLogging: false
   ScriptTypes:
     -
@@ -86,7 +109,21 @@
     - '// @input SceneObject cameraObject {"hint":"Camera object – used for row placement, billboarding, and head-locking the arrow."}'
     - '// @input Asset.ObjectPrefab arrowPrefab {"hint":"The white arrow prefab (Arrowgeo.obj with an unlit white material)."}'
     - '// @input Asset.Texture[] cardImages {"hint":"Three card images, in order: 0 Art Festival, 1 Reality Hack, 2 Snap Lounge."}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Arrow direction (per card)</span>"}'
     - "// @input float[] cardHeadings = {-40,0,40} {\"hint\":\"Per-card heading in degrees (yaw about world-up, relative to the user's forward at selection). One per card; the arrow points along this direction.\"}"
+    - "// @input float[] cardPitches = {0,0,0} {\"hint\":\"Per-card pitch in degrees (positive tilts the arrow UP, e.g. toward an upper floor). One per card. Requires 'Keep arrow flat' off.\"}"
+    - "// @input float[] cardDistancesM = {100,100,100} {\"hint\":\"Per-card distance in METRES. Drives how far out the world-fixed target sits AND the 'XX m' label beneath the arrow. One per card.\"}"
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Distance label</span>"}'
+    - "// @input vec4 distanceLabelColor = {1,1,1,1} {\"hint\":\"Colour of the 'XX m' text beneath the arrow.\"}"
+    - "// @input float distanceLabelSize = 64 {\"hint\":\"Font size of the 'XX m' label.\"}"
+    - "// @input bool distanceLabelBold = true {\"hint\":\"Bold the 'XX m' label (faux-bold via a same-colour outline that thickens the strokes).\"}"
+    - "// @input float distanceLabelDropCm = 2 {\"hint\":\"How far (cm) beneath the arrow the 'XX m' label sits. Smaller = closer to the arrow.\"}"
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Tuning</span>"}'
+    - '// @input bool tuningMode {"hint":"When ON, skip the card flow and spawn all 3 arrows at once at launch so you can tune cardHeadings / cardPitches / cardDistancesM live in the inspector."}'
+    - "// @input float[] tuningScreenX = {-0.5,0,0.5} {\"hint\":\"Horizontal FoV fractions (-1 left .. +1 right) used to spread the 3 tuning arrows so they don't overlap. One per card.\"}"
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Layout</span>"}'
     - '// @input float rowDepthCm = 60 {"hint":"Distance (cm) in front of the user where the card row settles."}'
@@ -104,7 +141,6 @@
     - '// @input float arrowDistanceCm = 100 {"hint":"Distance (cm) in front of the head where the arrow sits. Larger = farther away and smaller on screen."}'
     - "// @input float arrowSizeCm = 8 {\"hint\":\"On-screen arrow size: its largest dimension in centimetres. Auto-scaled from the mesh bounds, so it's predictable regardless of the imported model's native units.\"}"
     - "// @input float arrowYawOffsetDeg {\"hint\":\"Yaw correction (deg) for the imported arrow mesh's natural axis. Tune so the arrow tip points along the heading.\"}"
-    - '// @input bool arrowKeepFlat = true {"hint":"Keep the arrow flat (yaw-only): project the pointing direction onto the horizontal plane."}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Logging</span>"}'
     - // @input bool enableLogging
