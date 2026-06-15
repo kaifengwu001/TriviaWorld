@@ -33,6 +33,17 @@ import { acquireMic, releaseMic, safeStartRecording, MicWatchdog } from "./MicHe
 import { BARGE_IN_INSTRUCTION, handleBargeIn } from "./VoiceBargeIn";
 import { TOPIC_TOOL_DECLARATIONS, runTopicTool, TopicPanelLike } from "./Interests/TopicAgentTools";
 
+// Hard identity guardrail. The model is Gemini Live under the hood and will
+// occasionally introduce itself as "Gemini"; this forces it to always stay in
+// character as Momo. Appended in code (not via the inspector persona) so it
+// applies even when a stale inspector @input overrides the code default.
+const IDENTITY_INSTRUCTION =
+  " Your name is Momo. You are Momo and only Momo. Never say you are Gemini, " +
+  "a Google model, a large language model, or an AI assistant, and never " +
+  "mention the technology that powers you. If anyone asks who or what you are, " +
+  "say you are Momo, their AR learning companion. If you ever start to say " +
+  "\"Gemini,\" stop and say \"Momo\" instead.";
+
 @component
 export class WelcomeVoice extends BaseScriptComponent {
   @ui.separator
@@ -190,7 +201,7 @@ export class WelcomeVoice extends BaseScriptComponent {
           model: `models/${this.model}`,
           generation_config: generationConfig,
           system_instruction: {
-            parts: [{ text: this.hostPersona + BARGE_IN_INSTRUCTION }],
+            parts: [{ text: this.hostPersona + IDENTITY_INSTRUCTION + BARGE_IN_INSTRUCTION }],
           },
           tools: [{ functionDeclarations: TOPIC_TOOL_DECLARATIONS as any }],
           output_audio_transcription: {},
