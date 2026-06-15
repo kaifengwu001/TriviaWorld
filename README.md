@@ -4,7 +4,7 @@
 
 CurioCity is the product of merging a world‑discovery + conversational‑voice lens with a card‑based multiplayer trivia game. It has been known during development as *TriviaWorld* / *TriviaGo*; **CurioCity** is the current title.
 
-> **One model backend.** Everything model‑powered runs through the **Remote Service Gateway (RSG)** — no Internet Access capability or on‑device API keys. Momo and the battle host speak on **Gemini Live**; image understanding and battle‑question generation use **OpenAI** (vision + gpt‑4o). Trivia questions are **card‑driven** (baked for the premade deck, generated on demand for captured cards), each carrying its own roast and praise. There is no Supabase dependency in this codebase (see the note under *Data sources*).
+> **Model & data backends.** Model work runs through the **Remote Service Gateway (RSG)** — no Internet Access capability or on‑device API keys: Momo and the battle host speak on **Gemini Live**, and image understanding plus battle‑question generation use **OpenAI** (vision + gpt‑4o). Battle questions are **card‑driven** (captured cards via gpt‑4o, then baked premade questions), with **Snap Cloud / Supabase** as an emergency fallback question source. The two‑player session runs on **SpectaclesSyncKit**. See *Data sources* and *Battle mode*.
 
 ---
 
@@ -120,28 +120,62 @@ Street imagery is **baked offline** by `tools/generate_map_textures.py` from Ope
 
 ### Battle mode
 
-Battle questions come from **your cards**, and each question carries its own `roast` (spoken on a miss) and `praise` (spoken on a correct answer):
+`MultiplayerTriviaManager` (SpectaclesSyncKit) runs the two‑player game host‑authoritatively. Questions are built from **both players' cards**, and each question carries its own `roast` (spoken on a miss) and `praise` (on a correct answer) inline in the synced JSON.
 
-| Source | Script | How |
+**Where questions come from**, in priority order:
+
+| Priority | Source | How |
 |---|---|---|
-| Premade "cosmos" deck (37 fixed cards) | `PremadeQuestions.ts` | Authored once and baked in — instant, free, reliable; correct‑answer slots are varied so players can't pattern‑match. |
-| Captured cards (user‑specific) | `BattleQuestionGenerator.ts` | One **OpenAI gpt‑4o** call per batch of 8 turns each card's fact into a 4‑option question + inline roast + praise; malformed entries are dropped, not fatal. |
+| 1 | Captured cards (both players) | `BattleQuestionGenerator` turns each device's session captures (from `global.cropCardStore`, `premade === false`) into questions via one **OpenAI gpt‑4o** call per batch of 8. The guest ships its results to the host (`QADD` / `QDONE`); the host **round‑robin interleaves** both players' captures so they alternate fairly. |
+| 2 | Premade "cosmos" deck | The host fills the rest from the **baked** `PREMADE_QUESTIONS` (shuffled, batch of 12) — instant, no API call. The queue tops up from this pool if a long match runs dry. |
+| 3 (fallback) | Snap Cloud / Supabase | Only if the queue *and* the baked pool are exhausted does the host call `fetchAndSync()` — an emergency POST to the Snap Cloud edge function (`functionName`, e.g. `random-trivia-object-topic`, with `topic`/`object`) via `SnapCloudRequirements`. Those rows have no inline roast, so the curated host bank covers them. |
 
-The host is `BattleHostVoice` (`global.battleHostVoice`): an audio‑only Gemini Live narrator — **per‑device and unsynced**, so each player hears commentary about *their* play. It reads the question aloud, cuts the read the instant the local player buzzes, and speaks calibrated reactions plus the per‑question roast/praise. It is **generation‑free**: it sends each exact line wrapped in a `SAY:` marker at `temperature: 0` and tells the model to read it verbatim — which both enforces the guardrails and stops the Live model from chatting back. Its "brain," `BattleHostLines`, is a Gemini‑free curated line bank (sassy quiz‑show persona) with intensity calibration (`computeIntensity`), a no‑repeat rotation, and guardrails baked into the data and selector: lines are short, never profane, and a player who is **behind is never roasted**.
+The host assembles the queue during the countdown (captured first, then premade); an 8‑second deadline assembles with whatever has arrived so slow generation never stalls the start.
 
-**Game‑show rules (per the design doc):** an energetic host reads each question; both players race to answer; the faster player answers first; a correct answer scores and immediately advances (with a short timer bump); a wrong answer loses points and gives the opponent a chance; after the opponent answers, the correct answer is revealed to both, then the next question loads.
+**The host voice.** `BattleHostVoice` (`global.battleHostVoice`) is an audio‑only Gemini Live narrator — **per‑device and unsynced**, so each player hears commentary about *their own* play. The manager calls `beginMatch()` on the first question, `speakQuestion()` to read it aloud, `stopQuestionRead()` the instant the local player buzzes, then a single outcome line: the question's own `praise`/`roast` wins, falling back to the curated `BattleHostLines` bank only when the question carries none (e.g. a Supabase fallback row) — momentum swings (`TAKE_LEAD` / `FALL_BEHIND` / `BLOWOUT_*`), `FAST_CORRECT` / `CORRECT` / `WRONG` / `TOO_SLOW`, `PRE_MATCHPOINT`, and `WIN` / `LOSS`. `BattleHostLines` is the Gemini‑free line bank with intensity calibration and the guardrail that a player who is behind is never roasted; `BattleHostVoice` reads each line verbatim via a `SAY:` marker at `temperature: 0`.
 
-> **Note — multiplayer manager not in this script set.** These Battle scripts (question generation, host voice, line bank) are all present, but the **`MultiplayerTriviaManager`** that assembles the question queue, runs the two‑player session, and calls the host is only *referenced in comments* here — it (and any SpectaclesSyncKit / Connected‑Lenses networking) is **not included in this `Scripts` folder**. The networking design from the original standalone game (a single host‑owned `SyncEntity`, guest→host `sendMessage` buzzes, host‑authoritative scoring) is the intended integration but cannot be confirmed against this code. Point me at the manager and I'll document it exactly.
+#### Networking & flow (SpectaclesSyncKit)
+
+All synced state lives in one host‑owned `SyncEntity` (`triviaGameState`), created **unowned** (`claimOwnership = false`): with ownership, the store would belong to whichever device built it first — a race unrelated to the session host, which could leave a non‑owning host unable to write (e.g. the ready count stuck). Unowned lets the host's writes always propagate, and since only the host writes synced props there's no conflict. The host is the sole writer; the guest communicates via `session.sendMessage()`. Buzz timestamps use the **server clock** with a 0.5 s grace window so the genuinely‑earlier buzz wins despite network latency.
+
+Synced properties: `jsonQuestion`, `roundState`, `currentActiveBuzzer`, `hostScore`, `guestScore`, `hostBuzzedTime`, `guestBuzzedTime`, `roundResult`, `winner`, `livePicks`, `gamePhase`, `readyCount`, `countdownStartToken`.
+
+| Message | Direction | Purpose |
+|---|---|---|
+| `GUEST_READY` | Guest → Host | Guest tapped Ready. |
+| `GUEST_BUZZ:ts:optionIndex` | Guest → Host | Guest answered (server‑time + pick). |
+| `QADD:<questionJson>` / `QDONE` | Guest → Host | Guest ships its card‑generated questions, then signals done. |
+| `HOST_ROAST:questionId:inline` | Host → Guest | Cue the guest to render its already‑synced inline roast. |
+
+**Phases** (synced via `gamePhase`): **LOBBY → COUNTDOWN → ACTIVE → GAMEOVER**. A deterministic lobby (a Ready button that swaps to "Waiting for Opponent," and an "X/2 Ready" status) replaces a race‑prone auto‑start, so both devices are joined and subscribed before the first question syncs. Once 2/2 ready, the host runs a synced 3‑2‑1 countdown and loads round one.
+
+**Round rules (v3.0 — no per‑question timer):** a question ends only when one player answers correctly *or* both answer wrong. Correct = **+10**, wrong = **−5** (floored at 0); the first wrong answer opens a steal window for the opponent; if the steal also misses, both‑wrong reveals the correct answer (green button tint). Picks are surfaced the instant they're committed via `livePicks`, so each player's marker ("Me" above the button, "Opponent" below) and a green/red button tint appear on both devices immediately — even a wrong pick made while the steal window is open. The conclusion is published atomically in one `roundResult` prop so the phrase and markers never render half‑synced. First to `winScore` (default **30**) wins; "Matchpoint!" shows when a player is one correct answer away.
 
 ---
 
 ## Data sources
 
-- **Remote Service Gateway (RSG)** — the only model backend. It carries **Gemini Live** (Momo and the battle host), **OpenAI vision** (`ChatGPT` captioning), and **OpenAI gpt‑4o** (`BattleQuestionGenerator`), plus Snap services. Tokens live in `Assets/Scene.scene` and are scrubbed on commit (see Setup).
-- **Card deck** — the source of all Battle questions: baked (`PremadeQuestions.ts`) for the 37 cosmos cards, runtime‑generated for captured cards. Each question carries its own roast and praise.
+- **Remote Service Gateway (RSG)** — the model backend. It carries **Gemini Live** (Momo and the battle host), **OpenAI vision** (`ChatGPT` captioning), and **OpenAI gpt‑4o** (`BattleQuestionGenerator`), plus Snap services. Tokens live in `Assets/Scene.scene` and are scrubbed on commit (see Setup).
+- **Card deck** — the primary source of Battle questions: captured cards generated at runtime (gpt‑4o) plus baked `PremadeQuestions.ts` for the cosmos deck. Each question carries its own roast and praise inline.
+- **Snap Cloud / Supabase** — an **emergency fallback** question source. `MultiplayerTriviaManager` reaches it through a `SnapCloudRequirements` component (Supabase project URL + headers) and POSTs to the edge function set by **Function Name** (e.g. `random-trivia-object-topic`), filtered by **Topic** / **Object**; it's only called if the card‑driven queue and the baked pool are both exhausted.
 - **OpenStreetMap** — map tiles consumed **offline** by `tools/generate_map_textures.py`; not fetched at runtime.
 
-> **On Supabase:** the original standalone trivia game fetched questions/roasts from Supabase edge functions, and an earlier note suggested that still held. **The code in this folder does not use Supabase** — the only mention is a single stale doc comment in `BattleHostVoice.ts`, and the actual roast/praise come from the card‑driven question record. If a Supabase‑backed manager lives outside this `Scripts` folder, tell me and I'll add that path back.
+> **On Supabase / Snap Cloud (role).** Supabase is genuinely integrated in the project — `Assets/` holds a `SupabaseProject.supabaseProject` asset, Supabase‑generated `DatabaseTypes.ts`, and an `EdgeFunctionRoastById.ts` roast fetcher — but in the manager I reviewed (v3.0) it acts as a **fallback for questions**, not the live source. The match plays from the card‑driven queue (captured‑card questions via gpt‑4o, interleaved across both players, then baked premade questions); the host only calls `fetchAndSync()` when that queue and the baked pool run dry. Roasts are rendered **inline** from the synced question JSON (`HOST_ROAST` only cues the guest to show its already‑synced copy), so v3.0 doesn't reference `EdgeFunctionRoastById` — that fetcher appears to be from the earlier Supabase roast path and is either legacy or wired elsewhere; confirm against your build. The emergency question function accepts a POST with optional `object` / `topic` and returns:
+
+```json
+{
+  "ok": true,
+  "record": {
+    "id": 42,
+    "question": "What is the capital of France?",
+    "option1": "London", "option2": "Paris", "option3": "Berlin", "option4": "Madrid",
+    "optionCount": 4,
+    "answer": 2
+  }
+}
+```
+
+The manager binds `record` to the `Question` text and the four option buttons and scores against `answer`.
 
 ### Battle question format
 
@@ -192,8 +226,9 @@ Then open the project, select `RemoteServiceGatewayCredentials`, and paste your 
 ### Prerequisites
 
 - [Lens Studio](https://ar.snap.com/lens-studio) with Spectacles support
-- SpectaclesInteractionKit (SIK) + Spectacles UI Kit + RemoteServiceGateway packages (and SpectaclesSyncKit for the multiplayer manager, once integrated)
+- SpectaclesInteractionKit (SIK) + Spectacles UI Kit + RemoteServiceGateway + **SpectaclesSyncKit** packages
 - RSG credentials for OpenAI (vision + gpt‑4o) + Google (Gemini Live) + Snap
+- (Optional) a **Snap Cloud / Supabase** project with the emergency trivia edge function (`random-trivia-object-topic`), reached via a `SnapCloudRequirements` component — only hit as a fallback
 - A separate `DynamicAudioOutput` per voice (welcome / nudge / recommendation / card / query / battle host) to avoid audio conflicts
 - Python 3 (only to regenerate map textures)
 
@@ -212,6 +247,7 @@ python tools/generate_map_textures.py
 - **Bubble morph system** — `Scripts/Bubbles/README.md`.
 - **Globe/map** — `Scripts/Globe/README.md` (LOD bounds, dive handoff, map material graph).
 - **Battle host** — needs the shared *Websocket requirements* object and its own `DynamicAudioOutput`; pick a voice (Charon, Puck, …). `BattleQuestionGenerator` only needs the OpenAI RSG token (same as `ChatGPT`).
+- **Multiplayer trivia** — `MultiplayerTriviaManager` wires the `Question` text, four `CapsuleButton` options (+ optional child‑text name), the score/status/response/roast texts, the `Ready`/`Waiting` `RoundButton`s + ready‑status + countdown texts, the answer‑marker offset/size, and correct/incorrect button colors. Optional inputs: `BattleQuestionGenerator` (captured‑card questions — unassigned just uses baked premade), `BattleHostVoice` (the host — game runs fine without it), and `SnapCloudRequirements` + **Function Name** / **Topic** / **Object** for the emergency Supabase fallback. `winScore` defaults to 30.
 
 ### On‑device only
 
@@ -222,33 +258,39 @@ Gemini Live runs over a gateway WebSocket and **does not work in the Lens Studio
 ## Project structure
 
 ```
-Scripts/
-  CameraService.ts, CropRegion.ts, PictureController.ts,
-    PictureBehavior.ts, CaptionBehavior.ts, TypewriterText.ts,
-    ChatGPT.ts, APIKeyHint.ts        — Capture pipeline + vision captioning
-  WelcomeVoice.ts, NudgeVoice.ts, CardVoiceAgent.ts,
-    VoiceBargeIn.ts, MicHealth.ts, AudioLevel.ts, AgentSphere.ts  — Momo voice stack
-  AgentVisual/   — AgentRing, AgentNoiseDisc, AgentSubtitle (+ README)
-  Bubbles/       — BubbleMesh, BubbleMeshBuilder, ShapeGeometry, PerlinNoise, BubbleField (+ README)
-  PremadeCard/   — PremadeCard, CardCaption, CardMorph
-  CardBackdrop/  — CardBackdrop, CardBackdropController, PlaneRect (+ README)
-  CardButtons/   — CardActionButtons(+Controller), CardButtonFactory, CardButtonHost, ShareDrawer
-  Cards/         — CardStore, CardDeckController, CardQueryVoiceAgent,
-                   QueryOrchestrator, CardEditTools, cardDeckData
-  Interests/     — InterestStore, InterestTopics, TopicSelectionPanel,
-                   TopicAgentTools, TopicColors, TopicFromText
-  Recommendations/ — RecommendationCards, RecommendationVoiceAgent
-  PrayerGestureBehavior.ts, PingController.ts, WorldMeshFallback.ts  — World discovery
-  PingSpawner/   — PingCardSpawner
-  Globe/         — GlobeController, GlobeView, MapViewport, CityData, cityBounds(.json/.ts),
-                   CityMarker, CardMarkerLayer, CardGeo, GeoMath, GpsPingLayer,
-                   PinchDragTracker, waterMask (+ README)
-  Battle/        — BattleHostVoice, BattleHostLines, BattleQuestionGenerator, PremadeQuestions
-  SceneSwitcher/ — SceneSwitcherPanel
-tools/generate_map_textures.py   — Offline map-texture + cityBounds generator
+Assets/
+  MultiplayerTriviaManager.ts        — Battle session/networking host (SpectaclesSyncKit)
+  EdgeFunctionRoastById.ts           — Supabase roast-by-id fetcher (see Supabase note)
+  DatabaseTypes.ts                   — Supabase-generated DB schema types
+  SupabaseProject.supabaseProject    — Supabase project asset (Snap Cloud)
+  Scene.scene                        — Main scene (RSG tokens scrubbed on commit)
+  Scripts/
+    CameraService.ts, CropRegion.ts, PictureController.ts,
+      PictureBehavior.ts, CaptionBehavior.ts, TypewriterText.ts,
+      ChatGPT.ts, APIKeyHint.ts        — Capture pipeline + vision captioning
+    WelcomeVoice.ts, NudgeVoice.ts, CardVoiceAgent.ts,
+      VoiceBargeIn.ts, MicHealth.ts, AudioLevel.ts, AgentSphere.ts  — Momo voice stack
+    AgentVisual/   — AgentRing, AgentNoiseDisc, AgentSubtitle (+ README)
+    Bubbles/       — BubbleMesh, BubbleMeshBuilder, ShapeGeometry, PerlinNoise, BubbleField (+ README)
+    PremadeCard/   — PremadeCard, CardCaption, CardMorph
+    CardBackdrop/  — CardBackdrop, CardBackdropController, PlaneRect (+ README)
+    CardButtons/   — CardActionButtons(+Controller), CardButtonFactory, CardButtonHost, ShareDrawer
+    Cards/         — CardStore, CardDeckController, CardQueryVoiceAgent,
+                     QueryOrchestrator, CardEditTools, cardDeckData
+    Interests/     — InterestStore, InterestTopics, TopicSelectionPanel,
+                     TopicAgentTools, TopicColors, TopicFromText
+    Recommendations/ — RecommendationCards, RecommendationVoiceAgent
+    PrayerGestureBehavior.ts, PingController.ts, WorldMeshFallback.ts  — World discovery
+    PingSpawner/   — PingCardSpawner
+    Globe/         — GlobeController, GlobeView, MapViewport, CityData, cityBounds(.json/.ts),
+                     CityMarker, CardMarkerLayer, CardGeo, GeoMath, GpsPingLayer,
+                     PinchDragTracker, waterMask (+ README)
+    Battle/        — BattleHostVoice, BattleHostLines, BattleQuestionGenerator, PremadeQuestions
+    SceneSwitcher/ — SceneSwitcherPanel
+tools/generate_map_textures.py         — Offline map-texture + cityBounds generator
 ```
 
-*(The full repo also contains `Assets/Scene.scene`, `Packages/`, `.gitfilters/`, and the RSG token‑scrubbing config described under Setup. The `MultiplayerTriviaManager` and SyncKit networking are not in this script set.)*
+*(`MultiplayerTriviaManager.ts` sits directly in `Assets/` and imports its Battle helpers from `./Scripts/Battle/…`. `Assets/` also holds the Supabase project + `DatabaseTypes.ts` + `EdgeFunctionRoastById.ts`, plus asset folders — `Prefabs/`, `Materials/`, `Meshes/`, `Shaders/`, `Textures/`, `Images/`, `Fonts/`, `Project/`, `Rendering/`, `Examples/` — and the scene's shader graphs/materials. The repo root also contains `Packages/` and `.gitfilters/` with the RSG token‑scrubbing config described under Setup.)*
 
 ---
 
@@ -271,6 +313,16 @@ tools/generate_map_textures.py   — Offline map-texture + cityBounds generator
 **Keep placement math pure and deterministic.** `GeoMath` / `CardGeo` / `ShapeGeometry` / `CardMorph` have no engine dependencies, and every card scatter is seeded by the card id — so markers are testable and never drift between frames, zooms, or sessions.
 
 **Match the globe→table handoff by footprint span.** The dive aligns the globe and the flat map by making their on‑screen footprints equal at the crossover, so the swap reads as detail sharpening rather than a jump.
+
+**Create the sync store *unowned*.** SpectaclesSyncKit assigns store ownership to whichever device constructs it first — a race unrelated to the session host. A guest‑owned store silently drops the host's writes (e.g. the ready count never updates). Creating the `SyncEntity` with `claimOwnership = false` lets every device send/receive, and since only the host writes synced props, the host's writes always land with no conflict.
+
+**Rank buzzes on the server clock, with a grace window.** Per‑device `Date.now()` isn't comparable across two phones. Using `getServerTimeInSeconds()` plus a short (0.5 s) wait after the first buzz lets the genuinely‑earlier buzz win even when its network message lands a little later.
+
+**Publish a conclusion atomically.** Rendering a round's outcome from several separate synced props raced — players briefly saw "Too slow!" before the picks synced. Publishing the whole result in one `roundResult` string (and live picks in one `livePicks` string) makes the phrase and markers render together.
+
+**A deterministic lobby beats a host auto‑start.** A Ready‑up phase that only fetches the first question once both players are 2/2 ready guarantees both devices are joined and subscribed before `jsonQuestion` syncs — fixing the empty/stuck first question when the second player joins.
+
+**UIKit buttons must be enabled at startup to wire their handlers.** Their tap handler binds in `OnStartEvent`, which never fires for an object disabled at launch — so disabling a button at startup permanently breaks it. The lobby swaps in a pre‑styled "Waiting" button (and hides it one frame later) instead of restyling or pre‑disabling the original.
 
 ---
 
