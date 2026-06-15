@@ -96,10 +96,10 @@ import { BaseButton }          from 'SpectaclesUIKit.lspkg/Scripts/Components/Bu
 // Sassy host types only (pure, Gemini-free module — safe to import here). The
 // BattleHostVoice component itself is reached via an `any` accessor (like the
 // roast fetcher) so this manager never pulls in the Gemini/live-session deps.
-import { BattleEvent, GameSnapshot } from './Scripts/Battle/BattleHostLines'
+import { BattleEvent, GameSnapshot } from './BattleHostLines'
 // Premade-card questions are baked ahead of time (the deck cards never change),
 // so the only runtime LLM calls are for user-specific CAPTURED cards.
-import { PREMADE_QUESTIONS } from './Scripts/Battle/PremadeQuestions'
+import { PREMADE_QUESTIONS } from './PremadeQuestions'
 // Used to tint the option buttons green/red at runtime. UIKit buttons render
 // their background via gradients (baseType "Gradient"), so solid color setters
 // are ignored — a flat (single-hue) gradient is assigned to the visual states
