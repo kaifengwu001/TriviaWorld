@@ -12,9 +12,14 @@
  * map these through the same toRecord() path. Correct-answer positions are
  * varied across 1-4 on purpose so players can't pattern-match a single slot.
  *
- * Each question carries BOTH a `roast` (spoken by the host on a wrong answer) and
- * a `praise` (spoken on a correct answer) — short, witty, and specific to the
- * fact, so the host's reaction always fits the question.
+ * Difficulty is intentionally CASUAL / general-audience: each question keeps the
+ * same fact as its card (cardDeckData.ts) but is phrased plainly, with clearly-
+ * wrong distractors so most players can answer it. Because a question is shown
+ * WITHOUT its card image, each one names its own subject up front (e.g. "the
+ * artist Kuniyoshi", "an 'engawa' veranda") instead of saying "this artist" /
+ * "this house" — it must read as fully self-contained. Each question carries BOTH
+ * a `roast` (spoken on a wrong answer) and a `praise` (spoken on a correct one) —
+ * short, witty, and specific to the fact, so the host's reaction always fits.
  */
 
 export interface BakedQuestion {
@@ -32,190 +37,190 @@ export interface BakedQuestion {
 export const PREMADE_QUESTIONS: BakedQuestion[] = [
   // --- Tokyo --------------------------------------------------------------
   {
-    question: "What gives a shrine's copper finials their green coat — the same chemistry that guards the Statue of Liberty?",
-    option1: "Rust (iron oxide)", option2: "Algae and moss", option3: "Verdigris, a layer of copper carbonate", option4: "Painted enamel",
-    optionCount: 4, answer: 3, roast: "Green with envy at everyone who got that one?", praise: "Correct — you've got a real eye for green.",
+    question: "The copper roofs on old Japanese shrines slowly turn green over the years. What famous statue gets its green color from that exact same process?",
+    option1: "Michelangelo's David", option2: "The Lincoln Memorial", option3: "The Statue of Liberty", option4: "Mount Rushmore",
+    optionCount: 4, answer: 3, roast: "Green with envy at the folks who got that one?", praise: "Correct — you've got an eye for green.",
   },
   {
-    question: "Over the 20th century, Japan's 'kawaii' character design measurably drifted toward what?",
-    option1: "Rounder, more infant-like proportions", option2: "Sharper, angular features", option3: "Taller, leaner bodies", option4: "Darker color palettes",
-    optionCount: 4, answer: 1, roast: "Too cute to concentrate? That was the easy one.", praise: "Spot on — and adorably so.",
+    question: "Japan's cute 'kawaii' toy characters measurably changed over the 20th century to look more like what?",
+    option1: "Babies — rounder and cuter", option2: "Robots", option3: "Wild animals", option4: "Serious adults",
+    optionCount: 4, answer: 1, roast: "Too cute to focus? That one was a softball.", praise: "Spot on — and adorably so.",
   },
   {
-    question: "Why is Kuniyoshi's giant skeleton print so anatomically correct for its era?",
-    option1: "He dissected bodies himself", option2: "He copied an older Chinese scroll", option3: "He studied imported Dutch anatomy books", option4: "He simply guessed the bones",
-    optionCount: 4, answer: 3, roast: "Bone up before the next round.", praise: "Nailed it, right down to the bones.",
+    question: "The 1800s Japanese artist Kuniyoshi drew a famously accurate giant skeleton — because he had studied imported foreign books on what subject?",
+    option1: "Cooking", option2: "Anatomy — the human body", option3: "Sailing", option4: "Music",
+    optionCount: 4, answer: 2, roast: "Bone up before the next round.", praise: "Nailed it, right down to the bones.",
   },
   {
-    question: "How does the engawa's raised floor and deep eaves cool a house with no machinery?",
-    option1: "Buried blocks of ice", option2: "Reflective gold leaf", option3: "Constant fanning by servants", option4: "Shade plus under-floor airflow (convection)",
-    optionCount: 4, answer: 4, roast: "No amount of airflow saves that one.", praise: "Cool, calm, and correct.",
+    question: "Old Japanese homes have an 'engawa' — a raised wooden veranda under deep eaves — that keeps the house cool in summer with no machines. How does it work?",
+    option1: "Buried blocks of ice", option2: "Gold-leaf mirrors", option3: "Shade plus natural airflow underneath", option4: "Hidden electric fans",
+    optionCount: 4, answer: 3, roast: "No amount of airflow saves that one.", praise: "Cool, calm, and correct.",
   },
   {
-    question: "Japan's 'sabo' engineering became a world model for controlling what?",
-    option1: "Earthquakes", option2: "Erosion, floods and debris flows", option3: "Wildfires", option4: "Air pollution",
-    optionCount: 4, answer: 2, roast: "That answer washed clean away.", praise: "Correct — that knowledge really holds water.",
+    question: "Japan's famous 'sabo' engineering — barriers built across mountain rivers — was developed mainly to protect people from what?",
+    option1: "Earthquakes", option2: "Wildfires", option3: "Tornadoes", option4: "Floods and landslides",
+    optionCount: 4, answer: 4, roast: "That answer washed clean away.", praise: "Correct — that knowledge really holds water.",
   },
   {
-    question: "Studying Zen gardens' 'soft fascination' helps design what for astronauts?",
-    option1: "Psychologically restorative habitats for long missions", option2: "Faster bullet trains", option3: "Quieter umbrellas", option4: "Brighter streetlights",
+    question: "Calm spaces like Japanese Zen gardens are being studied to help design better living quarters for whom?",
+    option1: "Astronauts on long space missions", option2: "Pro athletes", option3: "Train drivers", option4: "Restaurant chefs",
     optionCount: 4, answer: 1, roast: "Go find your zen — and a better guess.", praise: "Correct — very zen of you.",
   },
   {
-    question: "Why does brush calligraphy change in microgravity?",
-    option1: "The brushes simply float away", option2: "Astronauts can't see the paper", option3: "The paper dissolves", option4: "Without gravity pulling ink down the brush, the flow physics change",
-    optionCount: 4, answer: 4, roast: "Your answer floated off into orbit.", praise: "Correct — that answer really flows.",
+    question: "Japanese brush calligraphy is surprisingly hard to do aboard a spacecraft. Why?",
+    option1: "The paper dissolves", option2: "Astronauts can't see the page", option3: "Without gravity, the ink won't flow down the brush normally", option4: "Brushes are banned on the station",
+    optionCount: 4, answer: 3, roast: "Your answer floated off into orbit.", praise: "Correct — that answer really flows.",
   },
   {
-    question: "What mostly melts the thin water film that lets a skate glide?",
-    option1: "Pressure-melting alone", option2: "Friction does most of it", option3: "The skater's body heat", option4: "Salt spread on the ice",
-    optionCount: 4, answer: 2, roast: "You slipped right off the podium.", praise: "Correct — smooth as fresh ice.",
+    question: "An ice skater glides on a thin film of water on top of the ice. What mostly creates that water?",
+    option1: "Friction from the moving blade", option2: "The skater's body heat", option3: "Salt spread on the ice", option4: "Warm air in the rink",
+    optionCount: 4, answer: 1, roast: "You slipped right off the podium.", praise: "Correct — smooth as fresh ice.",
   },
   {
-    question: "Japan's 'gotochi' economy turned local wildlife like the snow-fairy shimaenaga into what?",
-    option1: "Protected endangered species", option2: "Zoo-only exhibits", option3: "Branded regional merchandise", option4: "Official postage stamps",
-    optionCount: 4, answer: 3, roast: "Even the fluffy bird is side-eyeing you.", praise: "Correct — the fluffy bird approves.",
+    question: "Japan turned cute local animals, like the fluffy little shimaenaga bird, into what?",
+    option1: "Protected zoo-only animals", option2: "Branded regional mascots and merchandise", option3: "National house pets", option4: "Official postage stamps only",
+    optionCount: 4, answer: 2, roast: "Even the fluffy bird is side-eyeing you.", praise: "Correct — the fluffy bird approves.",
   },
   {
-    question: "Instantly seeing a 'face' in two dots and a line is driven by which brain region?",
-    option1: "The fusiform face area", option2: "The cerebellum", option3: "The amygdala", option4: "The hippocampus",
-    optionCount: 4, answer: 1, roast: "I can see the face you're making at that score.", praise: "Correct — I can see you smiling.",
+    question: "Instantly seeing a 'face' in two dots and a line — like on a cute toy — is a brain trick called what?",
+    option1: "Déjà vu", option2: "Pareidolia", option3: "Hypnosis", option4: "Color blindness",
+    optionCount: 4, answer: 2, roast: "I can see the face you're making at that score.", praise: "Correct — I can see you smiling.",
   },
   {
-    question: "How was 'Space Ram' ramen engineered to fly on the Space Shuttle?",
-    option1: "Freeze-dried into hard cubes", option2: "Served completely cold", option3: "Compressed into a paste", option4: "A thickened broth that won't float away",
-    optionCount: 4, answer: 4, roast: "That answer? Under-boiled.", praise: "Correct — cooked to perfection.",
+    question: "A Japanese company invented a special instant version of which food so astronauts could eat it on the Space Shuttle?",
+    option1: "Sushi", option2: "Tempura", option3: "Ramen", option4: "Mochi",
+    optionCount: 4, answer: 3, roast: "That guess never made it to orbit.", praise: "Correct — cooked to perfection, even in space.",
   },
   {
-    question: "What are Tokyo stations' unique 7-second departure jingles called?",
-    option1: "Shinkanson", option2: "Ekimelo", option3: "Bento beats", option4: "Tokyo tones",
-    optionCount: 4, answer: 2, roast: "That's your cue to exit — wrong stop.", praise: "Correct — right on cue.",
+    question: "Nearly every train station in Tokyo plays its own short, distinctive what, so commuters recognize their stop?",
+    option1: "Musical jingle", option2: "Weather report", option3: "Comedy clip", option4: "Loud alarm bell",
+    optionCount: 4, answer: 1, roast: "That's your cue to exit — wrong stop.", praise: "Correct — right on cue.",
   },
   {
-    question: "The springy rubber that lets you feel tactile paving comes from which tree's latex?",
-    option1: "The oak", option2: "Bamboo", option3: "The Hevea rubber tree", option4: "The maple",
+    question: "The bumpy yellow 'tactile paving' on sidewalks feels springy because it's made of rubber, which comes from the sap of what?",
+    option1: "An oak tree", option2: "Bamboo", option3: "A rubber tree", option4: "A cactus",
     optionCount: 4, answer: 3, roast: "You bounced clean off that one.", praise: "Correct — you bounced right to it.",
   },
   {
-    question: "Regional clay figurines sold at train stations are stocked mainly as what?",
-    option1: "Omiyage — travel gifts", option2: "Children's playthings", option3: "Religious idols", option4: "Loose-change holders",
+    question: "Japanese train stations sell little regional clay figurines mainly as what?",
+    option1: "Travel souvenirs and gifts", option2: "Children's playthings", option3: "Good-luck charms only", option4: "Religious statues",
     optionCount: 4, answer: 1, roast: "No souvenir for that guess.", praise: "Correct — take a souvenir.",
   },
   {
-    question: "What did 2024 genetics finally reveal about orange tabby cats?",
-    option1: "They are usually female", option2: "They cannot see orange", option3: "They are all closely related", option4: "Their color comes from a unique X-linked gene",
-    optionCount: 4, answer: 4, roast: "That was a cat-astrophe.", praise: "Correct — purr-fectly done.",
+    question: "What did scientists finally confirm in 2024 about orange tabby cats?",
+    option1: "They are usually female", option2: "They cannot see the color orange", option3: "Their orange color comes from one special gene", option4: "They are all closely related",
+    optionCount: 4, answer: 3, roast: "That was a cat-astrophe.", praise: "Correct — purr-fectly done.",
   },
   {
-    question: "What is 'yarn-bombing,' seen brightening train stations worldwide?",
-    option1: "A speed-knitting contest", option2: "Covering public objects in crochet as guerrilla art", option3: "A new kind of commuter train", option4: "An industrial weaving loom",
+    question: "What is 'yarn-bombing,' sometimes seen brightening up train stations and street poles?",
+    option1: "A speed-knitting contest", option2: "Covering public objects in colorful crochet", option3: "A type of spray graffiti", option4: "A new kind of commuter train",
     optionCount: 4, answer: 2, roast: "You dropped a stitch there.", praise: "Correct — not a stitch out of place.",
   },
   {
-    question: "How are some shrines modernizing the omikuji fortune?",
-    option1: "Banning it entirely", option2: "Doubling its price", option3: "Dispensing it by app, AR, vending machine or robot", option4: "Only having priests read it aloud",
+    question: "Some Japanese shrines are modernizing the omikuji — the little paper fortune you draw at random. How?",
+    option1: "Banning it entirely", option2: "Only letting priests read it aloud", option3: "Handing it out by app, vending machine, or robot", option4: "Doubling its price",
     optionCount: 4, answer: 3, roast: "Today's omikuji predicted that answer.", praise: "Correct — fortune favors you today.",
   },
   {
-    question: "Why are 660cc kei cars so fuel-efficient in city driving?",
-    option1: "Low mass and small frontal area beat horsepower", option2: "Oversized turbo engines", option3: "Being fully electric", option4: "Never coming to a stop",
+    question: "Japan's tiny 'kei' cars get great gas mileage around the city mainly because they are what?",
+    option1: "Small and lightweight", option2: "Fully electric", option3: "Powered by huge engines", option4: "Driven very slowly",
     optionCount: 4, answer: 1, roast: "Running on empty with that one.", praise: "Correct — running on pure efficiency.",
   },
   {
-    question: "Why do airlines and canned-coffee makers both over-sweeten their drinks?",
-    option1: "It is cheaper to make", option2: "Customers demand it", option3: "Sugar preserves it longer", option4: "Pressure and temperature changes dull taste",
-    optionCount: 4, answer: 4, roast: "That guess left a bitter aftertaste.", praise: "Correct — sweet, sweet victory.",
+    question: "Airlines and Japanese canned-coffee makers both add extra sugar to their drinks. Why?",
+    option1: "Sugar is cheaper to use", option2: "Changes in pressure and temperature dull our sense of taste", option3: "Customers loudly demand it", option4: "Sugar keeps the drink colder",
+    optionCount: 4, answer: 2, roast: "That guess left a bitter aftertaste.", praise: "Correct — sweet, sweet victory.",
   },
   {
-    question: "Airlines re-season their 'sky bento' because cabin pressure does what?",
-    option1: "Spoils the rice", option2: "Dulls taste by about 30%", option3: "Freezes the food", option4: "Adds its own salt",
-    optionCount: 4, answer: 2, roast: "Even airplane food has more taste than that guess.", praise: "Correct — that one had real flavor.",
+    question: "Airline meals are seasoned more heavily than normal food. What does an airplane cabin's pressure do to your sense of taste?",
+    option1: "Makes everything taste salty", option2: "Sharpens it", option3: "Weakens it by about a third", option4: "Has no effect at all",
+    optionCount: 4, answer: 3, roast: "Even airplane food has more taste than that guess.", praise: "Correct — that one had real flavor.",
   },
 
   // --- Seattle ------------------------------------------------------------
   {
-    question: "Where did Heinz first sell the baked beans now central to a full English breakfast?",
-    option1: "A wartime ration depot", option2: "A roadside American diner", option3: "London's upscale Fortnum & Mason (~1901)", option4: "A Boston cannery",
-    optionCount: 4, answer: 3, roast: "You don't know beans about this.", praise: "Correct — now you know your beans.",
+    question: "The baked beans now standard in a full English breakfast were first sold in Britain as what?",
+    option1: "A cheap wartime ration", option2: "A fancy luxury import", option3: "A new health food", option4: "Cattle feed",
+    optionCount: 4, answer: 2, roast: "You don't know beans about this.", praise: "Correct — now you know your beans.",
   },
   {
-    question: "The Burke-Gilman Trail past Gas Works Park was paved over what?",
-    option1: "An 1880s railroad roadbed", option2: "A filled-in shipping canal", option3: "An old logging highway", option4: "A buried pipeline",
+    question: "Seattle's Burke-Gilman Trail, used for biking and walking, was paved right on top of an old what?",
+    option1: "Railroad line", option2: "Shipping canal", option3: "Airport runway", option4: "Riverbed",
     optionCount: 4, answer: 1, roast: "That answer went right off the rails.", praise: "Correct — right on track.",
   },
   {
-    question: "What gives a corgi (and a dachshund) those famously short legs?",
-    option1: "A low-protein diet", option2: "Cold Welsh weather", option3: "Centuries of tail-docking", option4: "An extra FGF4 gene copy causing dwarfism",
-    optionCount: 4, answer: 4, roast: "Short legs, even shorter on the answer.", praise: "Correct — a big-brain answer on short legs.",
+    question: "A corgi's famously short legs come from a gene that also gives which other breed its stubby legs?",
+    option1: "The Great Dane", option2: "The greyhound", option3: "The poodle", option4: "The dachshund",
+    optionCount: 4, answer: 4, roast: "Short legs, even shorter on the answer.", praise: "Correct — a big-brain answer on tiny legs.",
   },
   {
-    question: "Why did Dale Chihuly stop blowing glass himself and start directing teams?",
-    option1: "He quietly retired young", option2: "A 1976 car crash cost him an eye and his depth perception", option3: "He moved overseas", option4: "He switched to painting",
+    question: "Seattle-area glass artist Dale Chihuly stopped blowing glass himself after a 1976 car crash caused him to lose what?",
+    option1: "His studio", option2: "An eye, and his depth perception", option3: "His hearing", option4: "His memory",
     optionCount: 4, answer: 2, roast: "Didn't see that one coming either.", praise: "Correct — sharp eye, fittingly.",
   },
   {
-    question: "In the wild, the trendy fiddle-leaf fig is really what kind of plant?",
-    option1: "A desert succulent", option2: "A floating water plant", option3: "A strangler that envelops and kills its host tree", option4: "A ground-hugging moss",
+    question: "The trendy fiddle-leaf fig houseplant is actually what kind of plant out in the wild?",
+    option1: "A desert cactus", option2: "A floating water plant", option3: "A 'strangler' that grows over and kills other trees", option4: "A low carpet of moss",
     optionCount: 4, answer: 3, roast: "Your guess got strangled — very on brand.", praise: "Correct — you didn't get strangled.",
   },
   {
-    question: "A fish looking straight up sees the whole world above squeezed into a bright circle called what?",
-    option1: "Snell's window (about 97° wide)", option2: "The event horizon", option3: "The vanishing point", option4: "The optical blind spot",
-    optionCount: 4, answer: 1, roast: "Your answer's stuck outside Snell's window.", praise: "Correct — clear view through Snell's window.",
+    question: "A fish looking straight up sees the entire world above the water squeezed into what?",
+    option1: "A bright circle overhead", option2: "A long rainbow", option3: "Total darkness", option4: "An upside-down mirror in every direction",
+    optionCount: 4, answer: 1, roast: "Your view of that one was a little cloudy.", praise: "Correct — crystal-clear view.",
   },
   {
-    question: "Wild, bitter gourds nearly vanished when which seed-spreaders went extinct?",
-    option1: "Dinosaurs", option2: "Giant ground sloths", option3: "Sea turtles", option4: "Ice Age megafauna like mastodons",
-    optionCount: 4, answer: 4, roast: "That answer's extinct too.", praise: "Correct — that knowledge isn't extinct.",
+    question: "Wild gourds were once so bitter that only which giant animals would eat them and spread their seeds?",
+    option1: "Dinosaurs", option2: "Ice Age giants like mastodons", option3: "Sea turtles", option4: "Giant birds",
+    optionCount: 4, answer: 2, roast: "That answer's extinct too.", praise: "Correct — that knowledge isn't extinct.",
   },
   {
-    question: "Why is the sunset you watch over Puget Sound basically a mirage?",
-    option1: "Pollution tints the sky", option2: "Refraction keeps the disc visible ~2 minutes after it has truly set", option3: "It's only a reflection off the water", option4: "Your eyes simply lag",
+    question: "When you watch the sun set over Seattle's Puget Sound, it has technically already dropped below the horizon. Why can you still see it?",
+    option1: "It's just a reflection on the water", option2: "The air bends its light up and over to you", option3: "Your eyes simply lag behind", option4: "City lights are faking it",
     optionCount: 4, answer: 2, roast: "Your answer set two minutes ago.", praise: "Correct — you saw right through it.",
   },
   {
-    question: "What did lichens do after ~18 months bolted to the outside of the ISS?",
-    option1: "Crumbled to dust", option2: "Mutated into algae", option3: "Resumed living once returned to Earth", option4: "Burned up on re-entry",
+    question: "Scientists bolted lichens to the outside of the space station for about 18 months. What happened to them?",
+    option1: "They burned up", option2: "They crumbled to dust", option3: "They survived and kept living once back on Earth", option4: "They mutated into animals",
     optionCount: 4, answer: 3, roast: "Even space lichen outlasted that guess.", praise: "Correct — out-of-this-world answer.",
   },
   {
-    question: "Why do mochi pounders keep a chanted rhythm during 'mochitsuki'?",
-    option1: "So the mallet never crushes the hand-flipper", option2: "To attract a crowd", option3: "To time the steaming rice", option4: "Purely for good luck",
+    question: "In traditional Japanese mochi pounding, two people keep a steady chant and rhythm going. Why?",
+    option1: "So the heavy mallet never smashes the other person's hand", option2: "To attract a crowd", option3: "Purely for good luck", option4: "To cook the rice faster",
     optionCount: 4, answer: 1, roast: "You got pounded on that one.", praise: "Correct — perfect timing.",
   },
   {
-    question: "Volunteer Park's 'Black Sun' sculpture supposedly inspired which 1994 hit?",
-    option1: "Nirvana's 'Smells Like Teen Spirit'", option2: "Pearl Jam's 'Alive'", option3: "Pearl Jam's 'Jeremy'", option4: "Soundgarden's 'Black Hole Sun'",
+    question: "Seattle legend says the view through a ring-shaped sculpture in Volunteer Park inspired the title of which 1994 hit song?",
+    option1: "'Smells Like Teen Spirit'", option2: "'Jeremy'", option3: "'Alive'", option4: "'Black Hole Sun'",
     optionCount: 4, answer: 4, roast: "That answer? Black hole. Gone.", praise: "Correct — that one was a hit.",
   },
   {
-    question: "The term 'flying saucer' was coined after a 1947 sighting near which peak?",
-    option1: "Mount St. Helens", option2: "Mount Rainier", option3: "Mount Hood", option4: "Mount Baker",
-    optionCount: 4, answer: 2, roast: "Your answer's the real UFO.", praise: "Correct — no UFO needed.",
+    question: "The term 'flying saucer' was coined in 1947 after a pilot reported strange objects near which Washington State mountain?",
+    option1: "Mount Rainier", option2: "Mount Fuji", option3: "Mount Everest", option4: "The Rocky Mountains",
+    optionCount: 4, answer: 1, roast: "Your answer's the real UFO.", praise: "Correct — no UFO needed.",
   },
   {
-    question: "Why can a vintage gas-lantern mantle still trip a Geiger counter?",
-    option1: "It's coated in lead paint", option2: "It's filled with leftover propane", option3: "It was soaked in radioactive thorium dioxide", option4: "It's a magnetized steel mesh",
-    optionCount: 4, answer: 3, roast: "That answer's radioactive — and wrong.", praise: "Correct — that answer glows.",
+    question: "Why can a vintage camping gas-lantern mantle still set off a Geiger counter decades later?",
+    option1: "It's coated in lead paint", option2: "It's slightly radioactive", option3: "It's full of leftover gas", option4: "It's made of magnetized steel",
+    optionCount: 4, answer: 2, roast: "That answer's radioactive — and wrong.", praise: "Correct — that answer glows.",
   },
   {
-    question: "Bending a single wire into a figure, pioneered by Calder, is called what?",
-    option1: "'Drawing in space'", option2: "Filigree work", option3: "Cold forging", option4: "Line etching",
+    question: "Bending a single piece of wire into the shape of a figure, as sculptor Alexander Calder did, is nicknamed what?",
+    option1: "'Drawing in space'", option2: "'Cold welding'", option3: "'Iron lacework'", option4: "'Line painting'",
     optionCount: 4, answer: 1, roast: "You just drew a blank.", praise: "Correct — you drew that one perfectly.",
   },
   {
-    question: "What inspired the very first Little Free Library in 2009?",
-    option1: "A city literacy grant", option2: "A neighborhood book-club dare", option3: "A local library closing down", option4: "Todd Bol honoring his late mother, a teacher",
-    optionCount: 4, answer: 4, roast: "Return that answer — it's overdue.", praise: "Correct — no late fees for you.",
+    question: "The first-ever Little Free Library was built in 2009 by a man honoring his late mother, who had been a what?",
+    option1: "A librarian", option2: "A teacher", option3: "A novelist", option4: "A carpenter",
+    optionCount: 4, answer: 2, roast: "Return that answer — it's overdue.", praise: "Correct — no late fees for you.",
   },
   {
-    question: "Why do a whole city's ornamental cherry trees bloom in near-perfect unison?",
-    option1: "They share the same rich soil", option2: "They're a single grafted clone, 'Somei-yoshino'", option3: "Their pruning is synchronized", option4: "A warm spring rain triggers them",
-    optionCount: 4, answer: 2, roast: "That answer never blossomed.", praise: "Correct — that answer blossomed.",
+    question: "Why do Seattle's ornamental cherry trees all burst into bloom at almost exactly the same time?",
+    option1: "They share the same rich soil", option2: "They are all the same age", option3: "A warm spring rain triggers them", option4: "They're all clones of one single tree",
+    optionCount: 4, answer: 4, roast: "That answer never blossomed.", praise: "Correct — that answer blossomed.",
   },
   {
-    question: "Smart plush toys that come alive in AR via a phone camera create what kind of bridge?",
-    option1: "A purely wireless link", option2: "A Bluetooth-only tether", option3: "A 'phygital' bridge — physical doll plus digital world", option4: "A cloud backup of the toy",
-    optionCount: 4, answer: 3, roast: "That guess wasn't very 'phygital.'", praise: "Correct — very phygital of you.",
+    question: "Some smart plush toys come alive in augmented reality when you point a phone camera at them. This mix of physical toy and digital world is nicknamed what?",
+    option1: "'Phygital'", option2: "'Wi-Fi toys'", option3: "'Cloud pets'", option4: "'Robo-dolls'",
+    optionCount: 4, answer: 1, roast: "That guess wasn't very 'phygital.'", praise: "Correct — very phygital of you.",
   },
 ];
