@@ -32,6 +32,7 @@
     cardDistancesM: true
     distanceLabelColor: true
     distanceLabelSize: true
+    distanceLabelBold: true
     distanceLabelDropCm: true
     tuningMode: true
     tuningScreenX: true
@@ -68,6 +69,7 @@
         - 100.000000
       distanceLabelColor: !<Vec4> {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
       distanceLabelSize: !<float> 36.000000
+      distanceLabelBold: true
       distanceLabelDropCm: !<float> 6.000000
       tuningMode: false
       tuningScreenX: !<float[]>

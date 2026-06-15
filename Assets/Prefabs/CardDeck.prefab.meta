@@ -42,6 +42,9 @@
   ScriptAsset: !<reference> 6c013ed9-5070-426e-96d9-7da4cc246ac0
   ScriptInputsDefault:
     centerObject: true
+    cullOffscreenCards: true
+    cullConeDeg: true
+    cullHysteresisDeg: true
     topicWeight: true
     locationWeight: true
     dateWeight: true
@@ -127,6 +130,9 @@
       gazeScaleConeDeg: !<float> 10.000000
       gazeScaleMaxBoost: 1.300000
       gazeScaleEaseRate: !<float> 3.000000
+      cullOffscreenCards: true
+      cullConeDeg: !<float> 45.000000
+      cullHysteresisDeg: !<float> 4.000000
       topicWeight: 0.700000
       locationWeight: 0.200000
       dateWeight: 0.100000

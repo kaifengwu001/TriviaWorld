@@ -3449,10 +3449,11 @@
   Enabled: true
   ScriptAsset: !<reference> 56fa1134-87f2-4aed-9ce5-acb4e424450e
   ScriptInputsDefault:
-    cardHeadings: true
     distanceLabelColor: true
     distanceLabelSize: true
+    distanceLabelBold: true
     distanceLabelDropCm: true
+    tuningMode: true
     tuningScreenX: true
     rowRiseCm: true
     flyInDuration: true
@@ -3474,11 +3475,11 @@
         - !<reference> 2d6fe193-d1ea-4da7-8deb-83fac10b3e79
         - !<reference> 115c79ce-5e1a-40fa-a1d3-e3c008218e8d
       cardHeadings: !<float[]>
-        - -40.000000
+        - -50.000000
         - 0.000000
         - 40.000000
       cardPitches: !<float[]>
-        - 90.000000
+        - -90.000000
         - 0.000000
         - 0.000000
       cardDistancesM: !<float[]>
@@ -3487,8 +3488,9 @@
         - 100.000000
       distanceLabelColor: !<Vec4> {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
       distanceLabelSize: !<float> 36.000000
+      distanceLabelBold: true
       distanceLabelDropCm: !<float> 6.000000
-      tuningMode: true
+      tuningMode: false
       tuningScreenX: !<float[]>
         - -0.500000
         - 0.000000
@@ -3997,6 +3999,7 @@
   Enabled: true
   ScriptAsset: !<reference> b437c481-1d48-41d9-8a7c-58174badcf8c
   ScriptInputsDefault:
+    initialGroup: true
     iconForwardOffset: true
     selectedIconAlpha: true
     unselectedIconAlpha: true
@@ -4037,7 +4040,7 @@
       scene3Label: Battle
       scene3Objects: !<reference.SceneObject[]>
         - !<reference> 54632fa9-d440-4f4f-b366-8861b86d5683
-      initialGroup: !<float> 3.000000
+      initialGroup: !<float> 1.000000
       iconMaterial: !<reference.Material> fb942e39-cb39-45c9-a514-72ed8ef7bc4c
       iconSize: 1.500000
       iconForwardOffset: 0.200000
@@ -8683,6 +8686,9 @@
   ScriptAsset: !<reference> 6c013ed9-5070-426e-96d9-7da4cc246ac0
   ScriptInputsDefault:
     centerObject: true
+    cullOffscreenCards: true
+    cullConeDeg: true
+    cullHysteresisDeg: true
     topicWeight: true
     locationWeight: true
     dateWeight: true
@@ -8768,6 +8774,9 @@
       gazeScaleConeDeg: !<float> 10.000000
       gazeScaleMaxBoost: 1.300000
       gazeScaleEaseRate: !<float> 3.000000
+      cullOffscreenCards: true
+      cullConeDeg: !<float> 45.000000
+      cullHysteresisDeg: !<float> 4.000000
       topicWeight: 0.700000
       locationWeight: 0.200000
       dateWeight: 0.100000
