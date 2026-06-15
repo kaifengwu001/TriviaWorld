@@ -25,6 +25,7 @@
     - !<own> 54632fa9-d440-4f4f-b366-8861b86d5683
     - !<own> 1e986bef-9dc0-47f1-849a-2f0cd2a2882e
     - !<own> 2c5bdb09-1ce9-4887-b36f-ace3dce5216d
+    - !<own> 628d4823-464b-429f-835a-9950e7056cd2
   layers: !<Layers/267ee9a7-aff2-4f9d-9a49-f71214747d03>
     userLayers:
       []
@@ -3869,7 +3870,6 @@
   Enabled: true
   ScriptAsset: !<reference> b437c481-1d48-41d9-8a7c-58174badcf8c
   ScriptInputsDefault:
-    initialGroup: true
     iconForwardOffset: true
     selectedIconAlpha: true
     unselectedIconAlpha: true
@@ -3909,7 +3909,7 @@
       scene3Label: Battle
       scene3Objects: !<reference.SceneObject[]>
         - !<reference> 54632fa9-d440-4f4f-b366-8861b86d5683
-      initialGroup: !<float> 1.000000
+      initialGroup: !<float> 2.000000
       iconMaterial: !<reference.Material> fb942e39-cb39-45c9-a514-72ed8ef7bc4c
       iconSize: 1.500000
       iconForwardOffset: 0.200000
@@ -4077,6 +4077,21 @@
     []
   Components:
     - !<own> b2ebfd8e-099c-4e31-9b96-2680d1bb875b
+- !<SceneObject/628d4823-464b-429f-835a-9950e7056cd2>
+  PrefabRemaps:
+    []
+  Name: GpsPingLayer
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> f6c99229-c89c-405e-b9da-fe630b80262c
 - !<SceneObject/6585b7e7-08fc-42a2-8b20-e75cc85a8d81>
   PrefabRemaps:
     []
@@ -10103,6 +10118,8 @@
         - 0.500000
       mergeDistanceCm: !<float> 3.000000
       avoidOcean: true
+      globeLiftCm: !<float> 0.000000
+      globePlaneUpCm: 2.500000
       tableLiftCm: 1.500000
       visibleCircleFraction: 0.800000
       alwaysShowCityMarkers: true
@@ -10205,6 +10222,33 @@
     []
   Components:
     - !<own> 99c90465-f615-4842-9eeb-2ab4bedbfca9
+- !<ScriptComponent/f6c99229-c89c-405e-b9da-fe630b80262c>
+  PrefabRemaps:
+    []
+  Name: GpsPingLayer
+  Enabled: true
+  ScriptAsset: !<reference> 8184696a-e857-474d-8f03-f138140f0c84
+  ScriptInputsDefault:
+    cityName: true
+    enableLogging: true
+    enableLoggingLifecycle: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      globeController: !<MappingBased.AssignableType> 05388fb0-0dde-44c7-a8c9-1f6a6bb35ced
+      iconMaterial: !<reference.Material> fb942e39-cb39-45c9-a514-72ed8ef7bc4c
+      iconTexture: !<reference.Texture> ec4417f2-f640-4fe6-aeca-8064bba3038d
+      cityName: Los Angeles
+      surfaceLiftCm: 0.100000
+      visibleCircleFraction: 0.800000
+      iconSizeCm: 2.750000
+      renderOrder: !<float> 499.000000
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    "":
+      {}
 - !<SceneObject/f6dc8380-a2f0-43d3-9524-25f4551d3c6f>
   PrefabRemaps:
     []

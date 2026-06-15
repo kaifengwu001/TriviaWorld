@@ -137,7 +137,15 @@ export class CardMarkerLayer extends BaseScriptComponent {
   avoidOcean: boolean = true
 
   @input
-  @hint("How far (cm) markers float above the ACTIVE surface — the globe AND the table use the same constant lift, so the dive handoff is height-continuous (markers never rise away as the globe scales up).")
+  @hint("How far (cm) markers float above the globe surface along the outward normal. Constant world-space distance (not a fraction of radius) so markers stay stable through globe scale changes.")
+  globeLiftCm: number = 2.5
+
+  @input
+  @hint("Extra shift (cm) along the marker icon's upright on the globe (world up for yaw billboards). Applied after Globe Lift Cm. Use this to nudge pins higher/lower in the icon plane without changing surface clearance.")
+  globePlaneUpCm: number = 0
+
+  @input
+  @hint("How far (cm) markers float above the map table surface.")
   tableLiftCm: number = 1.5
 
   @input
@@ -441,11 +449,10 @@ export class CardMarkerLayer extends BaseScriptComponent {
   // CURRENT transform — so markers ride every spin, dive, and scale exactly. Uses
   // the same texture-longitude offset as the controller's own marker placement.
   //
-  // The lift above the surface is a CONSTANT world-space distance (tableLiftCm),
+  // The lift above the surface is a CONSTANT world-space distance (globeLiftCm),
   // NOT a fraction of the radius: during the dock dive the globe scales up by
   // hundreds of times, so a fractional lift would launch the markers meters off
-  // the surface mid-animation. With the same constant lift on both surfaces the
-  // marker height is continuous through the globe -> table crossfade.
+  // the surface mid-animation.
   private globeWorldPos(latLng: LatLng, ctrl: GlobeController): vec3 {
     const gv = ctrl.globeView
     const p = lonLatToSpherePos(latLng.lng + (ctrl.textureLonOffsetDeg ?? 0), latLng.lat, gv.getLocalRadiusCm())
@@ -454,7 +461,26 @@ export class CardMarkerLayer extends BaseScriptComponent {
     const outward = surface.sub(center)
     const len = outward.length
     if (len < 1e-5) return surface
-    return surface.add(outward.uniformScale(this.tableLiftCm / len))
+    return surface.add(outward.uniformScale(this.globeLiftCm / len))
+  }
+
+  // Globe anchor + normal lift, then an optional shift along the icon plane's
+  // upright (+Y in billboard space). Yaw billboards rotate only around world Y,
+  // so plane-up is always world up — distinct from the outward normal lift.
+  private globeMarkerWorldPos(latLng: LatLng, ctrl: GlobeController, camPos: vec3 | null): vec3 {
+    const pos = this.globeWorldPos(latLng, ctrl)
+    const planeUp = this.globeMarkerPlaneUp(pos, camPos)
+    if (Math.abs(this.globePlaneUpCm) < 1e-6) return pos
+    return pos.add(planeUp.uniformScale(this.globePlaneUpCm))
+  }
+
+  private globeMarkerPlaneUp(pos: vec3, camPos: vec3 | null): vec3 {
+    if (!camPos) return vec3.up()
+    const dx = camPos.x - pos.x
+    const dz = camPos.z - pos.z
+    if (dx * dx + dz * dz < 1e-6) return vec3.up()
+    const yaw = Math.atan2(dx, dz)
+    return quat.angleAxis(yaw, vec3.up()).multiplyVec3(vec3.up())
   }
 
   // True when the marker is NOT hidden behind the globe: the camera->marker
@@ -590,7 +616,7 @@ export class CardMarkerLayer extends BaseScriptComponent {
       const pos =
         mode.kind === "table"
           ? this.tableWorldPos(c.latLng, mode.view, ctrl).pos
-          : this.globeWorldPos(c.latLng, ctrl)
+          : this.globeMarkerWorldPos(c.latLng, ctrl, camPos)
 
       v.root.enabled = true
       const t = v.root.getTransform()

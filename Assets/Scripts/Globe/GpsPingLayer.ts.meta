@@ -1,0 +1,80 @@
+- !<AssetImportMetadata/35fbd734-cfa6-490a-8378-b68c1961f19f>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> 8184696a-e857-474d-8f03-f138140f0c84
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> 8184696a-e857-474d-8f03-f138140f0c84
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> 7561d944-61df-4508-a8d9-5faac635b7e9
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/7561d944-61df-4508-a8d9-5faac635b7e9>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 8d2e93f8-22be-4bd9-a9b8-429916b4e25b
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    cityName: false
+    enableLogging: false
+    enableLoggingLifecycle: false
+    globeController: false
+    iconMaterial: false
+    iconSizeCm: false
+    iconTexture: false
+    renderOrder: false
+    surfaceLiftCm: false
+    visibleCircleFraction: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - globeController: !<MappingBased.AssignableType> 00000000-0000-0000-0000-000000000000
+      iconMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
+      iconTexture: !<reference.Texture> 00000000-0000-0000-0000-000000000000
+      cityName: Los Angeles
+      surfaceLiftCm: 1.500000
+      visibleCircleFraction: 0.950000
+      iconSizeCm: !<float> 4.000000
+      renderOrder: !<float> 510.000000
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">GpsPingLayer – fake GPS icon flat on globe + map table</span><br/><span style=\"color: #94A3B8; font-size: 11px;\">Surface-aligned icon at a city center (default Los Angeles). Constant world size through every zoom, pan, LOD step, and dive.</span>"}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">References</span>"}'
+    - '// @input AssignableType globeController {"hint":"The GlobeController that owns the globe/table state machine. If unset, global.globeController is used."}'
+    - "// @input Asset.Material iconMaterial {\"hint\":\"Unlit transparent material for the icon quad (cloned at runtime; its baseTex is replaced by Icon Texture). Falls back to a clone of the globe's material if unset.\"}"
+    - '// @input Asset.Texture iconTexture {"hint":"The GPS icon texture (PNG drawn on a surface-aligned quad)."}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Placement</span>"}'
+    - '// @input string cityName = "Los Angeles" {"hint":"City whose centerLatLng is used (must match cityBounds.ts exactly, e.g. \"Los Angeles\")."}'
+    - '// @input float surfaceLiftCm = 1.5 {"hint":"How far (cm) the icon floats above the ACTIVE surface — globe AND table use the same lift so the dive handoff is height-continuous."}'
+    - "// @input float visibleCircleFraction = 0.95 {\"hint\":\"Radius of the table's visible (feathered) circle as a fraction of its half-size. The icon disappears past the rim and reappears when panned back in.\"}"
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Visuals</span>"}'
+    - '// @input float iconSizeCm = 4 {"hint":"Icon quad size (cm). Constant world size; does not grow or shrink with globe scale or map zoom."}'
+    - '// @input float renderOrder = 510 {"hint":"Render order for the icon quad. Keep above the globe/table so the icon is never z-fought away."}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Logging</span>"}'
+    - '// @input bool enableLogging {"hint":"Enable general logging"}'
+    - '// @input bool enableLoggingLifecycle {"hint":"Enable lifecycle logging (onAwake, onStart, onUpdate, onDestroy)"}'
