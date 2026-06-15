@@ -139,6 +139,10 @@ export class CardQueryVoiceAgent extends BaseScriptComponent {
   private micWatchdog: MicWatchdog | null = null;
   // How long the user has been looking at the deck this dwell (for gaze-arm).
   private gazeDwell = 0;
+  // Tracks deck presence across frames so we can detect the Explore->Deck entry
+  // and reclaim the live session from a CardVoiceAgent conversation that was
+  // running before the switch (CardVoiceAgent is persistent and survives switches).
+  private deckWasPresent = false;
 
   onAwake(): void {
     this.logger = new Logger("CardQueryVoiceAgent", this.enableLogging, true);
@@ -394,8 +398,29 @@ export class CardQueryVoiceAgent extends BaseScriptComponent {
     if (!this.isDeckPresent()) {
       if (this.sessionReady || this.connecting) this.suspend();
       this.gazeDwell = 0;
+      this.deckWasPresent = false;
       return;
     }
+
+    // Just switched INTO deck mode (Explore->Deck). CardVoiceAgent is persistent and
+    // may still hold the live session from a card it was discussing — a cosmos card
+    // from the previous deck visit, or a captured card tapped in Explore (where it's
+    // engaged by PictureBehavior). That stale session blocks our gaze-arm below
+    // (isCardVoiceActive) and would answer the user from the WRONG card's context, so
+    // reclaim the slot ONCE on entry to make the query agent the deck-mode default.
+    // Entry-only is deliberate: during deck use the user can tap a cosmos card and
+    // CardVoiceAgent.engageCard() legitimately takes the session — suspending every
+    // frame would thrash that. Nothing is tapped on the entry frame, so this is safe.
+    if (!this.deckWasPresent) {
+      const cardAgent = (global as any).cardVoiceAgent;
+      if (cardAgent && typeof cardAgent.isActive === "function" && cardAgent.isActive() &&
+          typeof cardAgent.suspend === "function") {
+        this.logger.info("Entered deck mode — reclaiming the live session from CardVoiceAgent.");
+        cardAgent.suspend();
+      }
+      this.gazeDwell = 0;
+    }
+    this.deckWasPresent = true;
 
     // The deck just became the active view (it starts disabled and is switched on well
     // after launch). Onboarding is therefore over: if the welcome host or the recommendation
