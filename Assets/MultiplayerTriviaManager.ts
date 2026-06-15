@@ -1,5 +1,33 @@
 /**
- * MultiplayerTriviaManager.ts — v2.7
+ * MultiplayerTriviaManager.ts — v3.0
+ *
+ * Changes from v2.9:
+ *   - Option buttons are now tinted green/red (adjustable RGBA inputs) using the
+ *     SAME flow as the text markers: a pick tints its button the instant it's
+ *     made, on both devices (green if correct, red if wrong — including a wrong
+ *     pick while a steal is still open).
+ *   - When BOTH players miss, the correct answer's button is additionally
+ *     revealed in green (button tint only, no text marker).
+ *   - Button tints are snapshotted on first use and restored each new round.
+ *
+ * Changes from v2.8:
+ *   - Answer markers now appear the MOMENT a player commits a pick (published via
+ *     a new synced `livePicks` prop), so a wrong answer is marked on BOTH devices
+ *     while the steal window is still open — not only at round conclusion. A
+ *     correct answer behaves the same as before (mark, reveal, next round).
+ *   - Marker layout changed: markers are now centered horizontally on their option
+ *     button and stacked vertically — the local player's ("Me") marker sits above
+ *     the button, the opponent's below — so both stay readable even when both
+ *     players pick the same option.
+ *
+ * Changes from v2.7:
+ *   - The Ready button no longer disappears the instant you tap it. Tapping it
+ *     now swaps it for a separate "waiting" button (set up in the inspector with
+ *     the Primary style and a "Waiting for Opponent" label, same size/position).
+ *     That waiting button stays on screen until BOTH players are ready, then both
+ *     buttons go away as the countdown begins. (UIKit button styles are applied
+ *     via protected, gradient-based state — not settable at runtime — so a second
+ *     pre-styled button is swapped in instead of restyling the original.)
  *
  * Changes from v2.6:
  *   - Sync store is now created UNOWNED (claimOwnership=false). Previously the
@@ -72,11 +100,28 @@ import { BattleEvent, GameSnapshot } from './Scripts/Battle/BattleHostLines'
 // Premade-card questions are baked ahead of time (the deck cards never change),
 // so the only runtime LLM calls are for user-specific CAPTURED cards.
 import { PREMADE_QUESTIONS } from './Scripts/Battle/PremadeQuestions'
+// Used to tint the option buttons green/red at runtime. UIKit buttons render
+// their background via gradients (baseType "Gradient"), so solid color setters
+// are ignored — a flat (single-hue) gradient is assigned to the visual states
+// instead, mirroring the approach in TopicSelectionPanel.ts.
+import { RoundedRectangleVisual, BaseType } from 'SpectaclesUIKit.lspkg/Scripts/Visuals/RoundedRectangle/RoundedRectangleVisual'
+import { GradientParameters }  from 'SpectaclesUIKit.lspkg/Scripts/Visuals/RoundedRectangle/RoundedRectangle'
 
 interface ISnapCloudRequirements {
   isConfigured(): boolean
   getFunctionsApiUrl(): string
   getSupabaseHeaders(): { [key: string]: string }
+}
+
+// Snapshot of a button visual's original (theme) gradients for the resting
+// states, so a runtime tint can be undone exactly when the next round starts.
+interface ButtonVisualSnapshot {
+  defaultBaseType: BaseType
+  hoveredBaseType: BaseType
+  triggeredBaseType: BaseType
+  defaultGradient: GradientParameters
+  hoveredGradient: GradientParameters
+  triggeredGradient: GradientParameters
 }
 
 interface TriviaRecord {
@@ -149,23 +194,31 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
   @hint("Per-player response label (e.g. 'Too slow!', 'Nailed it!', 'Matchpoint!')")
   public responseText: Text | null = null
 
-  // ── Answer markers (script-created, shown after a question concludes) ───────
+  // ── Answer markers (script-created, shown the moment a pick is made) ────────
   @input
-  @hint("Local offset (x,y,z) of a marker from its option button")
-  public answerMarkerOffset: vec3 = new vec3(6, 0, 0)
-
-  @input
-  @hint("Extra vertical gap when both players pick the same option")
-  public answerMarkerStackSpacing: number = 3
+  @hint("Marker offset from its option button center. X centers the marker (0 = dead center); |Y| is the vertical gap — self sits above (+Y), opponent below (−Y).")
+  public answerMarkerOffset: vec3 = new vec3(0, 6, 0)
 
   @input
   @hint("Font size for the answer markers")
   public answerMarkerTextSize: number = 32
 
+  @input
+  @hint("Button tint (RGBA) for a correct pick — also reveals the answer when both players miss")
+  public correctButtonColor: vec4 = new vec4(0.25, 0.85, 0.35, 1.0)
+
+  @input
+  @hint("Button tint (RGBA) for a wrong pick")
+  public incorrectButtonColor: vec4 = new vec4(0.95, 0.30, 0.30, 1.0)
+
   // ── Lobby / start coordination ─────────────────────────────────────────────
   @input
   @hint("Button players tap to mark themselves ready in the lobby")
   public readyButton: BaseButton | null = null
+
+  @input
+  @hint("Shown after THIS player readies up (style it Primary, label it 'Waiting for Opponent', same size/position as the Ready button). Hidden until ready, removed once both are ready.")
+  public waitingButton: BaseButton | null = null
 
   @input
   @hint("Text showing how many players are ready, e.g. '1/2 Ready'")
@@ -220,6 +273,11 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
   private roundResultProp         = StorageProperty.manualString('roundResult', '')
   private winnerProp              = StorageProperty.manualString('winner', '')
 
+  // Live picks, published by the host the instant a player commits, so a marker
+  // shows on BOTH devices immediately — including a wrong pick made while the
+  // steal window is still open. Format: "hostPick:guestPick" (1-indexed, -1=none)
+  private livePicksProp           = StorageProperty.manualString('livePicks', '')
+
   // Lobby / start coordination (host-authoritative)
   private gamePhaseProp           = StorageProperty.manualString('gamePhase', PHASE_LOBBY)
   private readyCountProp          = StorageProperty.manualInt('readyCount', 0)
@@ -259,6 +317,10 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
   // Runtime-created answer markers (Text components)
   private meMarker: Text | null  = null
   private oppMarker: Text | null = null
+
+  // Original button visual gradients, captured the first time a button is tinted
+  // so the theme look can be restored verbatim each new round (index 0 = option1).
+  private optionButtonVisualSnapshots: (ButtonVisualSnapshot | null)[] = [null, null, null, null]
 
   private optionTexts: (Text | null)[] = [null, null, null, null]
   private isHost: boolean              = false
@@ -336,6 +398,11 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
     this.setResponse('')
     this.hideAnswerMarkers()
 
+    // The waiting button must NOT be disabled here (its UIKit visual + handlers
+    // only wire up in OnStartEvent, which never fires for an object disabled at
+    // startup). Let it initialize this frame, then hide it one frame later.
+    this.hideWaitingButtonAfterInit()
+
     this.createEvent("UpdateEvent").bind(() => this.onUpdate())
     SessionController.getInstance().notifyOnReady(() => this.onSessionReady())
   }
@@ -360,6 +427,7 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
         this.guestBuzzedTimeProp,
         this.roundResultProp,
         this.winnerProp,
+        this.livePicksProp,
         this.gamePhaseProp,
         this.readyCountProp,
         this.countdownStartTokenProp,
@@ -383,6 +451,7 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
     this.roundStateProp.onAnyChange.add(() => this.handleRoundStateChange())
     this.currentActiveBuzzerProp.onAnyChange.add(() => this.handleBuzzerStateChange())
     this.roundResultProp.onAnyChange.add(() => this.renderRoundResult())
+    this.livePicksProp.onAnyChange.add(() => this.renderLivePicks())
     this.winnerProp.onAnyChange.add(() => {
       if (this.gamePhaseProp.currentOrPendingValue === PHASE_GAMEOVER) this.showGameOver()
     })
@@ -398,6 +467,7 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
         this.startCountdown = secs
         this.startCountdownActive = true
         this.setReadyButtonVisible(false)
+        this.setWaitingButtonVisible(false)
         if (this.readyStatusText) this.readyStatusText.enabled = false
         this.log(`Start countdown: ${secs}s`)
       }
@@ -475,6 +545,7 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
     this.guestBuzzedTimeProp.setPendingValue('')
     this.currentActiveBuzzerProp.setPendingValue('NONE')
     this.roundResultProp.setPendingValue('')
+    this.livePicksProp.setPendingValue('')
     this.winnerProp.setPendingValue('')
     this.hostScoreProp.setPendingValue(0)
     this.guestScoreProp.setPendingValue(0)
@@ -584,7 +655,10 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
     if (this.localReadyDone) return
 
     this.localReadyDone = true
+    // Swap the Ready button for the "Waiting for Opponent" button. It stays up
+    // until both players are ready (applyGamePhaseUI / countdown hides it then).
     this.setReadyButtonVisible(false)
+    this.setWaitingButtonVisible(true)
     this.setStatusText('Ready! Waiting for opponent…')
 
     if (this.isHost) {
@@ -630,6 +704,7 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
 
     } else if (phase === PHASE_COUNTDOWN) {
       this.setReadyButtonVisible(false)
+      this.setWaitingButtonVisible(false)
       if (this.readyStatusText) this.readyStatusText.enabled = false
       this.setGameElementsVisible(false)
       // Both devices begin generating questions from their own cards now, so the
@@ -638,6 +713,7 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
 
     } else if (phase === PHASE_ACTIVE) {
       this.setReadyButtonVisible(false)
+      this.setWaitingButtonVisible(false)
       if (this.readyStatusText) this.readyStatusText.enabled = false
       this.startCountdownActive = false
       if (this.countdownText) this.countdownText.enabled = false
@@ -645,6 +721,7 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
 
     } else if (phase === PHASE_GAMEOVER) {
       this.setReadyButtonVisible(false)
+      this.setWaitingButtonVisible(false)
       if (this.readyStatusText) this.readyStatusText.enabled = false
       this.startCountdownActive = false
       this.nextRoundCountdownActive = false
@@ -658,6 +735,7 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
   // so the Ready button always appears at start regardless of network timing.
   private showLobbyLocally() {
     this.setReadyButtonVisible(!this.localReadyDone)
+    this.setWaitingButtonVisible(this.localReadyDone)
     if (this.readyStatusText) {
       this.readyStatusText.enabled = true
       const count = this.readyCountProp.currentOrPendingValue ?? 0
@@ -708,6 +786,21 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
     if (!this.readyButton) return
     const so = this.readyButton.getSceneObject()
     if (so) so.enabled = visible
+  }
+
+  private setWaitingButtonVisible(visible: boolean) {
+    if (!this.waitingButton) return
+    const so = this.waitingButton.getSceneObject()
+    if (so) so.enabled = visible
+  }
+
+  // Gives the waiting button one frame to run its own OnStartEvent setup (UIKit
+  // buttons only initialize their visual when enabled at startup), then hides it.
+  private hideWaitingButtonAfterInit() {
+    if (!this.waitingButton) return
+    const ev = this.createEvent('DelayedCallbackEvent') as DelayedCallbackEvent
+    ev.bind(() => this.setWaitingButtonVisible(false))
+    ev.reset(0)
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -771,6 +864,7 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
     this.hostBuzzedTimeProp.setPendingValue('')
     this.guestBuzzedTimeProp.setPendingValue('')
     this.roundResultProp.setPendingValue('')
+    this.livePicksProp.setPendingValue('')
     this.currentActiveBuzzerProp.setPendingValue('NONE')
     this.roundStateProp.setPendingValue('PLAYING')
     this.serveNextQuestion()
@@ -958,6 +1052,20 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
     if (this.isHost) this.scheduleNextRound(this.nextRoundDelaySeconds)
   }
 
+  // Renders markers from the live picks prop so a selection is marked on both
+  // devices the moment it's committed — including a wrong pick made while the
+  // question is still in play (the steal window). The conclusion phrase is left
+  // to renderRoundResult; here we only place/refresh the markers.
+  private renderLivePicks() {
+    const raw = this.livePicksProp.currentOrPendingValue || ''
+    if (!raw) { this.hideAnswerMarkers(); return }
+
+    const parts = raw.split(':')
+    const hostChoice  = parseInt(parts[0] ?? '-1')
+    const guestChoice = parseInt(parts[1] ?? '-1')
+    this.showAnswerMarkers(hostChoice, guestChoice)
+  }
+
   // Renders the conclusion (phrase + markers) from the single atomic result prop.
   private renderRoundResult() {
     const raw = this.roundResultProp.currentOrPendingValue || ''
@@ -979,6 +1087,12 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
     }
 
     this.showAnswerMarkers(hostChoice, guestChoice)
+
+    // When nobody got it, reveal the correct answer with a green button tint
+    // (no text marker) so both players still learn the answer.
+    if (type === 'BOTH_WRONG') {
+      this.colorOptionButton(this.correctAnswer, this.correctButtonColor)
+    }
 
     // On a game-winning answer the win/lose banner takes priority.
     if (this.gamePhaseProp.currentOrPendingValue === PHASE_GAMEOVER) {
@@ -1065,6 +1179,10 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
     if (player === 'HOST') this.hostPickThisRound = chosenOption
     else                   this.guestPickThisRound = chosenOption
 
+    // Surface the pick to both devices immediately so its marker appears now —
+    // not only at conclusion. Matters for a wrong answer during a live steal.
+    this.publishLivePicks()
+
     if (isCorrect) {
       const newScore = (player === 'HOST' ? currentHostScore : currentGuestScore) + this.REWARD_POINTS
       if (player === 'HOST') this.hostScoreProp.setPendingValue(newScore)
@@ -1111,6 +1229,16 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
   private publishRoundResult(type: 'WIN_HOST' | 'WIN_GUEST' | 'BOTH_WRONG') {
     this.roundResultProp.setPendingValue(
       `${type}:${this.hostPickThisRound}:${this.guestPickThisRound}`
+    )
+  }
+
+  // Host-only: publishes the current picks so both devices can mark them right
+  // away. Re-publishing as picks accumulate (e.g. first wrong, then the steal)
+  // keeps both markers in sync mid-question.
+  private publishLivePicks() {
+    if (!this.isHost) return
+    this.livePicksProp.setPendingValue(
+      `${this.hostPickThisRound}:${this.guestPickThisRound}`
     )
   }
 
@@ -1541,9 +1669,22 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
     this.meMarker  = this.ensureMarker(this.meMarker, 'AnswerMarker_Me')
     this.oppMarker = this.ensureMarker(this.oppMarker, 'AnswerMarker_Opponent')
 
-    const sameButton = myChoice > 0 && myChoice === oppChoice
-    this.placeMarker(this.meMarker, 'Me', myChoice, false)
-    this.placeMarker(this.oppMarker, 'Opponent', oppChoice, sameButton)
+    // Self marker always sits above its button, opponent always below — so the
+    // two never collide even when both players land on the same option.
+    this.placeMarker(this.meMarker, 'Me', myChoice, true)
+    this.placeMarker(this.oppMarker, 'Opponent', oppChoice, false)
+
+    // Tint each chosen button to match its marker (green = correct, red = wrong).
+    this.colorPickedButton(hostChoice)
+    this.colorPickedButton(guestChoice)
+  }
+
+  // Tints one player's chosen button green (correct) or red (wrong). No-op for
+  // an out-of-range choice (e.g. -1 when that player hasn't picked yet).
+  private colorPickedButton(choice: number) {
+    if (choice < 1 || choice > 4) return
+    const color = choice === this.correctAnswer ? this.correctButtonColor : this.incorrectButtonColor
+    this.colorOptionButton(choice, color)
   }
 
   // Lazily creates a Text SceneObject for a marker. No font is required — the
@@ -1553,12 +1694,12 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
     const obj = global.scene.createSceneObject(name)
     obj.enabled = false
     const t = obj.createComponent('Component.Text') as Text
-    t.horizontalAlignment = HorizontalAlignment.Left
+    t.horizontalAlignment = HorizontalAlignment.Center
     t.verticalAlignment = VerticalAlignment.Center
     return t
   }
 
-  private placeMarker(marker: Text, label: string, choice: number, stacked: boolean) {
+  private placeMarker(marker: Text, label: string, choice: number, isSelf: boolean) {
     const markerSO = marker.getSceneObject()
     if (!markerSO) return
 
@@ -1569,8 +1710,10 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
 
     markerSO.setParent(btnSO)
     markerSO.layer = btnSO.layer   // draw on the same render layer as the button
-    const off = this.answerMarkerOffset || new vec3(6, 0, 0)
-    const y = stacked ? off.y - this.answerMarkerStackSpacing : off.y
+    // Centered horizontally on the button; self above (+Y), opponent below (−Y).
+    const off = this.answerMarkerOffset || new vec3(0, 6, 0)
+    const yMag = Math.abs(off.y)
+    const y = isSelf ? yMag : -yMag
     const t = markerSO.getTransform()
     t.setLocalPosition(new vec3(off.x, y, off.z))
     t.setLocalRotation(quat.quatIdentity())
@@ -1590,12 +1733,85 @@ export class MultiplayerTriviaManager extends BaseScriptComponent {
       const so = this.oppMarker.getSceneObject()
       if (so) so.enabled = false
     }
+    // Markers and button tints share the same lifecycle, so clearing one clears
+    // the other (covers new question, lobby reset, and empty live/result props).
+    this.resetOptionButtonColors()
   }
 
   private markerColor(correct: boolean): vec4 {
-    return correct
-      ? new vec4(0.25, 0.85, 0.35, 1.0)  // green
-      : new vec4(0.95, 0.30, 0.30, 1.0)  // red
+    // Text markers reuse the button hue but always render fully opaque — the
+    // configured alpha only applies to the (optionally translucent) button tint.
+    const c = correct ? this.correctButtonColor : this.incorrectButtonColor
+    return new vec4(c.r, c.g, c.b, 1.0)
+  }
+
+  // ── Option button tinting (green/red) ──────────────────────────────────────
+
+  private optionButtonVisual(index: number): RoundedRectangleVisual | null {
+    const btn = this.optionButtonByIndex(index)
+    if (!btn) return null
+    const visual = (btn as any).visual
+    return visual ? (visual as RoundedRectangleVisual) : null
+  }
+
+  // Tints an option button by assigning a flat gradient to its resting states.
+  // The visual re-applies the active state on its own LateUpdateEvent, so the
+  // change is picked up the next frame. Originals are snapshotted on first tint.
+  private colorOptionButton(index: number, color: vec4) {
+    if (index < 1 || index > 4) return
+    const visual = this.optionButtonVisual(index)
+    if (!visual) return
+
+    this.snapshotOptionButtonVisual(index, visual)
+
+    const grad = this.flatGradient(color)
+    visual.defaultBaseType = 'Gradient'
+    visual.hoveredBaseType = 'Gradient'
+    visual.triggeredBaseType = 'Gradient'
+    visual.defaultGradient = grad
+    visual.hoveredGradient = grad
+    visual.triggeredGradient = grad
+  }
+
+  private snapshotOptionButtonVisual(index: number, visual: RoundedRectangleVisual) {
+    if (this.optionButtonVisualSnapshots[index - 1]) return
+    this.optionButtonVisualSnapshots[index - 1] = {
+      defaultBaseType: visual.defaultBaseType,
+      hoveredBaseType: visual.hoveredBaseType,
+      triggeredBaseType: visual.triggeredBaseType,
+      defaultGradient: visual.defaultGradient,
+      hoveredGradient: visual.hoveredGradient,
+      triggeredGradient: visual.triggeredGradient,
+    }
+  }
+
+  private resetOptionButtonColors() {
+    for (let index = 1; index <= 4; index++) {
+      const snap = this.optionButtonVisualSnapshots[index - 1]
+      if (!snap) continue
+      const visual = this.optionButtonVisual(index)
+      if (visual) {
+        visual.defaultBaseType = snap.defaultBaseType
+        visual.hoveredBaseType = snap.hoveredBaseType
+        visual.triggeredBaseType = snap.triggeredBaseType
+        visual.defaultGradient = snap.defaultGradient
+        visual.hoveredGradient = snap.hoveredGradient
+        visual.triggeredGradient = snap.triggeredGradient
+      }
+      this.optionButtonVisualSnapshots[index - 1] = null
+    }
+  }
+
+  // A flat, single-hue gradient that reads as a solid fill (per TopicSelectionPanel).
+  private flatGradient(color: vec4): GradientParameters {
+    return {
+      enabled: true,
+      type: 'Linear',
+      start: new vec2(-2, 1),
+      end: new vec2(2, -1),
+      stop0: { enabled: true, percent: 0, color },
+      stop1: { enabled: true, percent: 1, color },
+    }
   }
 
   private cacheOptionChildTextNodes() {
