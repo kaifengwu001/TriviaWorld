@@ -53,6 +53,11 @@ import { colorForTopics } from "../Interests/TopicColors";
 
 const DEG2RAD = Math.PI / 180
 
+// Perf: a plane card is "settled" (and stops writing its transform) once it eases to
+// within this squared distance (world units) of its fixed base position. ~0.2 units is
+// far below visible — a settled card sits exactly on its base.
+const SETTLE_EPSILON_SQ = 0.04
+
 // A PremadeCard composes correctly (image contained, caption below it, border auto-fit
 // around both) at its AUTHORED root scale — exactly what PingCardSpawner.popIn keeps. So
 // the deck never shrinks the card root: every card stays at world scale 1, and its size is
@@ -80,12 +85,14 @@ interface DeckSlot {
   elDeg: number
   // Fixed world position for this card on the cylinder; set on build.
   base: vec3
-  // Gentle in-place sway.
-  clock: number
-  swayPhase: number
-  swayPhase2: number
-  swayFreq: number
-  swayAmp: number
+  // Perf: once a plane card has eased onto its fixed `base` we stop writing its
+  // transform every frame (sway was removed). Reset to false whenever the card has
+  // to move again (returns from a front deck, or a relayout shifts its base).
+  settled: boolean
+  // Perf (FOV culling): true while this plane card is hidden because it's outside the
+  // view cone (off to the sides until you turn your head). Tracked so the visual
+  // toggle only fires on a change, never every frame.
+  culled: boolean
   // True while this card is pulled out as a query result (front row, in front).
   isResult: boolean
   // Last render order pushed to the card while it's a CoverFlow result (-1 = unset),
@@ -194,6 +201,20 @@ export class CardDeckController extends BaseScriptComponent {
   @input
   @hint("How quickly a card eases to its gaze-target size (higher = snappier).")
   gazeScaleEaseRate: number = 8
+
+  @ui.separator
+  @ui.label('<span style="color: #60A5FA;">Performance (off-screen culling)</span>')
+  @input
+  @hint("Stop RENDERING plane cards that fall outside your view cone. The deck spans ~3x the FoV, so the side cards are out of sight until you turn your head — hiding them cuts the GPU cost (quad + caption text + border mesh) of every card you can't see. Re-showing is instant (mesh + texture stay resident), so there is no pop-in. Leave ON.")
+  cullOffscreenCards: boolean = true
+
+  @input
+  @hint("Half-angle (degrees) of the keep-rendered cone around your view direction. Keep it comfortably WIDER than the ~22 deg visible FoV so a card is already drawn before it enters view. Lower = cull more cards (more GPU saved) but raises edge-pop risk; 40-50 is a safe range.")
+  cullConeDeg: number = 45
+
+  @input
+  @hint("Extra degrees a card keeps rendering AFTER it would otherwise cull, so cards hovering at the cone edge don't flicker on/off as your head drifts. 3-6 is plenty.")
+  cullHysteresisDeg: number = 4
 
   @ui.separator
   @ui.label('<span style="color: #60A5FA;">Relevance (clustering)</span>')
@@ -527,11 +548,8 @@ export class CardDeckController extends BaseScriptComponent {
       azDeg: 0,
       elDeg: 0,
       base: obj.getTransform().getWorldPosition(),
-      clock: this.rand(0, 10),
-      swayPhase: this.rand(0, 2 * Math.PI),
-      swayPhase2: this.rand(0, 2 * Math.PI),
-      swayFreq: this.rand(this.swayFreqMin, this.swayFreqMax),
-      swayAmp: this.swayAmplitudeCm * this.rand(0.6, 1),
+      settled: false,
+      culled: false,
       isResult: false,
       renderOrder: -1,
       needsBillboard: true,
@@ -740,29 +758,39 @@ export class CardDeckController extends BaseScriptComponent {
       else this.settleVerticalScrub(dt) // ease the scrub to its snapped target after release
     }
 
-    const swaySpeed = this.searchActive ? this.searchSpinMultiplier : 1
     for (let i = 0; i < this.slots.length; i++) {
       const slot = this.slots[i]
 
       // Front cards fly out to a readable deck in front of the user (horizontal
       // CoverFlow for query results, vertical for a point-and-pinch selection).
       if (slot.isResult) {
+        this.setSlotRendered(slot, true) // result cards are always in front + visible
         if (this.verticalActive) this.layoutVerticalSlot(slot, dt)
         else this.layoutResultSlot(slot, dt)
         continue
       }
 
-      // Plane card: ease toward its fixed spot (+ a little sway) and face the user.
-      // While a result row is up the plane holds still (no sway).
-      slot.clock += dt * swaySpeed
-      let target = slot.base
-      if (!this.driftFrozen) {
-        const su = slot.swayAmp * Math.sin(slot.swayFreq * slot.clock + slot.swayPhase)
-        const sv = slot.swayAmp * Math.cos(slot.swayFreq * slot.clock + slot.swayPhase2)
-        target = slot.base.add(this.rightW.uniformScale(su)).add(this.upW.uniformScale(sv))
+      // FOV cull: hide plane cards outside the view cone (the deck spans ~3x the FoV,
+      // so the side cards are off-screen until you turn your head). Toggling fires only
+      // on a change; re-showing is instant (mesh + texture stay resident).
+      if (this.cullOffscreenCards) {
+        this.setSlotRendered(slot, this.isSlotInViewCone(slot, !slot.culled))
       }
-      const cur = slot.trans.getWorldPosition()
-      slot.trans.setWorldPosition(vec3.lerp(cur, target, Math.min(1, 5 * dt)))
+
+      // Plane card: ease toward its fixed spot, then HOLD. Sway was removed, so once a
+      // card reaches its base it "settles" and we stop touching its transform entirely
+      // (no getWorldPosition/setWorldPosition per frame) until something moves it again.
+      if (!slot.settled) {
+        const cur = slot.trans.getWorldPosition()
+        const next = vec3.lerp(cur, slot.base, Math.min(1, 5 * dt))
+        const dx = next.x - slot.base.x, dy = next.y - slot.base.y, dz = next.z - slot.base.z
+        if (dx * dx + dy * dy + dz * dz < SETTLE_EPSILON_SQ) {
+          slot.trans.setWorldPosition(slot.base) // snap exactly onto base, then freeze
+          slot.settled = true
+        } else {
+          slot.trans.setWorldPosition(next)
+        }
+      }
       // Billboard ONCE and hold (the cards are world-fixed on the cylinder, so they
       // don't need to re-orient every frame). Re-fired only when the card returns
       // to the plane from a front deck (needsBillboard set by the clear/rebase paths).
@@ -776,6 +804,33 @@ export class CardDeckController extends BaseScriptComponent {
         this.easeWorldScale(slot, targetScale, Math.min(1, this.num(this.gazeScaleEaseRate, 8) * dt))
       }
     }
+  }
+
+  // FOV cull test: is this plane card within the keep-rendered cone (half-angle
+  // cullConeDeg) of the camera's look direction? Uses the card's FIXED base position
+  // (cheap + stable, no live transform read). `wasVisible` applies hysteresis — a card
+  // already shown keeps rendering for cullHysteresisDeg extra degrees so cards hovering
+  // at the cone edge don't flicker on/off as the head drifts.
+  private isSlotInViewCone(slot: DeckSlot, wasVisible: boolean): boolean {
+    if (!this.camTrans) return true // no camera: never cull
+    const camPos = this.camTrans.getWorldPosition()
+    const viewDir = this.camTrans.forward.uniformScale(-1) // project camera looks along -forward
+    const toCard = slot.base.sub(camPos)
+    const dist = toCard.length
+    if (dist < 1e-3) return true
+    const cosAngle = toCard.dot(viewDir) / dist
+    const half = Math.max(1, this.cullConeDeg) + (wasVisible ? Math.max(0, this.cullHysteresisDeg) : 0)
+    return cosAngle >= Math.cos(half * DEG2RAD)
+  }
+
+  // Shows or hides ALL of a card's visuals as one unit (the FOV cull). Tracks the
+  // per-slot state so the underlying picture/border/caption toggles only fire on a
+  // change, never every frame.
+  private setSlotRendered(slot: DeckSlot, visible: boolean): void {
+    const culled = !visible
+    if (slot.culled === culled) return
+    slot.culled = culled
+    if (slot.card) slot.card.setRenderingEnabled(visible)
   }
 
   // Resting world scale for a card given the user's gaze: AUTHORED_WORLD_SCALE outside the
@@ -935,6 +990,7 @@ export class CardDeckController extends BaseScriptComponent {
       slot.azDeg = az / DEG2RAD
       slot.elDeg = v[i]
       slot.trans.setWorldPosition(slot.base)
+      slot.settled = true // placed exactly on base by the build — no per-frame easing needed
       this.billboardSlot(slot, true) // capture this as the card's remembered baseRot
       if (u[i] < minU) minU = u[i]
       if (u[i] > maxU) maxU = u[i]
@@ -942,9 +998,12 @@ export class CardDeckController extends BaseScriptComponent {
     this.layoutBuilt = true
 
     // Every card is now sized + placed, so reveal any held invisible at spawn
-    // (hideUntilReady). Idempotent: already-visible cards are left as-is.
+    // (hideUntilReady). Idempotent: already-visible cards are left as-is. reveal()
+    // re-enables ALL visuals, so clear each cull flag to match — the per-frame cull in
+    // update() then re-hides the off-screen cards the same frame from a known state.
     for (let i = 0; i < this.slots.length; i++) {
       if (this.slots[i].card) this.slots[i].card.reveal()
+      this.slots[i].culled = false
     }
 
     // Diagnostic: live inputs + resulting band footprint + a sample card.
@@ -1216,6 +1275,7 @@ export class CardDeckController extends BaseScriptComponent {
       if (!slot) continue
       slot.isResult = false
       slot.needsBillboard = true // re-billboard once when it settles back on the plane
+      slot.settled = false // must ease back to its plane spot from the front deck
       this.applyWorldScale(slot, AUTHORED_WORLD_SCALE) // back to the resting (authored) scale
       this.restoreCosmosCardSize(slot) // relayout at resting scale (after scale is restored)
       if (slot.card) slot.card.setRenderInFront(false)
@@ -1364,6 +1424,7 @@ export class CardDeckController extends BaseScriptComponent {
     if (inc) {
       inc.isResult = false
       inc.needsBillboard = true // re-billboard once when it settles back on the plane
+      inc.settled = false // must ease back to its plane spot from the front deck
       this.applyWorldScale(inc, AUTHORED_WORLD_SCALE) // back to the resting (authored) scale
       this.restoreCosmosCardSize(inc) // relayout at resting scale (after scale is restored)
       if (inc.card) inc.card.setRenderInFront(false)
@@ -1399,6 +1460,7 @@ export class CardDeckController extends BaseScriptComponent {
     if (out) {
       out.isResult = false
       out.needsBillboard = true // re-billboard once when it settles back on the plane
+      out.settled = false // must ease back to its plane spot from the front deck
       this.applyWorldScale(out, AUTHORED_WORLD_SCALE) // back to the resting (authored) scale
       this.restoreCosmosCardSize(out) // relayout at resting scale (after scale is restored)
       if (out.card) out.card.setRenderInFront(false)
@@ -1442,6 +1504,7 @@ export class CardDeckController extends BaseScriptComponent {
       if (!s) continue
       s.isResult = false
       s.needsBillboard = true // re-billboard once when it settles back on the plane
+      s.settled = false // must ease back to its plane spot from the front deck
       this.applyWorldScale(s, AUTHORED_WORLD_SCALE) // back to the resting (authored) scale
       this.restoreCosmosCardSize(s) // relayout at resting scale (after scale is restored)
       if (s.card) s.card.setRenderInFront(false)

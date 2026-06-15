@@ -57,6 +57,9 @@
     coverVGapFrac: false
     coverVStepFrac: false
     coverVerticalImageHeightCm: false
+    cullConeDeg: false
+    cullHysteresisDeg: false
+    cullOffscreenCards: false
     dateRangeDays: false
     dateWeight: false
     enableLogging: false
@@ -107,6 +110,9 @@
       gazeScaleConeDeg: !<float> 18.000000
       gazeScaleMaxBoost: 1.600000
       gazeScaleEaseRate: !<float> 8.000000
+      cullOffscreenCards: true
+      cullConeDeg: !<float> 45.000000
+      cullHysteresisDeg: !<float> 4.000000
       topicWeight: 0.700000
       locationWeight: 0.200000
       dateWeight: 0.100000
@@ -172,6 +178,11 @@
     - '// @input float gazeScaleConeDeg = 18 {"hint":"Half-angle (degrees) of the gaze cone around the view centre. Cards inside it grow; cards outside stay at their resting size."}'
     - '// @input float gazeScaleMaxBoost = 1.6 {"hint":"Scale multiplier applied to the card EXACTLY at the view centre (1 = no growth). Falls off smoothly to 1 at the cone edge."}'
     - '// @input float gazeScaleEaseRate = 8 {"hint":"How quickly a card eases to its gaze-target size (higher = snappier)."}'
+    - '// @ui {"widget":"separator"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Performance (off-screen culling)</span>"}'
+    - "// @input bool cullOffscreenCards = true {\"hint\":\"Stop RENDERING plane cards that fall outside your view cone. The deck spans ~3x the FoV, so the side cards are out of sight until you turn your head — hiding them cuts the GPU cost (quad + caption text + border mesh) of every card you can't see. Re-showing is instant (mesh + texture stay resident), so there is no pop-in. Leave ON.\"}"
+    - '// @input float cullConeDeg = 45 {"hint":"Half-angle (degrees) of the keep-rendered cone around your view direction. Keep it comfortably WIDER than the ~22 deg visible FoV so a card is already drawn before it enters view. Lower = cull more cards (more GPU saved) but raises edge-pop risk; 40-50 is a safe range."}'
+    - "// @input float cullHysteresisDeg = 4 {\"hint\":\"Extra degrees a card keeps rendering AFTER it would otherwise cull, so cards hovering at the cone edge don't flicker on/off as your head drifts. 3-6 is plenty.\"}"
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Relevance (clustering)</span>"}'
     - '// @input float topicWeight = 0.7 {"hint":"Weight of shared topics in the relevance score (primary signal)."}'

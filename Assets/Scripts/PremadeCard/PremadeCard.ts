@@ -437,6 +437,21 @@ export class PremadeCard extends BaseScriptComponent {
     if (textVisual) (textVisual as any).renderOrder = order
   }
 
+  /**
+   * Shows or hides ALL of this card's visuals (picture + border + caption) as one
+   * unit, WITHOUT touching the morph / layout / measure state. The CardDeckController
+   * uses this to FOV-cull cards that sit off to the sides (out of view) so they stop
+   * rendering — the dominant GPU cost when the whole deck draws every frame. Re-showing
+   * is instant: the mesh stays built and the texture stays resident, so a card never
+   * flashes blank. Each sub-toggle skips redundant writes, so this is cheap to call
+   * (only the controller's change-tracking actually fires it).
+   */
+  setRenderingEnabled(enabled: boolean): void {
+    this.setPictureEnabled(enabled)
+    if (this.borderBubble) this.borderBubble.setVisible(enabled)
+    if (this.caption) this.caption.setVisible(enabled)
+  }
+
   /** Jump to the card/bubble end state with no animation. */
   snapExpanded(expanded: boolean): void {
     if (!this.morph) return
