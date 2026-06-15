@@ -184,26 +184,26 @@ const LINE_BANK: Record<BattleEvent, LineTier> = {
   WIN: {
     playful: [
       "Winner! Genuinely well played.",
-      "Champion. You earned that one.",
-      "That's the match. Nicely done.",
+      "Champion — you earned every bit of that.",
+      "That's the match. Beautifully done.",
     ],
     savage: [
-      "You won. I'm as shocked as you are.",
-      "You won. I'll admit I doubted you.",
-      "Winner — enjoy it before the rematch.",
+      "Winner! You were brilliant out there.",
+      "Champion! What a performance.",
+      "You did it — and you made it look easy.",
     ],
   },
 
   LOSS: {
     playful: [
-      "Tough one — rematch button's right there.",
-      "So close. Run it back?",
-      "Not your match. The next one might be.",
+      "Tough one — you gave it a real fight.",
+      "So close. You'll get the next one.",
+      "Not your match — the next one's yours.",
     ],
     savage: [
-      "Participation is its own reward. A small one.",
-      "There's always next time. Probably.",
-      "Well. That happened.",
+      "Great effort — closer than the score says.",
+      "It's a tough one. You played really well today.",
+      "No shame in that one — well fought.",
     ],
   },
 };
