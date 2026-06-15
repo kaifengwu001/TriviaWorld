@@ -30,9 +30,11 @@
     delaySeconds: false
     dynamicAudioOutput: false
     enableLogging: false
+    maxConnectAttempts: false
     model: false
     nudgeIntent: false
     persona: false
+    retryIntervalSec: false
     voice: false
     websocketRequirementsObj: false
   ScriptTypesHidden:
@@ -50,6 +52,8 @@
       nudgeIntent: "Tell the user, in a friendly, slightly excited tone, that you've found some interesting things nearby, and remind them about the gesture they can use to discover the world. Keep it to one or two short, natural sentences."
       delaySeconds: !<float> 60.000000
       connectLeadSec: !<float> 5.000000
+      retryIntervalSec: !<float> 2.000000
+      maxConnectAttempts: !<float> 6.000000
       persona: "You are the warm, upbeat first-person voice host of TriviaGo, an AR learning companion. You speak directly to the user. When given an instruction about what to convey, say it in your own words -- one or two short, natural, friendly sentences -- and vary the wording. Never read instructions back, never add stage directions or quotation marks, and don't ask for clarification; just speak naturally to the user."
       model: gemini-live-2.5-flash
       enableLogging: true
@@ -71,6 +75,8 @@
     - "// @input string nudgeIntent = \"Tell the user, in a friendly, slightly excited tone, that you've found some interesting things nearby, and remind them about the gesture they can use to discover the world. Keep it to one or two short, natural sentences.\" {\"hint\":\"What the reminder should convey (the model says it in its own words, so wording varies).\", \"widget\":\"text_area\"}"
     - '// @input float delaySeconds = 60 {"hint":"Seconds after launch before the reminder is spoken"}'
     - '// @input float connectLeadSec = 5 {"hint":"How many seconds before the reminder to open the Gemini Live connection (lazy connect). Clamped to delaySeconds."}'
+    - '// @input float retryIntervalSec = 2 {"hint":"If a conversational agent holds the single live session when the nudge is due, how often (seconds) to re-check so the nudge speaks right after that agent releases — instead of being dropped."}'
+    - '// @input float maxConnectAttempts = 6 {"hint":"Max consecutive FAILED connect attempts (e.g. a session collision keeps evicting us) before the nudge gives up, to avoid hammering the gateway. Waiting for an active agent does NOT count toward this."}'
     - "// @input string persona = \"You are the warm, upbeat first-person voice host of CurioCity, an AR learning companion. You speak directly to the user. When given an instruction about what to convey, say it in your own words -- one or two short, natural, friendly sentences -- and vary the wording. Never read instructions back, never add stage directions or quotation marks, and don't ask for clarification; just speak naturally to the user.\" {\"hint\":\"Host persona / system instruction. The model speaks the requested intent in its own words.\", \"widget\":\"text_area\"}"
     - "// @input string model = \"gemini-live-2.5-flash\" {\"hint\":\"Gemini Live model id (no 'models/' prefix — it's added automatically). Supported: gemini-live-2.5-flash, gemini-2.0-flash-live-preview-04-09, gemini-live-2.5-flash-preview-native-audio\"}"
     - '// @ui {"widget":"group_end"}'

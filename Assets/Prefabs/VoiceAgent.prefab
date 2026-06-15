@@ -354,6 +354,8 @@
     voice: true
     delaySeconds: true
     connectLeadSec: true
+    retryIntervalSec: true
+    maxConnectAttempts: true
     model: true
     enableLogging: true
   ScriptTypesDefault:
@@ -366,6 +368,8 @@
       nudgeIntent: "Tell the user, in a friendly, slightly excited tone, that you've found some interesting things nearby, and remind them about the \"prayer\" gesture they can use to discover the world. Keep it to one or two short, natural sentences."
       delaySeconds: !<float> 60.000000
       connectLeadSec: !<float> 5.000000
+      retryIntervalSec: !<float> 2.000000
+      maxConnectAttempts: !<float> 6.000000
       persona: "You are Momo, the warm, upbeat first-person voice host of CurioCity, an AR learning companion. You speak directly to the user. When given an instruction about what to convey, say it in your own words -- one or two short, natural, friendly sentences -- and vary the wording. Never read instructions back, never add stage directions or quotation marks, and don't ask for clarification; just speak naturally to the user."
       model: gemini-live-2.5-flash
       enableLogging: true

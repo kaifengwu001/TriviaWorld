@@ -502,7 +502,6 @@
     placeholderImages: true
     location: true
     customTopics: true
-    singleRepeatIndex: true
     targetSpawnCount: true
     concentrateTowardFront: true
     wavefrontSpeedOverride: true
@@ -538,17 +537,17 @@
         - !<reference> c3c5a1d9-a4df-429d-9fb0-4ef6d133cd2c
         - !<reference> 21dc679e-3361-43cb-a6c4-a6444c92436f
       customTexts: !<string[]>
+        - "Salmon don't make their famous omega-3 fatty acids themselves — microscopic marine algae synthesize them, and the oils accumulate up the food chain, meaning \"fish oil\" is really repackaged plant oil. #Botany #Salmon #Omega3 #MarineAlgae\""
         - |
           A fish's "fishy" smell is bacteria converting odorless trimethylamine oxide into pungent trimethylamine; a squeeze of lemon kills it because citric acid binds the amine into a non-volatile salt. #Chemistry #Fish #FoodScience
 
-        - "Salmon don't make their famous omega-3 fatty acids themselves — microscopic marine algae synthesize them, and the oils accumulate up the food chain, meaning \"fish oil\" is really repackaged plant oil. #Botany #Salmon #Omega3 #MarineAlgae\""
-        - 'ISS astronauts sip espresso from a "Space Cup" whose wedge shape uses surface tension, not gravity, to wick coffee toward the lips — otherwise the liquid would float away as a drifting blob. #Space #Coffee #ISS'
         - "Pike Place's covered cobblestones are prime busking turf, blocks from where young Jimi Hendrix grew up in Seattle — the same downtown street-performance culture his memorial statue now anchors. #Music #PikePlaceMarket #JimiHendrix #Busking\""
+        - 'ISS astronauts sip espresso from a "Space Cup" whose wedge shape uses surface tension, not gravity, to wick coffee toward the lips — otherwise the liquid would float away as a drifting blob. #Space #Coffee #ISS'
       customTopics: !<string[]>
         []
       randomizeRepeats: true
       singleRepeat: true
-      singleRepeatIndex: !<float> 0.000000
+      singleRepeatIndex: !<float> 1.000000
       targetSpawnCount: !<float> 12.000000
       randomizeBorderColors: true
       minDistance: !<float> 120.000000
@@ -556,9 +555,9 @@
       floorHeight: !<float> -30.000000
       ceilingHeight: !<float> 30.000000
       concentrateTowardFront: true
-      frontArcHalfAngleDeg: !<float> 120.000000
-      frontBias: 0.150000
-      minAngularSeparationDeg: !<float> 8.000000
+      frontArcHalfAngleDeg: !<float> 175.000000
+      frontBias: 0.100000
+      minAngularSeparationDeg: !<float> 25.000000
       wavefrontSpeedOverride: !<float> 0.000000
       revealOffsetSec: !<float> 0.000000
       revealPopDuration: 0.500000
@@ -8819,40 +8818,32 @@
   Enabled: true
   ScriptAsset: !<reference> 9d71f1ff-4c59-4c84-87d2-402910def6cc
   ScriptInputsDefault:
-    palette: true
     spawnOnWavefront: true
     wavefrontSpeedOverride: true
     revealOffsetSec: true
     revealPopDuration: true
     allowRespawn: true
     floorHeight: true
-    radiusMin: true
-    radiusMax: true
-    targetWidthMin: true
-    targetHeightMin: true
-    targetHeightMax: true
-    targetCornerRadius: true
-    noiseScale: true
-    distortion: true
-    undulateSpeed: true
-    rectLineWidth: true
-    fillOpacity: true
-    globalProgress: true
-    animateSpeed: true
     billboard: true
     fovCullEnabled: true
-    halfRateUpdate: true
-    logPerfStats: true
     enableLogging: true
     enableLoggingLifecycle: true
   ScriptTypesDefault:
     {}
   ScriptInputs:
     "":
-      baseMaterial: !<reference.Material> 539454c8-637b-438a-9281-722f5ace94c8
-      palette: !<Vec4[]>
-        []
-      bubbleCount: !<float> 45.000000
+      baseMaterial: !<reference.Material> fb942e39-cb39-45c9-a514-72ed8ef7bc4c
+      textures: !<reference.Texture[]>
+        - !<reference> 1d4eb0f7-763d-4590-9fce-03658894dc66
+        - !<reference> fddbe81f-7101-47c5-9fd4-4867b26dfd6a
+        - !<reference> f5755dfa-48e2-4e3e-81c1-2277b4a15c3f
+        - !<reference> 3f9e93c3-347a-45a6-aecf-9ad9eaa63f62
+        - !<reference> 6a4a1558-af9d-402e-98c7-4417e8721ddd
+        - !<reference> dc0e14f5-74e0-42fe-ba61-ee3ee7c74aa6
+        - !<reference> 0de05344-bfd7-4676-b8bc-4fab81381590
+        - !<reference> 193c8ee0-890c-4aee-b1ec-a09a9553e968
+        - !<reference> ad4238fc-fb64-4631-9d3e-f9866e9720ea
+      bubbleCount: !<float> 90.000000
       minDistance: !<float> 300.000000
       maxDistance: !<float> 1500.000000
       spawnOnWavefront: true
@@ -8863,30 +8854,12 @@
       allowRespawn: false
       floorHeight: !<float> -50.000000
       ceilingHeight: !<float> 50.000000
-      radiusMin: !<float> 3.000000
-      radiusMax: !<float> 6.000000
-      targetWidthMin: !<float> 8.000000
-      targetWidthMax: !<float> 8.000000
-      targetHeightMin: !<float> 6.000000
-      targetHeightMax: !<float> 10.000000
-      targetCornerRadius: !<float> 2.000000
-      numPoints: !<float> 12.000000
-      noiseScale: 0.480000
-      distortion: !<float> 4.000000
-      undulateSpeed: 0.150000
-      innerFraction: 0.500000
-      rectLineWidth: 0.400000
-      fillOpacity: 0.900000
-      globalProgress: !<float> 0.000000
-      autoAnimate: false
-      animateSpeed: !<float> 1.000000
+      radiusMin: !<float> 5.000000
+      radiusMax: !<float> 18.000000
       cameraObject: !<reference.SceneObject> 00000000-0000-0065-0000-000000000064
       billboard: true
       fovCullEnabled: true
       fovCullHalfAngleDeg: !<float> 15.000000
-      halfRateUpdate: true
-      logPerfStats: false
-      perfStatsText: !<reference.Text> c6c7a97a-1a17-4dad-99f5-efa71cdad347
       enableLogging: false
       enableLoggingLifecycle: false
   ScriptTypes:
@@ -9635,6 +9608,8 @@
     voice: true
     delaySeconds: true
     connectLeadSec: true
+    retryIntervalSec: true
+    maxConnectAttempts: true
     model: true
     enableLogging: true
   ScriptTypesDefault:
@@ -9647,6 +9622,8 @@
       nudgeIntent: "Tell the user, in a friendly, slightly excited tone, that you've found some interesting things nearby, and remind them about the \"prayer\" gesture they can use to discover the world. Keep it to one or two short, natural sentences."
       delaySeconds: !<float> 60.000000
       connectLeadSec: !<float> 5.000000
+      retryIntervalSec: !<float> 2.000000
+      maxConnectAttempts: !<float> 6.000000
       persona: "You are Momo, the warm, upbeat first-person voice host of CurioCity, an AR learning companion. You speak directly to the user. When given an instruction about what to convey, say it in your own words -- one or two short, natural, friendly sentences -- and vary the wording. Never read instructions back, never add stage directions or quotation marks, and don't ask for clarification; just speak naturally to the user."
       model: gemini-live-2.5-flash
       enableLogging: true

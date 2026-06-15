@@ -27,43 +27,25 @@
   PackagePolicy: CanBeUnpacked
   ScriptInputsHidden:
     allowRespawn: false
-    animateSpeed: false
-    autoAnimate: false
     baseMaterial: false
     billboard: false
     bubbleCount: false
     cameraObject: false
     ceilingHeight: false
-    distortion: false
     enableLogging: false
     enableLoggingLifecycle: false
-    fillOpacity: false
     floorHeight: false
     fovCullEnabled: false
     fovCullHalfAngleDeg: false
-    globalProgress: false
-    halfRateUpdate: false
-    innerFraction: false
-    logPerfStats: false
     maxDistance: false
     minDistance: false
-    noiseScale: false
-    numPoints: false
-    palette: false
-    perfStatsText: false
     pingController: false
     radiusMax: false
     radiusMin: false
-    rectLineWidth: false
     revealOffsetSec: false
     revealPopDuration: false
     spawnOnWavefront: false
-    targetCornerRadius: false
-    targetHeightMax: false
-    targetHeightMin: false
-    targetWidthMax: false
-    targetWidthMin: false
-    undulateSpeed: false
+    textures: false
     wavefrontSpeedOverride: false
   ScriptTypesHidden:
     {}
@@ -75,7 +57,7 @@
     []
   DefaultScriptInputs:
     - baseMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
-      palette: !<Vec4[]>
+      textures: !<reference.Texture[]>
         []
       bubbleCount: !<float> 12.000000
       minDistance: !<float> 80.000000
@@ -90,39 +72,21 @@
       ceilingHeight: !<float> 100.000000
       radiusMin: !<float> 3.000000
       radiusMax: !<float> 6.000000
-      targetWidthMin: !<float> 8.000000
-      targetWidthMax: !<float> 16.000000
-      targetHeightMin: !<float> 6.000000
-      targetHeightMax: !<float> 10.000000
-      targetCornerRadius: !<float> 2.000000
-      numPoints: !<float> 64.000000
-      noiseScale: 0.480000
-      distortion: !<float> 4.000000
-      undulateSpeed: 0.150000
-      innerFraction: 0.100000
-      rectLineWidth: 0.400000
-      fillOpacity: 0.900000
-      globalProgress: !<float> 0.000000
-      autoAnimate: true
-      animateSpeed: !<float> 1.000000
       cameraObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
       billboard: true
       fovCullEnabled: true
       fovCullHalfAngleDeg: !<float> 70.000000
-      halfRateUpdate: true
-      logPerfStats: false
-      perfStatsText: !<reference.Text> 00000000-0000-0000-0000-000000000000
       enableLogging: false
       enableLoggingLifecycle: false
   ScriptTypes:
     -
       {}
   InputLines:
-    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">BubbleField – spawns and drives a field of morphing bubbles</span><br/><span style=\"color: #94A3B8; font-size: 11px;\">Creates N BubbleMesh children with assorted colors/sizes and animates the blob &lt;-&gt; rounded-rect morph for testing.</span>"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">BubbleField – spawns a field of textured, billboarded bubbles</span><br/><span style=\"color: #94A3B8; font-size: 11px;\">Scatters N flat PNG quads in a cylinder around the player, each with a random texture from the array below. Bubbles pop in on the ping wavefront.</span>"}'
     - '// @ui {"widget":"separator"}'
-    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Material & Colors</span>"}'
-    - '// @input Asset.Material baseMaterial {"hint":"Base material cloned onto every bubble. Use an unlit, two-sided material."}'
-    - '// @input vec4[] palette = {} {"hint":"Color palette (RGBA). Bubbles cycle through these; if empty, random colors are used."}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Material & Textures</span>"}'
+    - '// @input Asset.Material baseMaterial {"hint":"Base material cloned onto every bubble. Use an unlit, two-sided, textured material — its baseTex is overwritten per bubble."}'
+    - '// @input Asset.Texture[] textures = {} {"hint":"Textures the bubbles draw. Each bubble picks one at random. If empty, bubbles spawn but show no image."}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Spawning (cylindrical pipe around the player)</span>"}'
     - '// @input float bubbleCount = 12 {"hint":"Number of bubbles to spawn"}'
@@ -138,40 +102,16 @@
     - '// @input bool allowRespawn {"hint":"Allow a later wave to clear the previous bubbles and spawn again. Off = the first wave wins and later calls are ignored."}'
     - '// @input float floorHeight = -50 {"hint":"Floor height (cm, local Y) — the bottom of the spawn pipe. May be negative (below the origin)."}'
     - '// @input float ceilingHeight = 100 {"hint":"Ceiling height (cm, local Y) — the top of the spawn pipe."}'
-    - '// @input float radiusMin = 3 {"hint":"Minimum blob radius (cm)"}'
-    - '// @input float radiusMax = 6 {"hint":"Maximum blob radius (cm)"}'
     - '// @ui {"widget":"separator"}'
-    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Target Rounded Rectangles</span>"}'
-    - '// @input float targetWidthMin = 8 {"hint":"Minimum target rectangle width (cm)"}'
-    - '// @input float targetWidthMax = 16 {"hint":"Maximum target rectangle width (cm)"}'
-    - '// @input float targetHeightMin = 6 {"hint":"Minimum target rectangle height (cm)"}'
-    - '// @input float targetHeightMax = 10 {"hint":"Maximum target rectangle height (cm)"}'
-    - '// @input float targetCornerRadius = 2 {"hint":"Fixed corner radius (cm), kept constant regardless of size/aspect"}'
-    - '// @ui {"widget":"separator"}'
-    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Shape Detail</span>"}'
-    - '// @input float numPoints = 64 {"hint":"Points per RIM (the ring mesh uses 2x for outer + inner). On the rounded rect every point goes to the corners (none on the straight edges), so each corner gets ~numPoints/4 points. Raise for denser corners."}'
-    - '// @input float noiseScale = 0.48 {"hint":"Perlin sampling scale for the blob rim"}'
-    - '// @input float distortion = 4 {"hint":"Blob rim distortion amount"}'
-    - '// @input float undulateSpeed = 0.15 {"hint":"Wobble animation speed"}'
-    - '// @ui {"widget":"separator"}'
-    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Ring</span>"}'
-    - "// @input float innerFraction = 0.1 {\"hint\":\"BLOB ring thickness as a fraction of the radius (the prototype's SUB_FRACTION). Varies per bubble with the radius. Small = thin rim ring; 1 = solid disc.\"}"
-    - '// @input float rectLineWidth = 0.4 {"hint":"RECT ring thickness in cm. Uniform across every bubble, so all morphed rounded rects share the same line width regardless of bubble size."}'
-    - "// @input float fillOpacity = 0.9 {\"hint\":\"Opacity multiplier for the ring fill (needs a translucent material to show). Matches the prototype's 0.9 fill opacity.\"}"
-    - '// @ui {"widget":"separator"}'
-    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Morph Control (debug)</span>"}'
-    - '// @input float globalProgress {"hint":"Morph amount applied to all bubbles when Auto Animate is off (0 = blob, 1 = rounded rect)"}'
-    - '// @input bool autoAnimate = true {"hint":"Continuously oscillate the morph 0 <-> 1 for testing"}'
-    - '// @input float animateSpeed = 1 {"hint":"Oscillation speed (radians per second) when Auto Animate is on"}'
+    - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Size</span>"}'
+    - "// @input float radiusMin = 3 {\"hint\":\"Minimum bubble size (cm) — drives the LARGER dimension of the quad; the other dimension follows the texture's aspect ratio.\"}"
+    - '// @input float radiusMax = 6 {"hint":"Maximum bubble size (cm) — drives the LARGER dimension of the quad."}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Camera & Performance</span>"}'
-    - '// @input SceneObject cameraObject {"hint":"The player camera object. Used to billboard bubbles toward the viewer and to cull off-screen updates. If unset, billboarding and FOV culling are disabled."}'
-    - '// @input bool billboard = true {"hint":"Billboard each bubble to face the camera. Applied ONCE when the bubble spawns (its +Z normal is aimed at the camera position) and then held — the bubbles are world-fixed, so re-orienting every frame is wasted work."}'
-    - "// @input bool fovCullEnabled = true {\"hint\":\"Skip per-frame mesh updates for bubbles outside the camera's field of view (they freeze until they come back into view).\"}"
+    - '// @input SceneObject cameraObject {"hint":"The player camera object. Used to billboard bubbles toward the viewer and to cull off-screen ones. If unset, billboarding and FOV culling are disabled."}'
+    - '// @input bool billboard = true {"hint":"Billboard each bubble to face the camera. Applied ONCE when the bubble spawns (its +Z normal is aimed at the camera position) and then held — the bubbles are world-fixed."}'
+    - "// @input bool fovCullEnabled = true {\"hint\":\"Hide bubbles outside the camera's field of view (they stop drawing until they come back into view).\"}"
     - '// @input float fovCullHalfAngleDeg = 70 {"hint":"Half-angle (degrees) of the view cone used for FOV culling. Generous values avoid culling bubbles near the screen edges; lower to cull more aggressively."}'
-    - "// @input bool halfRateUpdate = true {\"hint\":\"Update only half the bubbles each frame (alternating halves), halving per-frame mesh compute. Wobble stays smooth because the skipped frame's time is folded into the next update.\"}"
-    - '// @input bool logPerfStats {"hint":"Write a once-per-second report (bubble count, advances/frame, culled/frame, and time spent in the update loop) so you can verify FOV culling and half-rate updates are actually reducing work."}'
-    - '// @input Component.Text perfStatsText {"hint":"Text component the perf report is written to. If unset, the report falls back to the console."}'
     - '// @ui {"widget":"separator"}'
     - '// @ui {"widget":"label", "label":"<span style=\"color: #60A5FA;\">Logging</span>"}'
     - '// @input bool enableLogging {"hint":"Enable general logging"}'
