@@ -259,7 +259,6 @@ Gemini Live runs over a gateway WebSocket and **does not work in the Lens Studio
 
 ```
 Assets/
-  MultiplayerTriviaManager.ts        — Battle session/networking host (SpectaclesSyncKit)
   EdgeFunctionRoastById.ts           — Supabase roast-by-id fetcher (see Supabase note)
   DatabaseTypes.ts                   — Supabase-generated DB schema types
   SupabaseProject.supabaseProject    — Supabase project asset (Snap Cloud)
@@ -285,12 +284,13 @@ Assets/
     Globe/         — GlobeController, GlobeView, MapViewport, CityData, cityBounds(.json/.ts),
                      CityMarker, CardMarkerLayer, CardGeo, GeoMath, GpsPingLayer,
                      PinchDragTracker, waterMask (+ README)
-    Battle/        — BattleHostVoice, BattleHostLines, BattleQuestionGenerator, PremadeQuestions
+    Battle/        — MultiplayerTriviaManager (SpectaclesSyncKit session/networking host),
+                     BattleHostVoice, BattleHostLines, BattleQuestionGenerator, PremadeQuestions
     SceneSwitcher/ — SceneSwitcherPanel
 tools/generate_map_textures.py         — Offline map-texture + cityBounds generator
 ```
 
-*(`MultiplayerTriviaManager.ts` sits directly in `Assets/` and imports its Battle helpers from `./Scripts/Battle/…`. `Assets/` also holds the Supabase project + `DatabaseTypes.ts` + `EdgeFunctionRoastById.ts`, plus asset folders — `Prefabs/`, `Materials/`, `Meshes/`, `Shaders/`, `Textures/`, `Images/`, `Fonts/`, `Project/`, `Rendering/`, `Examples/` — and the scene's shader graphs/materials. The repo root also contains `Packages/` and `.gitfilters/` with the RSG token‑scrubbing config described under Setup.)*
+*(`MultiplayerTriviaManager.ts` lives in `Assets/Scripts/Battle/` alongside the other Battle scripts and imports its helpers from there (`./BattleHostLines`, `./PremadeQuestions`). `Assets/` also holds the Supabase project + `DatabaseTypes.ts` + `EdgeFunctionRoastById.ts`, plus asset folders — `Prefabs/`, `Materials/`, `Meshes/`, `Shaders/`, `Textures/`, `Images/`, `Fonts/`, `Project/`, `Rendering/`, `Examples/` — and the scene's shader graphs/materials. The repo root also contains `Packages/` and `.gitfilters/` with the RSG token‑scrubbing config described under Setup.)*
 
 ---
 
