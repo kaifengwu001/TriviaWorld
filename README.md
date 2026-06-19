@@ -328,4 +328,4 @@ tools/generate_map_textures.py         — Offline map-texture + cityBounds gene
 
 ## Credits
 
-CurioCity (working titles *TriviaWorld* / *TriviaGo*) is a Spectacles + Spatial‑AI learning experience. Source headers are marked "Specs Inc. 2026."
+CurioCity (working titles *TriviaWorld* / *TriviaGo*) is a Spectacles + Spatial‑AI learning experience. Source headers are marked "Specs Inc. 2026.". Adding this comment to includeour teammate Uttam Grandhi as a Collaborator whose work on the multiplayer functionality was merged with the main project. Here is a link to the GitHub Repo: https://github.com/uttamg911/Spectacles-Trivia-Multiplayer
